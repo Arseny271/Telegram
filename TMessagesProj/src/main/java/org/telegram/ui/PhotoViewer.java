@@ -9672,7 +9672,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 } else {
                     allowShare = true;
                     menuItem.showSubItem(gallery_menu_save);
-                    paintButton.setVisibility(!isVideo && (newMessageObject.canPreviewDocument() || newMessageObject.type != 9) && canSendMediaToParentChatActivity() ? View.VISIBLE : View.GONE);
+                    setPaintButtonVisibility(!isVideo && (newMessageObject.canPreviewDocument() || newMessageObject.type != 9) && canSendMediaToParentChatActivity(), true);
                     bottomButtonsLayout.setVisibility(!videoPlayerControlVisible ? View.VISIBLE : View.GONE);
                     if (bottomButtonsLayout.getVisibility() == View.VISIBLE) {
                         menuItem.hideSubItem(gallery_menu_share);
@@ -14453,6 +14453,44 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         @Override
         public int getItemViewType(int i) {
             return 0;
+        }
+    }
+
+
+    ObjectAnimator paintButtonAnimator;
+    private void setPaintButtonVisibility(boolean visility, boolean animated) {
+        if (animated) {
+            if (paintButtonAnimator != null && paintButtonAnimator.isRunning()) {
+                paintButtonAnimator.cancel();
+                paintButtonAnimator = null;
+            }
+
+            paintButtonAnimator = ObjectAnimator.ofFloat(paintButton, View.ALPHA, visility ? 1: 0);
+            paintButtonAnimator.setDuration(150);
+            paintButtonAnimator.addListener(new Animator.AnimatorListener() {
+                @Override
+                public void onAnimationStart(Animator animator) {
+                    paintButton.setVisibility(View.VISIBLE);
+                }
+
+                @Override
+                public void onAnimationEnd(Animator animator) {
+                    setPaintButtonVisibility(visility, false);
+                }
+
+                @Override
+                public void onAnimationCancel(Animator animator) {
+
+                }
+
+                @Override
+                public void onAnimationRepeat(Animator animator) {
+
+                }
+            });
+            paintButtonAnimator.start();
+        } else {
+            paintButton.setVisibility(visility ? View.VISIBLE: View.GONE);
         }
     }
 }
