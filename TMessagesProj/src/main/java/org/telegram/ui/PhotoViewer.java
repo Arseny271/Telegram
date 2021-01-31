@@ -9672,7 +9672,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 } else {
                     allowShare = true;
                     menuItem.showSubItem(gallery_menu_save);
-                    paintButton.setVisibility(!isVideo && canSendMediaToParentChatActivity() ? View.VISIBLE : View.GONE);
+                    paintButton.setVisibility(!isVideo && (newMessageObject.canPreviewDocument() || newMessageObject.type != 9) && canSendMediaToParentChatActivity() ? View.VISIBLE : View.GONE);
                     bottomButtonsLayout.setVisibility(!videoPlayerControlVisible ? View.VISIBLE : View.GONE);
                     if (bottomButtonsLayout.getVisibility() == View.VISIBLE) {
                         menuItem.hideSubItem(gallery_menu_share);
