@@ -95,7 +95,7 @@ public class ChatEditTypeActivity extends BaseFragment implements NotificationCe
     private int checkReqId;
     private String lastCheckName;
     private Runnable checkRunnable;
-    private boolean lastNameAvailable;
+    private boolean lastNameAvailable = false;
     private boolean loadingInvite;
     private TLRPC.TL_chatInviteExported invite;
 
@@ -194,6 +194,9 @@ public class ChatEditTypeActivity extends BaseFragment implements NotificationCe
                 if (id == -1) {
                     finishFragment();
                 } else if (id == done_button) {
+                    if (!checkEmptyName(usernameTextView.getText().toString()) && !isPrivate) {
+                        checkTextView.setVisibility(View.VISIBLE);
+                    }
                     processDone();
                 }
             }
@@ -446,8 +449,8 @@ public class ChatEditTypeActivity extends BaseFragment implements NotificationCe
         if (getParentActivity() == null) {
             return false;
         }
-        if (!isPrivate && ((currentChat.username == null && usernameTextView.length() != 0) || (currentChat.username != null && !currentChat.username.equalsIgnoreCase(usernameTextView.getText().toString())))) {
-            if (usernameTextView.length() != 0 && !lastNameAvailable) {
+        if (!isPrivate && ((currentChat.username == null /*&& usernameTextView.length() != 0*/) || (currentChat.username != null && !currentChat.username.equalsIgnoreCase(usernameTextView.getText().toString())))) {
+            if (/*usernameTextView.length() != 0 &&*/ !lastNameAvailable) {
                 Vibrator v = (Vibrator) getParentActivity().getSystemService(Context.VIBRATOR_SERVICE);
                 if (v != null) {
                     v.vibrate(200);
@@ -599,6 +602,20 @@ public class ChatEditTypeActivity extends BaseFragment implements NotificationCe
         usernameTextView.clearFocus();
     }
 
+
+    private boolean checkEmptyName(final String name) {
+        if (name == null || name.length() < 5) {
+            if (isChannel) {
+                checkTextView.setText(LocaleController.getString("LinkInvalidShort", R.string.LinkInvalidShort));
+            } else {
+                checkTextView.setText(LocaleController.getString("LinkInvalidShortMega", R.string.LinkInvalidShortMega));
+            }
+            checkTextView.setTextColor(Theme.key_windowBackgroundWhiteRedText4);
+            return false;
+        }
+        return true;
+    }
+
     private boolean checkUserName(final String name) {
         if (name != null && name.length() > 0) {
             checkTextView.setVisibility(View.VISIBLE);
@@ -639,13 +656,7 @@ public class ChatEditTypeActivity extends BaseFragment implements NotificationCe
                 }
             }
         }
-        if (name == null || name.length() < 5) {
-            if (isChannel) {
-                checkTextView.setText(LocaleController.getString("LinkInvalidShort", R.string.LinkInvalidShort));
-            } else {
-                checkTextView.setText(LocaleController.getString("LinkInvalidShortMega", R.string.LinkInvalidShortMega));
-            }
-            checkTextView.setTextColor(Theme.key_windowBackgroundWhiteRedText4);
+        if (!checkEmptyName(name)) {
             return false;
         }
         if (name.length() > 32) {
