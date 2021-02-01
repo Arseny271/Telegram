@@ -262,8 +262,8 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
 
         int viewWidth = getWidth();
         int viewHeight = getHeight();
-        float viewCenterX = viewWidth / 2;
-        float viewCenterY = viewHeight / 2;
+        float viewCenterX = viewWidth / 2f;
+        float viewCenterY = viewHeight / 2f;
 
         float scale;
         if (rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) {

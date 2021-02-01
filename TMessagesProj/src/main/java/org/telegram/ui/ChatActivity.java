@@ -17659,9 +17659,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
         AlertsCreator.createDeleteMessagesAlert(this, currentUser, currentChat, currentEncryptedChat, chatInfo, mergeDialogId, finalSelectedObject, selectedMessagesIds, finalSelectedGroup, chatMode == MODE_SCHEDULED, loadParticipant, () -> {
             hideActionMode();
+            //updateRepliesView();
             updatePinnedMessageView(true);
         });
     }
+
+    /*private void updateRepliesView() {
+
+    }*/
 
     private void hideActionMode() {
         if (!actionBar.isActionModeShowed()) {
