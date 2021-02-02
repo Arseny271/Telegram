@@ -878,7 +878,7 @@ public class ChannelAdminLogActivity extends BaseFragment implements Notificatio
             if (getParentActivity() == null) {
                 return;
             }
-            AdminLogFilterAlert adminLogFilterAlert = new AdminLogFilterAlert(getParentActivity(), currentFilter, selectedAdmins, currentChat.megagroup);
+            AdminLogFilterAlert adminLogFilterAlert = new AdminLogFilterAlert(getParentActivity(), currentFilter, selectedAdmins, currentChat.megagroup, currentChat.broadcast);
             adminLogFilterAlert.setCurrentAdmins(admins);
             adminLogFilterAlert.setAdminLogFilterAlertDelegate((filter, admins) -> {
                 currentFilter = filter;

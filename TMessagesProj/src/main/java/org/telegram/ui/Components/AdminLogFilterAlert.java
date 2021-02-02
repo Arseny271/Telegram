@@ -63,6 +63,7 @@ public class AdminLogFilterAlert extends BottomSheet {
     private ArrayList<TLRPC.ChannelParticipant> currentAdmins;
     private SparseArray<TLRPC.User> selectedAdmins;
     private boolean isMegagroup;
+    private boolean isBroadcast;
 
     private int restrictionsRow;
     private int adminsRow;
@@ -75,7 +76,7 @@ public class AdminLogFilterAlert extends BottomSheet {
     private int callsRow;
     private int allAdminsRow;
 
-    public AdminLogFilterAlert(Context context, TLRPC.TL_channelAdminLogEventsFilter filter, SparseArray<TLRPC.User> admins, boolean megagroup) {
+    public AdminLogFilterAlert(Context context, TLRPC.TL_channelAdminLogEventsFilter filter, SparseArray<TLRPC.User> admins, boolean megagroup, boolean broadcast) {
         super(context, false);
         if (filter != null) {
             currentFilter = new TLRPC.TL_channelAdminLogEventsFilter();
@@ -99,6 +100,7 @@ public class AdminLogFilterAlert extends BottomSheet {
             selectedAdmins = admins.clone();
         }
         isMegagroup = megagroup;
+        isBroadcast = broadcast;
 
         int rowCount = 1;
         if (isMegagroup) {
@@ -116,8 +118,14 @@ public class AdminLogFilterAlert extends BottomSheet {
         } else {
             pinnedRow = -1;
         }
-        leavingRow = rowCount++;
-        callsRow = rowCount;
+
+        if (!isBroadcast) {
+            callsRow = rowCount++;
+        } else {
+            callsRow = -1;
+        }
+
+        leavingRow = rowCount;
         rowCount += 2;
         allAdminsRow = rowCount;
 
