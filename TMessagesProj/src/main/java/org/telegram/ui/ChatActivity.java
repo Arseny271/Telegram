@@ -2820,6 +2820,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
                     int childLeft;
                     int childTop;
+                    int childHeightDiff = 0;
 
                     int gravity = lp.gravity;
                     if (gravity == -1) {
@@ -2911,12 +2912,15 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     } else if (child == instantCameraView || child == overlayView || child == animatingImageView) {
                         childTop = 0;
                     } else if (child == textSelectionHelper.getOverlayView(context)) {
+                        childHeightDiff = keyboardSize - childTop;
                         childTop -= paddingBottom;
                         if (keyboardSize > AndroidUtilities.dp(20) && getLayoutParams().height < 0) {
                             childTop -= keyboardSize;
+                        } else {
+                            childHeightDiff = 0;
                         }
                     }
-                    child.layout(childLeft, childTop, childLeft + width, childTop + height);
+                    child.layout(childLeft, childTop, childLeft + width, childTop + height + childHeightDiff);
                 }
 
                 invalidateChatListViewTopPadding();
