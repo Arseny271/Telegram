@@ -535,6 +535,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
     private SparseArray<MessageObject>[] messagesDict = new SparseArray[]{new SparseArray<>(), new SparseArray<>()};
     private SparseArray<MessageObject> repliesMessagesDict = new SparseArray<>();
+    private SparseArray<SparseArray<MessageObject>> messagesWithRepliesDict = new SparseArray<>();
     private HashMap<String, ArrayList<MessageObject>> messagesByDays = new HashMap<>();
     protected ArrayList<MessageObject> messages = new ArrayList<>();
     private SparseArray<MessageObject> waitingForReplies = new SparseArray<>();
@@ -12110,6 +12111,12 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     MessageObject obj = messArr.get(a);
                     if (obj.replyMessageObject != null) {
                         repliesMessagesDict.put(obj.replyMessageObject.getId(), obj.replyMessageObject);
+                        SparseArray<MessageObject> messagesWithReply = messagesWithRepliesDict.get(obj.replyMessageObject.getId());
+                        if (messagesWithReply == null) {
+                            messagesWithReply = new SparseArray<>();
+                            messagesWithRepliesDict.put(obj.replyMessageObject.getId(), messagesWithReply);
+                        }
+                        messagesWithReply.put(obj.getId(), obj);
                     }
                     int messageId = obj.getId();
                     if (threadMessageId != 0) {
@@ -14631,6 +14638,15 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     messageObject.generatePaymentSentMessageText(null);
                 }
             }
+
+            if (messageObject.replyMessageObject != null) {
+                SparseArray<MessageObject> messagesWithReply = messagesWithRepliesDict.get(messageObject.replyMessageObject.getId());
+                if (messagesWithReply == null) {
+                    messagesWithReply = new SparseArray<>();
+                    messagesWithRepliesDict.put(messageObject.replyMessageObject.getId(), messagesWithReply);
+                }
+                messagesWithReply.put(messageObject.getId(), messageObject);
+            }
         }
 
         if (chatMode == MODE_SCHEDULED && !arr.isEmpty()) {
@@ -15160,6 +15176,22 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 repliesMessagesDict.remove(mid);
             }
             if (obj != null) {
+                SparseArray<MessageObject> messagesWithReply = messagesWithRepliesDict.get(mid);
+                if (messagesWithReply != null) {
+                    for (int i = 0; i < messagesWithReply.size(); i++) {
+                        int messageId = messagesWithReply.valueAt(i).getId();
+                        MessageObject replyMessage = messagesDict[loadIndex].get(messageId);
+                        if (replyMessage != null) {
+                            replyMessage.forceUpdate = true;
+                            int index = messages.indexOf(replyMessage);
+                            if (index >= 0 && chatAdapter != null) {
+                                chatAdapter.updateRowAtPosition(chatAdapter.messagesStartRow + index);
+                            }
+                        }
+                    }
+                    messagesWithRepliesDict.remove(mid);
+                }
+
                 if (obj.messageOwner.reply_to != null && !(obj.messageOwner.action instanceof TLRPC.TL_messageActionPinMessage)) {
                     int replyId = obj.getReplyAnyMsgId();
                     if (threadMessageObject != null && threadMessageObject.getId() == replyId) {
@@ -15357,6 +15389,24 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (loadIndex == 0 && repliesMessagesDict.indexOfKey(messageObject.getId()) >= 0) {
                 repliesMessagesDict.put(messageObject.getId(), messageObject);
             }
+
+            SparseArray<MessageObject> messagesWithReply = messagesWithRepliesDict.get(messageObject.getId());
+            if (messagesWithReply != null) {
+                for (int i = 0; i < messagesWithReply.size(); i++) {
+                    int messageId = messagesWithReply.valueAt(i).getId();
+                    MessageObject replyMessage = messagesDict[loadIndex].get(messageId);
+                    if (replyMessage != null) {
+                        replyMessage.replyMessageObject = messageObject;
+                        replyMessage.forceUpdate = true;
+
+                        int index = messages.indexOf(replyMessage);
+                        if (index >= 0 && chatAdapter != null) {
+                            chatAdapter.updateRowAtPosition(chatAdapter.messagesStartRow + index);
+                        }
+                    }
+                }
+            }
+
             if (old == null || remove && old.messageOwner.date != messageObject.messageOwner.date) {
                 continue;
             }
