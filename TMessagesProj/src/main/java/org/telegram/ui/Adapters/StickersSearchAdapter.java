@@ -448,6 +448,8 @@ public class StickersSearchAdapter extends RecyclerListView.SelectionAdapter {
             } else {
                 super.onBindViewHolder(holder, position, payloads);
             }
+        } else {
+            super.onBindViewHolder(holder, position, payloads);
         }
     }
 
