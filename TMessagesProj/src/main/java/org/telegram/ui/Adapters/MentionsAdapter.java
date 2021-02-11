@@ -430,6 +430,10 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
         isSearchingMentions = value;
     }
 
+    public boolean getSearchingMentions() {
+        return isSearchingMentions;
+    }
+
     public String getBotCaption() {
         if (foundContextBot != null) {
             return foundContextBot.bot_inline_placeholder;
