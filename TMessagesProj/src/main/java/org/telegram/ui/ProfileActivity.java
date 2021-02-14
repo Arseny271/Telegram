@@ -1068,17 +1068,30 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             animator.setInterpolator(CubicBezierInterpolator.EASE_BOTH);
             animator.addUpdateListener(a -> {
                 final float value = AndroidUtilities.lerp(animatorValues, a.getAnimatedFraction());
-                final View menuItem = getSecondaryMenuItem();
-                if (menuItem != null) {
-                    menuItem.setScaleX(1f - value);
-                    menuItem.setScaleY(1f - value);
-                    menuItem.setAlpha(1f - value);
+                if (searchItem != null) {
+                    searchItem.setScaleX(1f - value);
+                    searchItem.setScaleY(1f - value);
+                    searchItem.setAlpha(1f - value);
                 }
+
+                if (editItemVisible) {
+                    editItem.setScaleX(1f - value);
+                    editItem.setScaleY(1f - value);
+                    editItem.setAlpha(1f - value);
+                }
+
+                if (callItemVisible) {
+                    callItem.setScaleX(1f - value);
+                    callItem.setScaleY(1f - value);
+                    callItem.setAlpha(1f - value);
+                }
+
                 if (videoCallItemVisible) {
                     videoCallItem.setScaleX(1f - value);
                     videoCallItem.setScaleY(1f - value);
                     videoCallItem.setAlpha(1f - value);
                 }
+
                 setScaleX(value);
                 setScaleY(value);
                 setAlpha(value);
@@ -1088,10 +1101,18 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     if (isIndicatorVisible) {
-                        final View menuItem = getSecondaryMenuItem();
-                        if (menuItem != null) {
-                            menuItem.setVisibility(GONE);
+                        if (searchItem != null) {
+                            searchItem.setVisibility(GONE);
                         }
+
+                        if (editItemVisible) {
+                            editItem.setVisibility(GONE);
+                        }
+
+                        if (callItemVisible) {
+                            callItem.setVisibility(GONE);
+                        }
+
                         if (videoCallItemVisible) {
                             videoCallItem.setVisibility(GONE);
                         }
@@ -1106,6 +1127,15 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (menuItem != null && (menuItem != searchItem || !expanded)) {
                         menuItem.setVisibility(VISIBLE);
                     }
+
+                    if (editItemVisible) {
+                        editItem.setVisibility(VISIBLE);
+                    }
+
+                    if (callItemVisible) {
+                        callItem.setVisibility(VISIBLE);
+                    }
+
                     if (videoCallItemVisible) {
                         videoCallItem.setVisibility(VISIBLE);
                     }
@@ -6114,6 +6144,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     listView.smoothScrollBy(0, view.getTop() - AndroidUtilities.dp(88), CubicBezierInterpolator.EASE_OUT_QUINT);
                 }
             }
+
+            actionBar.createMenu().requestLayout();
         });
     }
 
