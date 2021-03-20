@@ -229,9 +229,9 @@ public class AdminLogFilterAlert extends BottomSheet {
                     if (isChecked) {
                         currentFilter = new TLRPC.TL_channelAdminLogEventsFilter();
                         currentFilter.join = currentFilter.leave = currentFilter.invite = currentFilter.ban =
-                        currentFilter.unban = currentFilter.kick = currentFilter.unkick = currentFilter.promote =
-                        currentFilter.demote = currentFilter.info = currentFilter.settings = currentFilter.pinned =
-                        currentFilter.edit = currentFilter.delete = currentFilter.group_call = currentFilter.invites = false;
+                                currentFilter.unban = currentFilter.kick = currentFilter.unkick = currentFilter.promote =
+                                        currentFilter.demote = currentFilter.info = currentFilter.settings = currentFilter.pinned =
+                                                currentFilter.edit = currentFilter.delete = currentFilter.group_call = currentFilter.invites = false;
                     } else {
                         currentFilter = null;
                     }
@@ -264,9 +264,9 @@ public class AdminLogFilterAlert extends BottomSheet {
                     if (currentFilter == null) {
                         currentFilter = new TLRPC.TL_channelAdminLogEventsFilter();
                         currentFilter.join = currentFilter.leave = currentFilter.invite = currentFilter.ban =
-                        currentFilter.unban = currentFilter.kick = currentFilter.unkick = currentFilter.promote =
-                        currentFilter.demote = currentFilter.info = currentFilter.settings = currentFilter.pinned =
-                        currentFilter.edit = currentFilter.delete = currentFilter.group_call = currentFilter.invites = true;
+                                currentFilter.unban = currentFilter.kick = currentFilter.unkick = currentFilter.promote =
+                                        currentFilter.demote = currentFilter.info = currentFilter.settings = currentFilter.pinned =
+                                                currentFilter.edit = currentFilter.delete = currentFilter.group_call = currentFilter.invites = true;
                         RecyclerView.ViewHolder holder = listView.findViewHolderForAdapterPosition(0);
                         if (holder != null) {
                             ((CheckBoxCell) holder.itemView).setChecked(false, true);

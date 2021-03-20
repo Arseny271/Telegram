@@ -431,10 +431,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
         isSearchingMentions = value;
     }
 
-    public boolean getSearchingMentions() {
-        return isSearchingMentions;
-    }
-
     public String getBotCaption() {
         if (foundContextBot != null) {
             return foundContextBot.bot_inline_placeholder;
@@ -732,10 +728,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
                     TLObject object;
                     int id;
                     if (a == -1) {
-                        if (chat == null || chat.username == null) {
-                            continue;
-                        }
-                        if (chat.username.length() == 0) {
+                        if (chat == null) {
                             continue;
                         }
                         if (usernameString.length() == 0) {
