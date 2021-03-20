@@ -445,12 +445,12 @@ public class StickersSearchAdapter extends RecyclerListView.SelectionAdapter {
         if (payloads.contains(PAYLOAD_ANIMATED)) {
             if (holder.getItemViewType() == 3) {
                 bindFeaturedStickerSetInfoCell((FeaturedStickerSetInfoCell) holder.itemView, position, true);
-            } else {
-                super.onBindViewHolder(holder, position, payloads);
+                return;
             }
         } else {
             super.onBindViewHolder(holder, position, payloads);
         }
+        super.onBindViewHolder(holder, position, payloads);
     }
 
     public void installStickerSet(TLRPC.InputStickerSet inputSet) {
