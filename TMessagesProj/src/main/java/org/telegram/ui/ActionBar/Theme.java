@@ -423,7 +423,15 @@ public class Theme {
             draw(canvas, null);
         }
 
+        public void draw(Canvas canvas, int radius) {
+            draw(canvas, null, radius);
+        }
+
         public void draw(Canvas canvas, Paint paintToUse) {
+            draw(canvas, paintToUse, -1);
+        }
+
+        public void draw(Canvas canvas, Paint paintToUse, int radius) {
             Rect bounds = getBounds();
             if (paintToUse == null && gradientShader == null) {
                 Drawable background = getBackgroundDrawable();
@@ -444,6 +452,10 @@ public class Theme {
                 nearRad = dp(Math.min(5, SharedConfig.bubbleRadius));
             }
             int smallRad = dp(6);
+
+            if (radius != -1) {
+                rad = radius;
+            }
 
             Paint p = paintToUse == null ? paint : paintToUse;
 

@@ -42,6 +42,7 @@ import org.telegram.messenger.SecretChatHelper;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.ui.AnimationSettings.AnimationsController;
 import org.telegram.ui.Components.LayoutHelper;
 
 import java.util.ArrayList;
@@ -578,6 +579,10 @@ public class BaseFragment {
 
     public NotificationCenter getNotificationCenter() {
         return getAccountInstance().getNotificationCenter();
+    }
+
+    public AnimationsController getAnimationController() {
+        return AnimationsController.getInstance(currentAccount);
     }
 
     public MediaController getMediaController() {

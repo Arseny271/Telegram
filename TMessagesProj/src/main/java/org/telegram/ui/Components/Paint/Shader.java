@@ -15,6 +15,10 @@ public class Shader {
     private int vertexShader;
     private int fragmentShader;
 
+    public int getProgram() {
+        return program;
+    }
+
     protected Map<String, Integer> uniformsMap = new HashMap<>();
 
     public Shader(String vertexShader, String fragmentShader, String[] attributes, String[] uniforms) {

@@ -8,6 +8,7 @@ import android.animation.ValueAnimator;
 import android.os.Build;
 import android.view.View;
 import android.view.ViewPropertyAnimator;
+import android.view.animation.Interpolator;
 import android.view.animation.OvershootInterpolator;
 
 import androidx.annotation.NonNull;
@@ -222,11 +223,16 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
             additions.addAll(mPendingAdditions);
             mPendingAdditions.clear();
 
+            onAddItemsHeight(addedItemsHeight);
             for (RecyclerView.ViewHolder holder : additions) {
                 animateAddImpl(holder, addedItemsHeight);
             }
             additions.clear();
         }
+    }
+
+    public void onAddItemsHeight(int addedItemsHeight) {
+
     }
 
     @Override
@@ -280,8 +286,44 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         if (!(holder.itemView instanceof ChatMessageCell && ((ChatMessageCell) holder.itemView).getTransitionParams().ignoreAlpha)) {
             holder.itemView.setAlpha(1);
         }
-        animation.translationY(0).setDuration(getMoveDuration())
-                .setInterpolator(translationInterpolator)
+
+        //final ObjectAnimator animation = ObjectAnimator.ofFloat(view, View.TRANSLATION_Y, addedItemsHeight, 0);
+
+        //animation.setStartDelay(getMoveStartDelay());
+        //animation.setDuration(getMoveDuration());
+        //animation.setInterpolator(getMoveInterpolator());
+        /*animation.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationStart(Animator animator) {
+                dispatchAddStarting(holder);
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animator) {
+                view.setTranslationY(0);
+                if (view instanceof ChatMessageCell) {
+                    ((ChatMessageCell) view).getTransitionParams().messageEntering = false;
+                }
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animator) {
+                if (view instanceof ChatMessageCell) {
+                    ((ChatMessageCell) view).getTransitionParams().messageEntering = false;
+                }
+                //animation.setListener(null);
+                if (mAddAnimations.remove(holder)) {
+                    dispatchAddFinished(holder);
+                    dispatchFinishedWhenDone();
+                }
+            }
+        });*/
+        //animation.start();
+
+        animation.translationY(0)
+                .setStartDelay(getMoveStartDelay())
+                .setDuration(getMoveDuration())
+                .setInterpolator(getMoveInterpolator())
                 .setListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationStart(Animator animator) {
@@ -359,6 +401,10 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         ChatMessageCell chatMessageCell = null;
         if (holder.itemView instanceof ChatMessageCell) {
             chatMessageCell = ((ChatMessageCell) holder.itemView);
+            if (chatMessageCell.getOverlayAnimated() && fromY == toY) {
+                dispatchMoveFinished(holder);
+                return false;
+            }
             fromX += (int) chatMessageCell.getAnimationOffsetX();
             if (chatMessageCell.getTransitionParams().lastTopOffset != chatMessageCell.getTopMediaOffset()) {
                 fromY += chatMessageCell.getTransitionParams().lastTopOffset - chatMessageCell.getTopMediaOffset();
@@ -777,9 +823,11 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
             }
         }
 
-        if (translationInterpolator != null) {
-            animatorSet.setInterpolator(translationInterpolator);
+        Interpolator interpolator = getMoveInterpolator();
+        if (interpolator != null) {
+            animatorSet.setInterpolator(interpolator);
         }
+        animatorSet.setStartDelay(getMoveStartDelay());
         animatorSet.setDuration(getMoveDuration());
         animatorSet.addListener(new AnimatorListenerAdapter() {
             @Override
@@ -1374,6 +1422,14 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         return 0;
     }
 
+    public long getMoveStartDelay() {
+        return 0;
+    }
+
+    public Interpolator getMoveInterpolator() {
+        return translationInterpolator;
+    }
+
     @Override
     public long getMoveDuration() {
         return 220;
@@ -1381,7 +1437,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
 
     @Override
     public long getChangeDuration() {
-        return 220;
+        return getMoveDuration() + getMoveStartDelay();
     }
 
     public void runOnAnimationEnd(Runnable runnable) {

@@ -1089,6 +1089,10 @@ public class ActionBar extends FrameLayout {
 
     boolean overlayTitleAnimationInProgress;
 
+    public BaseFragment getParentFragment() {
+        return parentFragment;
+    }
+
     public void setTitleOverlayText(String title, int titleId, Runnable action) {
         if (!allowOverlayTitle || parentFragment.parentLayout == null) {
             return;

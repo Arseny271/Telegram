@@ -47,6 +47,10 @@ public class ChatActivityEnterTopView extends FrameLayout {
         return editView;
     }
 
+    public View getReplyView() {
+        return replyView;
+    }
+
     public static class EditView extends LinearLayout {
 
         private EditViewButton[] buttons = new EditViewButton[2];

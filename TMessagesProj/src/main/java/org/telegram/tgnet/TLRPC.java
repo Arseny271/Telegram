@@ -46488,6 +46488,7 @@ public class TLRPC {
         public int send_state = 0; //custom
         public int fwd_msg_id = 0; //custom
         public String attachPath = ""; //custom
+        public String originalPath = ""; // custom
 		public HashMap<String, String> params; //custom
         public long random_id; //custom
         public int local_id = 0; //custom

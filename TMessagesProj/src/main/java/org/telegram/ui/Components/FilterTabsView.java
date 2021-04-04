@@ -654,6 +654,7 @@ public class FilterTabsView extends FrameLayout {
     private SparseIntArray positionToWidth = new SparseIntArray(5);
     private SparseIntArray positionToX = new SparseIntArray(5);
 
+    private boolean needRenameFirstTab;
     private boolean animationRunning;
     private long lastAnimationTime;
     private float animationTime;
@@ -710,6 +711,10 @@ public class FilterTabsView extends FrameLayout {
         }
     };
 
+    public void setNeedRenameFirstTab(boolean needRenameFirstTab) {
+        this.needRenameFirstTab = needRenameFirstTab;
+    }
+
     public FilterTabsView(Context context) {
         super(context);
         textCounterPaint.setTextSize(AndroidUtilities.dp(13));
@@ -719,6 +724,8 @@ public class FilterTabsView extends FrameLayout {
         deletePaint.setStyle(Paint.Style.STROKE);
         deletePaint.setStrokeCap(Paint.Cap.ROUND);
         deletePaint.setStrokeWidth(AndroidUtilities.dp(1.5f));
+
+        setNeedRenameFirstTab(true);
 
         selectorDrawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, null);
         float rad = AndroidUtilities.dpf2(3);
@@ -947,6 +954,10 @@ public class FilterTabsView extends FrameLayout {
 
     public boolean isAnimatingIndicator() {
         return animatingIndicator;
+    }
+
+    public void setListViewPadding(int left, int top, int right, int bottom) {
+        listView.setPadding(left, top, right, bottom);
     }
 
     private void scrollToTab(int id, int position) {
@@ -1193,19 +1204,21 @@ public class FilterTabsView extends FrameLayout {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         if (!tabs.isEmpty()) {
-            int width = MeasureSpec.getSize(widthMeasureSpec) - AndroidUtilities.dp(7) - AndroidUtilities.dp(7);
-            Tab firstTab = tabs.get(0);
-            firstTab.setTitle(LocaleController.getString("FilterAllChats", R.string.FilterAllChats));
-            int tabWith = firstTab.getWidth(false);
-            firstTab.setTitle(allTabsWidth > width ? LocaleController.getString("FilterAllChatsShort", R.string.FilterAllChatsShort) : LocaleController.getString("FilterAllChats", R.string.FilterAllChats));
-            int trueTabsWidth = allTabsWidth - tabWith;
-            trueTabsWidth += firstTab.getWidth(false);
-            int prevWidth = additionalTabWidth;
-            additionalTabWidth = trueTabsWidth < width ? (width - trueTabsWidth) / tabs.size() : 0;
-            if (prevWidth != additionalTabWidth) {
-                ignoreLayout = true;
-                adapter.notifyDataSetChanged();
-                ignoreLayout = false;
+            if (needRenameFirstTab) {
+                int width = MeasureSpec.getSize(widthMeasureSpec) - AndroidUtilities.dp(7) - AndroidUtilities.dp(7);
+                Tab firstTab = tabs.get(0);
+                firstTab.setTitle(LocaleController.getString("FilterAllChats", R.string.FilterAllChats));
+                int tabWith = firstTab.getWidth(false);
+                firstTab.setTitle(allTabsWidth > width ? LocaleController.getString("FilterAllChatsShort", R.string.FilterAllChatsShort) : LocaleController.getString("FilterAllChats", R.string.FilterAllChats));
+                int trueTabsWidth = allTabsWidth - tabWith;
+                trueTabsWidth += firstTab.getWidth(false);
+                int prevWidth = additionalTabWidth;
+                additionalTabWidth = trueTabsWidth < width ? (width - trueTabsWidth) / tabs.size() : 0;
+                if (prevWidth != additionalTabWidth) {
+                    ignoreLayout = true;
+                    adapter.notifyDataSetChanged();
+                    ignoreLayout = false;
+                }
             }
             updateTabsWidths();
             invalidated = false;

@@ -76,6 +76,10 @@ public class StickerCell extends FrameLayout {
         return clearsInputField;
     }
 
+    public BackupImageView getImageView() {
+        return imageView;
+    }
+
     public void setSticker(TLRPC.Document document, Object parent, int side) {
         parentObject = parent;
         if (document != null) {

@@ -23,6 +23,7 @@ import android.graphics.Outline;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.hardware.Camera;
 import android.media.MediaMetadataRetriever;
@@ -147,6 +148,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
     private static boolean mediaFromExternalCamera;
     private static ArrayList<Object> cameraPhotos = new ArrayList<>();
     private static HashMap<Object, Object> selectedPhotos = new HashMap<>();
+    private static HashMap<Object, RectF> selectedRects = new HashMap<>();
     private static ArrayList<Object> selectedPhotosOrder = new ArrayList<>();
     private static int lastImageId = -1;
     private boolean cancelTakingPhotos;
@@ -503,6 +505,12 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
         gridView.setOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                for (HashMap.Entry<Object, RectF> entry : selectedRects.entrySet()) {
+                    RectF rect = entry.getValue();
+                    rect.top -= dy;
+                    rect.bottom -= dy;
+                }
+
                 if (gridView.getChildCount() <= 0) {
                     return;
                 }
@@ -999,10 +1007,29 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
         });
     }
 
+    private int addToSelectedPhotos(PhotoAttachPhotoCell cell, MediaController.PhotoEntry object, int index) {
+        Object key = object.imageId;
+        if (!selectedPhotos.containsKey(key)) {
+            ImageReceiver imageReceiver = cell.getImageView().getImageReceiver();
+            int location[] = new int[2];
+            cell.getLocationOnScreen(location);
+            selectedRects.put(key, new RectF(
+                location[0] + imageReceiver.getImageX(),
+                location[1] + imageReceiver.getImageY(),
+                location[0] + imageReceiver.getImageX2(),
+                location[1] + imageReceiver.getImageY2()));
+        }
+
+        return addToSelectedPhotos(object, index);
+    }
+
     private int addToSelectedPhotos(MediaController.PhotoEntry object, int index) {
         Object key = object.imageId;
         if (selectedPhotos.containsKey(key)) {
             selectedPhotos.remove(key);
+            if (selectedRects.containsKey(key)) {
+                selectedRects.remove(key);
+            }
             int position = selectedPhotosOrder.indexOf(key);
             if (position >= 0) {
                 selectedPhotosOrder.remove(position);
@@ -2160,6 +2187,10 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
         return selectedPhotosOrder;
     }
 
+    public HashMap<Object, RectF> getSelectedPositions() {
+        return selectedRects;
+    }
+
     public void checkStorage() {
         if (noGalleryPermissions && Build.VERSION.SDK_INT >= 23) {
             noGalleryPermissions = parentAlert.baseFragment.getParentActivity().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED;
@@ -2917,7 +2948,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
                 } else {
                     v.setChecked(-1, added, true);
                 }
-                addToSelectedPhotos(photoEntry, index);
+                addToSelectedPhotos(v, photoEntry, index);
                 int updateIndex = index;
                 if (PhotoAttachAdapter.this == cameraAttachAdapter) {
                     if (adapter.needCamera && selectedAlbumEntry == galleryAlbumEntry) {

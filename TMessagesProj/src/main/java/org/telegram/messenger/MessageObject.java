@@ -166,6 +166,8 @@ public class MessageObject {
     private int generatedWithMinSize;
     private float generatedWithDensity;
     public boolean wasJustSent;
+    public boolean wasAnimated;
+    public int animationType = -1;
 
     public static Pattern urlPattern;
     public static Pattern instagramUrlPattern;
@@ -4051,6 +4053,40 @@ public class MessageObject {
         return messageOwner.media instanceof TLRPC.TL_messageMediaWebPage && messageOwner.media.webpage != null && !TextUtils.isEmpty(messageOwner.media.webpage.embed_url) && "YouTube".equals(messageOwner.media.webpage.site_name);
     }
 
+    public float getTextSize() {
+        if (messageOwner.media instanceof TLRPC.TL_messageMediaGame) {
+            return AndroidUtilities.dp(14);
+        } else {
+            return AndroidUtilities.dp(SharedConfig.fontSize);
+        }
+    }
+
+    public static int getMaxMessageTextWidthStatic() {
+        float generatedWithMinSize = AndroidUtilities.isTablet() ? AndroidUtilities.getMinTabletSide() : AndroidUtilities.displaySize.x;
+        return (int) (generatedWithMinSize - AndroidUtilities.dp(80));
+    }
+
+    public static boolean needResizeEditField() {
+        return getMaxMessageTextWidthStatic() < getWidthMaxLimit();
+    }
+
+    public static int getWidthMaxLimit() {
+        float ratio = (18f / SharedConfig.fontSize);
+
+        int width = AndroidUtilities.displaySize.x;
+        int height = AndroidUtilities.displaySize.y;
+
+        int leftWidth = 0;
+        if (!AndroidUtilities.isInMultiwindow && (!AndroidUtilities.isSmallTablet() || (width > height))) {
+            leftWidth = width / 100 * 35;
+            if (leftWidth < AndroidUtilities.dp(320)) {
+                leftWidth = AndroidUtilities.dp(320);
+            }
+        }
+
+        return (int)((AndroidUtilities.displaySize.x - leftWidth - AndroidUtilities.dp(96)) / ratio);
+    }
+
     public int getMaxMessageTextWidth() {
         int maxWidth = 0;
         if (AndroidUtilities.isTablet() && eventId != 0) {
@@ -4083,10 +4119,14 @@ public class MessageObject {
                 maxWidth -= AndroidUtilities.dp(10);
             }
         }
-        return maxWidth;
+        return Math.min(getWidthMaxLimit(), maxWidth);
     }
 
     public void generateLayout(TLRPC.User fromUser) {
+        generateLayout(fromUser, 0, 0);
+    }
+
+    public void generateLayout(TLRPC.User fromUser, int maxWidth, float fontSize) {
         if (type != 0 || messageOwner.peer_id == null || TextUtils.isEmpty(messageText)) {
             return;
         }
@@ -4138,7 +4178,9 @@ public class MessageObject {
 
         boolean hasUrls = addEntitiesToText(messageText, useManualParse);
 
-        int maxWidth = getMaxMessageTextWidth();
+        if (maxWidth == 0) {
+            maxWidth = getMaxMessageTextWidth();
+        }
 
         StaticLayout textLayout;
 
@@ -4147,6 +4189,12 @@ public class MessageObject {
             paint = Theme.chat_msgGameTextPaint;
         } else {
             paint = Theme.chat_msgTextPaint;
+        }
+
+        if (fontSize > 0) {
+            paint.setTextSize(fontSize);
+        } else {
+            paint.setTextSize(getTextSize());
         }
 
         try {
@@ -4161,6 +4209,7 @@ public class MessageObject {
             }
         } catch (Exception e) {
             FileLog.e(e);
+            paint.setTextSize(getTextSize());
             return;
         }
 
@@ -4353,6 +4402,8 @@ public class MessageObject {
 
             linesOffset += currentBlockLinesCount;
         }
+
+        paint.setTextSize(getTextSize());
     }
 
     public boolean isOut() {

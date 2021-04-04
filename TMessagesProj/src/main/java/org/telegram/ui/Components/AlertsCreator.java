@@ -75,6 +75,7 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.SerializedData;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
@@ -3559,6 +3560,56 @@ public class AlertsCreator {
 
     public interface PaymentAlertDelegate {
         void didPressedNewCard();
+    }
+
+    public static void createRestoreAnimationParamsAlert(BaseFragment fragment, Runnable onRestore) {
+        if (fragment == null) {
+            return;
+        }
+        Activity activity = fragment.getParentActivity();
+        if (activity == null) {
+            return;
+        }
+        int currentAccount = fragment.getCurrentAccount();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+        builder.setTitle("Restore default settings?");
+        builder.setMessage("Are you sure you want to restore the default animations settings?");
+
+        builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
+        builder.setPositiveButton("Restore", (dialogInterface, i) -> {
+            onRestore.run();
+        });
+
+        AlertDialog dialog = builder.create();
+        TextView button = (TextView) dialog.getButton(DialogInterface.BUTTON_POSITIVE);
+        if (button != null) {
+            button.setTextColor(Theme.getColor(Theme.key_dialogTextRed2));
+        }
+
+        fragment.showDialog(dialog);
+    }
+
+    public static void createImportAnimationParamsAlert(BaseFragment fragment, Runnable onImport) {
+        if (fragment == null) {
+            return;
+        }
+        Activity activity = fragment.getParentActivity();
+        if (activity == null) {
+            return;
+        }
+        int currentAccount = fragment.getCurrentAccount();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+        builder.setTitle("Import animation settings?");
+        builder.setMessage("Are you sure you want to import animation settings?");
+
+        builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
+        builder.setPositiveButton(LocaleController.getString("Import", R.string.Import), (dialogInterface, i) -> {
+            onImport.run();
+        });
+        AlertDialog dialog = builder.create();
+        fragment.showDialog(dialog);
     }
 
     public static void createDeleteMessagesAlert(BaseFragment fragment, TLRPC.User user, TLRPC.Chat chat, TLRPC.EncryptedChat encryptedChat, TLRPC.ChatFull chatInfo, long mergeDialogId, MessageObject selectedMessage, SparseArray<MessageObject>[] selectedMessages, MessageObject.GroupedMessages selectedGroup, boolean scheduled, int loadParticipant, Runnable onDelete) {

@@ -814,6 +814,15 @@ public class AndroidUtilities {
                 //igonre
             }
         }
+
+        if (pathString.endsWith("Animations.xml")) {
+            return false;
+        }
+
+        if (pathString.endsWith(".tga")) {
+            return false;
+        }
+
         if (pathString.endsWith(".attheme")) {
             return false;
         }
@@ -2694,6 +2703,8 @@ public class AndroidUtilities {
                     builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), null);
                     parentFragment.showDialog(builder.create());
                 }
+            } else if (parentFragment != null && f.getName().toLowerCase().endsWith("tga")) {
+                //todo?
             } else {
                 String realMimeType = null;
                 try {

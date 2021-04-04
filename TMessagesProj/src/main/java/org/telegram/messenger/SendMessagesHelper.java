@@ -2857,6 +2857,11 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             caption = "";
         }
 
+        String tempPath = null;
+        if (params != null && params.containsKey("tempPath")) {
+            tempPath = params.get("tempPath");
+        }
+
         String originalPath = null;
         if (params != null && params.containsKey("originalPath")) {
             originalPath = params.get("originalPath");
@@ -3044,6 +3049,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         newMsg.attachPath = path;
                     } else {
                         TLRPC.FileLocation location1 = photo.sizes.get(photo.sizes.size() - 1).location;
+                        newMsg.originalPath = tempPath;
                         newMsg.attachPath = FileLoader.getPathToAttach(location1, true).toString();
                     }
                 } else if (game != null) {
@@ -3125,6 +3131,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     } else {
                         newMsg.attachPath = path;
                     }
+                    newMsg.originalPath = tempPath;
                     if (encryptedChat != null && (MessageObject.isStickerDocument(document) || MessageObject.isAnimatedStickerDocument(document, true))) {
                         for (int a = 0; a < document.attributes.size(); a++) {
                             TLRPC.DocumentAttribute attribute = document.attributes.get(a);
@@ -5733,6 +5740,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         }
         boolean sendNew = false;
         if (originalPath != null) {
+            if (originalPath.endsWith("tga")) {
+                sendNew = true;
+            }
             if (originalPath.endsWith("attheme")) {
                 sendNew = true;
             } else if (attributeAudio != null) {
@@ -6995,6 +7005,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             if (originalPath != null) {
                                 params.put("originalPath", originalPath);
                             }
+                            if (info.path != null) {
+                                params.put("tempPath", info.path);
+                            }
                             if (parentFinal != null) {
                                 params.put("parentObject", parentFinal);
                             }
@@ -7186,6 +7199,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                     }
                                     params.put("masks", Utilities.bytesToHex(serializedData.toByteArray()));
                                     serializedData.cleanup();
+                                }
+                                if (tempPath != null) {
+                                    params.put("tempPath", tempPath);
                                 }
                                 if (originalPath != null) {
                                     params.put("originalPath", originalPath);
