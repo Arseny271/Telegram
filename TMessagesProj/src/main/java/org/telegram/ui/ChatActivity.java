@@ -18008,7 +18008,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         getAnimationController().getColors(colors);
         backgroundView.setColors(colors[0], colors[1], colors[2], colors[3]);
         if (gravitySensor != null) {
-            gravitySensor.listenStop();
+            gravitySensor.listenStart();
         }
         if (parentLayout != null && !parentLayout.isInPreviewMode() && blurredView != null && blurredView.getVisibility() == View.VISIBLE) {
             blurredView.setVisibility(View.GONE);
