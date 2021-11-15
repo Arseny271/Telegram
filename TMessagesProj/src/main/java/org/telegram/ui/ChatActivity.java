@@ -1648,11 +1648,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             waitingForLoad.add(lastLoadIndex);
             getMessagesController().loadMessages(dialog_id, mergeDialogId, loadInfo,
                     AndroidUtilities.isTablet() || isThreadChat() ? 30 : 20, -1, historyFragmentDatetime, false, 0, classGuid,
-                    1, 0, chatMode, threadMessageId, replyMaxReadId, lastLoadIndex++);
-
-            getMessagesController().loadMessages(
-                    dialog_id, mergeDialogId, loadInfo, 1, -1, historyFragmentDatetime + 86399,
-                    false, 0, classGuid, 0, 0, chatMode, threadMessageId, replyMaxReadId, lastLoadIndex++);
+                    2, 0, chatMode, threadMessageId, replyMaxReadId, lastLoadIndex++);
 
         } else if (chatMode != MODE_PINNED && !forceHistoryEmpty) {
             waitingForLoad.add(lastLoadIndex);
