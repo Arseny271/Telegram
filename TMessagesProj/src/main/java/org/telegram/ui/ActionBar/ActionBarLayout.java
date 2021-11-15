@@ -259,6 +259,7 @@ public class ActionBarLayout extends FrameLayout {
 
     private boolean inPreviewMode;
     private boolean previewOpenAnimationInProgress;
+    private float previewBackgroundAlpha = 1f;
     private ColorDrawable previewBackgroundDrawable;
 
     private LayoutContainer containerView;
@@ -583,6 +584,7 @@ public class ActionBarLayout extends FrameLayout {
             int x = (getMeasuredWidth() - AndroidUtilities.dp(24)) / 2;
             int y = (int) (view.getTop() + containerView.getTranslationY() - AndroidUtilities.dp(12 + (Build.VERSION.SDK_INT < 21 ? 20 : 0)));
             Theme.moveUpDrawable.setBounds(x, y, x + AndroidUtilities.dp(24), y + AndroidUtilities.dp(24));
+            Theme.moveUpDrawable.setAlpha((int)(255 * previewBackgroundAlpha));
             Theme.moveUpDrawable.draw(canvas);
         }
     }
@@ -903,6 +905,11 @@ public class ActionBarLayout extends FrameLayout {
         return transitionAnimationInProgress || animationInProgress;
     }
 
+    public void setPreviewBackgroundAlpha(float previewBackgroundAlpha) {
+        this.previewBackgroundAlpha = previewBackgroundAlpha;
+        invalidate();
+    }
+
     private void presentFragmentInternalRemoveOld(boolean removeLast, final BaseFragment fragment) {
         if (fragment == null) {
             return;
@@ -1106,6 +1113,7 @@ public class ActionBarLayout extends FrameLayout {
         containerView.setTranslationY(0);
 
         if (preview) {
+            previewBackgroundAlpha = 1f;
             if (Build.VERSION.SDK_INT >= 21) {
                 fragmentView.setOutlineProvider(new ViewOutlineProvider() {
                     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -1395,6 +1403,25 @@ public class ActionBarLayout extends FrameLayout {
             invalidate();
         }
     }
+
+    public void movePreviewFragment(float dy, boolean ignoreY) {
+        if (!ignoreY) {
+            movePreviewFragment(dy);
+        } else {
+            containerView.setTranslationY(-dy);
+            invalidate();
+        }
+    }
+
+    public ObjectAnimator animatePreviewFragmentBackground(float target) {
+        return ObjectAnimator.ofFloat(this, "previewBackgroundAlpha", target);
+    }
+
+    public ObjectAnimator movePreviewFragmentAnimated(float target) {
+        return ObjectAnimator.ofFloat(containerView, "translationY", -target);
+    }
+
+
 
     public void finishPreviewFragment() {
         if (!inPreviewMode && !transitionAnimationPreviewMode) {

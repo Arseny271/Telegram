@@ -10,6 +10,7 @@ package org.telegram.ui.ActionBar;
 
 import android.animation.Animator;
 import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
@@ -232,6 +233,22 @@ public abstract class BaseFragment {
 
     public void movePreviewFragment(float dy) {
         parentLayout.movePreviewFragment(dy);
+    }
+
+    public void movePreviewFragment(float dy, boolean ignoreY) {
+        parentLayout.movePreviewFragment(dy, ignoreY);
+    }
+
+    public ObjectAnimator movePreviewFragmentAnimated(float target) {
+        return parentLayout.movePreviewFragmentAnimated(target);
+    }
+
+    public ObjectAnimator animatePreviewFragmentBackground(float target) {
+        return parentLayout.animatePreviewFragmentBackground(target);
+    }
+
+    public void setPreviewBackgroundAlpha(float previewBackgroundAlpha) {
+        parentLayout.setPreviewBackgroundAlpha(previewBackgroundAlpha);
     }
 
     public void finishPreviewFragment() {

@@ -390,6 +390,10 @@ public class ActionBarPopupWindow extends PopupWindow {
             }
         }
 
+        public ScrollView getScrollView() {
+            return scrollView;
+        }
+
         public void setupRadialSelectors(int color) {
             int count = linearLayout.getChildCount();
             for (int a = 0; a < count; a++) {

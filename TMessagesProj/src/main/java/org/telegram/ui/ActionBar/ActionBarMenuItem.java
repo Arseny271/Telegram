@@ -1611,6 +1611,25 @@ public class ActionBarMenuItem extends FrameLayout {
         return view != null && view.getVisibility() == VISIBLE;
     }
 
+    public boolean isAllSubItemsHidden() {
+        if (popupLayout == null || popupLayout.linearLayout == null) {
+            return true;
+        }
+
+        final int childCount = popupLayout.linearLayout.getChildCount();
+        for (int i = 0; i < childCount; i++) {
+            View view = popupLayout.linearLayout.getChildAt(i);
+            if (view instanceof ActionBarMenuSubItem) {
+                ActionBarMenuSubItem subItem = (ActionBarMenuSubItem) view;
+                if (isSubItemVisible((int) subItem.getTag())) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     public void showSubItem(int id) {
         if (popupLayout == null) {
             return;

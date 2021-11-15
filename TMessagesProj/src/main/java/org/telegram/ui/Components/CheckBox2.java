@@ -51,6 +51,10 @@ public class CheckBox2 extends View {
         super.setEnabled(enabled);
     }
 
+    public void setCheckedType(int checkedType) {
+        checkBoxBase.setCheckedType(checkedType);
+    }
+
     public void setDrawUnchecked(boolean value) {
         checkBoxBase.setDrawUnchecked(value);
     }

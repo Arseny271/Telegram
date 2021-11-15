@@ -1100,7 +1100,14 @@ public class MessageObject {
         peer_id.channel_id = chat.id;
 
         TLRPC.Message message = null;
-        if (event.action instanceof TLRPC.TL_channelAdminLogEventActionChangeTitle) {
+        if (event.action instanceof TLRPC.TL_channelAdminLogEventActionToggleNoForwards) {
+            boolean value = ((TLRPC.TL_channelAdminLogEventActionToggleNoForwards) event.action).new_value;
+            if (value) {
+                messageText = replaceWithLink("un1 forbidden the forwarding of messages", "un1", fromUser);
+            } else {
+                messageText = replaceWithLink("un1 allowed the forwarding of messages", "un1", fromUser);
+            }
+        } else if (event.action instanceof TLRPC.TL_channelAdminLogEventActionChangeTitle) {
             String title = ((TLRPC.TL_channelAdminLogEventActionChangeTitle) event.action).new_value;
             if (chat.megagroup) {
                 messageText = replaceWithLink(LocaleController.formatString("EventLogEditedGroupTitle", R.string.EventLogEditedGroupTitle, title), "un1", fromUser);
@@ -2316,6 +2323,15 @@ public class MessageObject {
             cachedIsSupergroup = false;
         }
         return false;
+    }
+
+    public boolean isNoForward() {
+        if (messageOwner == null || messageOwner.peer_id == null) {
+            return false;
+        }
+
+        TLRPC.Chat chat = getChat(null, null, messageOwner.peer_id.channel_id);
+        return !ChatObject.canForwardMessages(chat);
     }
 
     private MessageObject getMessageObjectForBlock(TLRPC.WebPage webPage, TLRPC.PageBlock pageBlock) {
@@ -4189,6 +4205,8 @@ public class MessageObject {
     public boolean needDrawShareButton() {
         if (preview) {
             return false;
+        } else if (isNoForward()) {
+            return false;
         } else if (scheduled) {
             return false;
         } else if (eventId != 0) {
@@ -5679,7 +5697,7 @@ public class MessageObject {
     }
 
     public boolean canForwardMessage() {
-        return !(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != 16 && !isSponsored();
+        return !(messageOwner instanceof TLRPC.TL_message_secret) && !needDrawBluredPreview() && !isLiveLocation() && type != 16 && !isSponsored() && !isNoForward();
     }
 
     public boolean canEditMedia() {
@@ -5800,7 +5818,7 @@ public class MessageObject {
         if (message.id < 0) {
             return true;
         }
-        if (chat == null && message.peer_id.channel_id != 0) {
+        if (chat == null && message.peer_id != null && message.peer_id.channel_id != 0) {
             chat = MessagesController.getInstance(currentAccount).getChat(message.peer_id.channel_id);
         }
         if (ChatObject.isChannel(chat)) {

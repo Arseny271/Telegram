@@ -50,6 +50,7 @@ public class ChatObject {
     public static final int ACTION_EDIT_MESSAGES = 12;
     public static final int ACTION_DELETE_MESSAGES = 13;
     public static final int ACTION_MANAGE_CALLS = 14;
+    public static final int ACTION_FORWARD = 15;
 
     public final static int VIDEO_FRAME_NO_FRAME = 0;
     public final static int VIDEO_FRAME_REQUESTING = 1;
@@ -1436,6 +1437,11 @@ public class ChatObject {
         if (chat == null) {
             return true;
         }
+
+        if (action == ACTION_FORWARD) {
+            return !(chat.noforwards && TextUtils.isEmpty(chat.username));
+        }
+
         if (canUserDoAdminAction(chat, action)) {
             return true;
         }
@@ -1537,6 +1543,10 @@ public class ChatObject {
 
     public static boolean canSendMessages(TLRPC.Chat chat) {
         return canUserDoAction(chat, ACTION_SEND);
+    }
+
+    public static boolean canForwardMessages(TLRPC.Chat chat) {
+        return canUserDoAction(chat, ACTION_FORWARD);
     }
 
     public static boolean canPost(TLRPC.Chat chat) {

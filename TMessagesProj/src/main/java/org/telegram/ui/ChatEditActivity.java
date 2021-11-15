@@ -141,6 +141,11 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
     private PhotoViewer.PhotoViewerProvider provider = new PhotoViewer.EmptyPhotoViewerProvider() {
 
         @Override
+        public boolean canForward() {
+            return ChatObject.canForwardMessages(currentChat);
+        }
+
+        @Override
         public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index, boolean needPreview) {
             if (fileLocation == null) {
                 return null;
@@ -1348,6 +1353,11 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
                 } else {
                     type = isPrivate ? LocaleController.getString("TypePrivateGroup", R.string.TypePrivateGroup) : LocaleController.getString("TypePublicGroup", R.string.TypePublicGroup);
                 }
+
+                if (isPrivate && !ChatObject.canForwardMessages(currentChat)) {
+                    type = type + " restricted";
+                }
+
                 if (isChannel) {
                     typeCell.setTextAndValue(LocaleController.getString("ChannelType", R.string.ChannelType), type, historyCell != null && historyCell.getVisibility() == View.VISIBLE || linkedCell != null && linkedCell.getVisibility() == View.VISIBLE);
                 } else {

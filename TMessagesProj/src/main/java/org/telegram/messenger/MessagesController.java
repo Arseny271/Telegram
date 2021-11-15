@@ -21,7 +21,6 @@ import android.os.SystemClock;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Base64;
-import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
@@ -120,6 +119,7 @@ public class MessagesController extends BaseController implements NotificationCe
     private LongSparseArray<ArrayList<Integer>> needShortPollChannels = new LongSparseArray<>();
     private LongSparseIntArray shortPollOnlines = new LongSparseIntArray();
     private LongSparseArray<ArrayList<Integer>> needShortPollOnlines = new LongSparseArray<>();
+    private LongSparseArray<ArrayList<TLRPC.Peer>> sendAsPeers = new LongSparseArray<>();
 
     private LongSparseArray<TLRPC.Dialog> deletingDialogs = new LongSparseArray<>();
     private LongSparseArray<TLRPC.Dialog> clearingHistoryDialogs = new LongSparseArray<>();
@@ -4886,7 +4886,15 @@ public class MessagesController extends BaseController implements NotificationCe
         }
     }
 
+    public void deleteDialog(final long did, int onlyHistory, boolean revoke, int minDate, int maxDate) {
+        deleteDialog(did, 1, onlyHistory, 0, revoke, null, 0, minDate, maxDate);
+    }
+
     protected void deleteDialog(long did, int first, int onlyHistory, int max_id, boolean revoke, TLRPC.InputPeer peer, long taskId) {
+        deleteDialog(did, first, onlyHistory, max_id, revoke, peer, taskId, 0, 0);
+    }
+
+    protected void deleteDialog(long did, int first, int onlyHistory, int max_id, boolean revoke, TLRPC.InputPeer peer, long taskId, int minDate, int maxDate) {
         if (onlyHistory == 2) {
             getMessagesStorage().deleteDialog(did, onlyHistory);
             return;
@@ -5074,6 +5082,14 @@ public class MessagesController extends BaseController implements NotificationCe
                 req.max_id = max_id_delete > 0 ? max_id_delete : Integer.MAX_VALUE;
                 req.just_clear = onlyHistory != 0;
                 req.revoke = revoke;
+
+                if (minDate != 0 && maxDate != 0) {
+                    req.min_date = minDate;
+                    req.max_date = maxDate;
+                    req.flags |= 1 << 2;
+                    req.flags |= 1 << 3;
+                }
+
                 int max_id_delete_final = max_id_delete;
                 TLRPC.InputPeer peerFinal = peer;
                 getConnectionsManager().sendRequest(req, (response, error) -> {
@@ -6045,6 +6061,11 @@ public class MessagesController extends BaseController implements NotificationCe
             return false;
         }
         if (dialogId < 0) {
+            TLRPC.ChatFull chatFull = getChatFull(-dialogId);
+            if (chatFull.default_send_as != null && chatFull.default_send_as.channel_id != 0) {
+                return false;
+            }
+
             if (ChatObject.shouldSendAnonymously(getChat(-dialogId))) {
                 return false;
             }
@@ -14605,6 +14626,76 @@ public class MessagesController extends BaseController implements NotificationCe
                 .putInt("chatPendingRequests" + chatId, count)
                 .apply();
     }
+
+
+
+    public ArrayList<TLRPC.Peer> getChannelsSendAs(long dialogId) {
+        return sendAsPeers.get(dialogId);
+    }
+
+    public void loadChannelsSendAs(long dialogId) {
+        TLRPC.TL_channels_getSendAs  req = new TLRPC.TL_channels_getSendAs();
+        req.peer = getInputPeer(dialogId);
+
+        ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+            if (response != null) {
+                TLRPC.TL_channels_sendAsPeers res = (TLRPC.TL_channels_sendAsPeers) response;
+                sendAsPeers.append(dialogId, res.peers);
+
+                putChats(res.chats, false);
+                putUsers(res.users, false);
+
+                for (int i =0; i < res.chats.size(); i++) {
+                    TLRPC.Chat chat = res.chats.get(i);
+                    loadFullChat(chat.id, 0, false);
+                }
+            }
+        }));
+    }
+
+    public void clearMessagesHistoryRange(long dialogId, int minDate, int maxDate, boolean justClear, boolean revoke) {
+        TLRPC.TL_messages_deleteHistory req = new TLRPC.TL_messages_deleteHistory();
+        req.peer = getInputPeer(dialogId);
+        req.max_id = Integer.MAX_VALUE;
+        req.just_clear = justClear;
+        req.revoke = revoke;
+        req.min_date = minDate;
+        req.max_date = maxDate;
+        req.flags |= 1 << 2;
+        req.flags |= 1 << 3;
+
+        getConnectionsManager().sendRequest(req, (response, error) -> {
+            if (response != null) {
+                //TLRPC.TL_messages_affectedHistory res = (TLRPC.TL_messages_affectedHistory) response;
+                getDifference();
+            }
+        }, ConnectionsManager.RequestFlagInvokeAfter);
+    }
+
+    public void updateChatSendDefaultAs(long dialogId, long sendAsDialogId) {
+        TLRPC.TL_messages_saveDefaultSendAs req = new TLRPC.TL_messages_saveDefaultSendAs();
+        req.peer = getInputPeer(dialogId);
+        req.send_as = getInputPeer(sendAsDialogId);
+
+        ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+            if (response instanceof TLRPC.TL_boolTrue) {
+
+            }
+        }));
+
+    }
+
+    public void updateChatNoForwards(long chatId, boolean noforwards) {
+        TLRPC.TL_messages_toggleNoForwards req = new TLRPC.TL_messages_toggleNoForwards();
+        req.enabled = noforwards;
+        req.peer = getInputPeer(-chatId);
+
+        getConnectionsManager().sendRequest(req, (response, error) -> {
+            TLRPC.Updates updates = (TLRPC.Updates) response;
+            processUpdates(updates, false);
+        });
+    }
+
 
     public interface MessagesLoadedCallback {
         void onMessagesLoaded(boolean fromCache);

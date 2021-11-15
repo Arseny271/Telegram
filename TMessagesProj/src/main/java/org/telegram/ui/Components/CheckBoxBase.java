@@ -39,6 +39,11 @@ public class CheckBoxBase {
     private Bitmap drawBitmap;
     private Canvas bitmapCanvas;
 
+    public static final int CHECKED_TYPE_DEFAULT = 0;
+    public static final int CHECKED_TYPE_CROSS = 1;
+    private int checkedType = CHECKED_TYPE_DEFAULT;
+
+
     private boolean enabled = true;
 
     private boolean attachedToWindow;
@@ -126,6 +131,10 @@ public class CheckBoxBase {
         if (progressDelegate != null) {
             progressDelegate.setProgress(value);
         }
+    }
+
+    public void setCheckedType(int checkedType) {
+        this.checkedType = checkedType;
     }
 
     private void invalidate() {
@@ -424,10 +433,18 @@ public class CheckBoxBase {
                     int x = cx - AndroidUtilities.dp(1.5f);
                     int y = cy + AndroidUtilities.dp(4);
                     float side = (float) Math.sqrt(smallCheckSide * smallCheckSide / 2.0f);
-                    path.moveTo(x - side, y - side);
-                    path.lineTo(x, y);
-                    side = (float) Math.sqrt(checkSide * checkSide / 2.0f);
-                    path.lineTo(x + side, y - side);
+
+                    if (checkedType == CHECKED_TYPE_CROSS) {
+                        path.moveTo(cx - side * 1.5f, cy - side * 1.5f);
+                        path.lineTo(cx + side * 1.5f, cy + side * 1.5f);
+                        path.moveTo(cx + side * 1.5f, cy - side * 1.5f);
+                        path.lineTo(cx - side * 1.5f, cy + side * 1.5f);
+                    } else {
+                        path.moveTo(x - side, y - side);
+                        path.lineTo(x, y);
+                        side = (float) Math.sqrt(checkSide * checkSide / 2.0f);
+                        path.lineTo(x + side, y - side);
+                    }
                     canvas.drawPath(path, checkPaint);
                 }
             }

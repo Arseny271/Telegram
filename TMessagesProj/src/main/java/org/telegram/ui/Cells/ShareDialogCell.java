@@ -33,6 +33,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.CheckBox2;
+import org.telegram.ui.Components.CheckBoxBase;
 import org.telegram.ui.Components.LayoutHelper;
 
 public class ShareDialogCell extends FrameLayout {
@@ -43,6 +44,7 @@ public class ShareDialogCell extends FrameLayout {
     private AvatarDrawable avatarDrawable = new AvatarDrawable();
     private TLRPC.User user;
     private int currentType;
+    private int size = 28;
 
     private float onlineProgress;
     private long lastUpdateTime;
@@ -54,9 +56,24 @@ public class ShareDialogCell extends FrameLayout {
     public static final int TYPE_SHARE = 0;
     public static final int TYPE_CALL = 1;
     public static final int TYPE_CREATE = 2;
+    public static final int TYPE_CHAT = 3;
+    public static final int TYPE_CHAT_INPUT = 4;
+
+    public ShareDialogCell(Context context, int size) {
+        this(context, TYPE_CHAT, null, size);
+    }
+
+    public ShareDialogCell(Context context, int type, int size) {
+        this(context, type, null, size);
+    }
 
     public ShareDialogCell(Context context, int type, Theme.ResourcesProvider resourcesProvider) {
+        this(context, type, resourcesProvider, 28);
+    }
+
+    public ShareDialogCell(Context context, int type, Theme.ResourcesProvider resourcesProvider, int size) {
         super(context);
+        this.size = size;
         this.resourcesProvider = resourcesProvider;
 
         setWillNotDraw(false);
@@ -66,6 +83,8 @@ public class ShareDialogCell extends FrameLayout {
         imageView.setRoundRadius(AndroidUtilities.dp(28));
         if (type == TYPE_CREATE) {
             addView(imageView, LayoutHelper.createFrame(48, 48, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 7, 0, 0));
+        } else if (type == TYPE_CHAT || type == TYPE_CHAT_INPUT) {
+            addView(imageView, LayoutHelper.createFrame(size, size, Gravity.CENTER, 0, 0, 0, 0));
         } else {
             addView(imageView, LayoutHelper.createFrame(56, 56, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 7, 0, 0));
         }
@@ -79,21 +98,39 @@ public class ShareDialogCell extends FrameLayout {
         nameTextView.setEllipsize(TextUtils.TruncateAt.END);
         addView(nameTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 6, currentType == TYPE_CREATE ? 58 : 66, 6, 0));
 
-        checkBox = new CheckBox2(context, 21, resourcesProvider);
+        checkBox = new CheckBox2(context, currentType == TYPE_CHAT_INPUT?size:21, resourcesProvider);
         checkBox.setColor(Theme.key_dialogRoundCheckBox, type == TYPE_CALL ? Theme.key_voipgroup_inviteMembersBackground : Theme.key_dialogBackground, Theme.key_dialogRoundCheckBoxCheck);
         checkBox.setDrawUnchecked(false);
         checkBox.setDrawBackgroundAsArc(4);
-        checkBox.setProgressDelegate(progress -> {
-            float scale = 1.0f - (1.0f - 0.857f) * checkBox.getProgress();
-            imageView.setScaleX(scale);
-            imageView.setScaleY(scale);
-            invalidate();
-        });
-        addView(checkBox, LayoutHelper.createFrame(24, 24, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 19, currentType == TYPE_CREATE ? -40 : 42, 0, 0));
+
+        if (currentType != TYPE_CHAT_INPUT) {
+            checkBox.setProgressDelegate(progress -> {
+                float scale = 1.0f - (1.0f - 0.857f) * checkBox.getProgress();
+                imageView.setScaleX(scale);
+                imageView.setScaleY(scale);
+                invalidate();
+            });
+        }
+
+        addView(checkBox, LayoutHelper.createFrame(currentType == TYPE_CHAT_INPUT?size+4:24, currentType == TYPE_CHAT_INPUT?size+4:24, currentType == TYPE_CHAT_INPUT?Gravity.CENTER:(Gravity.CENTER_HORIZONTAL | Gravity.TOP), currentType == TYPE_CHAT_INPUT?0:19, currentType == TYPE_CHAT_INPUT?0:(currentType == TYPE_CREATE ? -40 : 42), 0, 0));
+
+        if (currentType == TYPE_CHAT) {
+            checkBox.setVisibility(View.GONE);
+            nameTextView.setVisibility(View.GONE);
+        } else if (currentType == TYPE_CHAT_INPUT) {
+            checkBox.setCheckedType(CheckBoxBase.CHECKED_TYPE_CROSS);
+            checkBox.setDrawBackgroundAsArc(0);
+            nameTextView.setVisibility(View.GONE);
+        }
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (currentType == TYPE_CHAT || currentType == TYPE_CHAT_INPUT) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            return;
+        }
+
         super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(currentType == TYPE_CREATE ? 95 : 103), MeasureSpec.EXACTLY));
     }
 
@@ -101,11 +138,11 @@ public class ShareDialogCell extends FrameLayout {
         if (DialogObject.isUserDialog(uid)) {
             user = MessagesController.getInstance(currentAccount).getUser(uid);
             avatarDrawable.setInfo(user);
-            if (currentType != TYPE_CREATE && UserObject.isReplyUser(user)) {
+            if (currentType != TYPE_CREATE && currentType != TYPE_CHAT && currentType != TYPE_CHAT_INPUT && UserObject.isReplyUser(user)) {
                 nameTextView.setText(LocaleController.getString("RepliesTitle", R.string.RepliesTitle));
                 avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_REPLIES);
                 imageView.setImage(null, null, avatarDrawable, user);
-            } else if (currentType != TYPE_CREATE && UserObject.isUserSelf(user)) {
+            } else if (currentType != TYPE_CREATE && currentType != TYPE_CHAT && currentType != TYPE_CHAT_INPUT && UserObject.isUserSelf(user)) {
                 nameTextView.setText(LocaleController.getString("SavedMessages", R.string.SavedMessages));
                 avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_SAVED);
                 imageView.setImage(null, null, avatarDrawable, user);
@@ -144,10 +181,11 @@ public class ShareDialogCell extends FrameLayout {
         checkBox.setChecked(checked, animated);
     }
 
+
     @Override
     protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
         boolean result = super.drawChild(canvas, child, drawingTime);
-        if (child == imageView && currentType != TYPE_CREATE) {
+        if (child == imageView && currentType != TYPE_CREATE && currentType != TYPE_CHAT) {
             if (user != null && !MessagesController.isSupportUser(user)) {
                 long newTime = SystemClock.elapsedRealtime();
                 long dt = newTime - lastUpdateTime;
@@ -195,7 +233,11 @@ public class ShareDialogCell extends FrameLayout {
         int cy = imageView.getTop() + imageView.getMeasuredHeight() / 2;
         Theme.checkboxSquare_checkPaint.setColor(getThemedColor(Theme.key_dialogRoundCheckBox));
         Theme.checkboxSquare_checkPaint.setAlpha((int) (checkBox.getProgress() * 255));
-        canvas.drawCircle(cx, cy, AndroidUtilities.dp(currentType == TYPE_CREATE ? 24 : 28), Theme.checkboxSquare_checkPaint);
+
+        if (currentType != TYPE_CHAT_INPUT) {
+            int radius = (currentType == TYPE_CHAT || currentType == TYPE_CHAT_INPUT) ? (size / 2) : (currentType == TYPE_CREATE ? 24 : 28);
+            canvas.drawCircle(cx, cy, AndroidUtilities.dp(radius), Theme.checkboxSquare_checkPaint);
+        }
     }
 
     private int getThemedColor(String key) {

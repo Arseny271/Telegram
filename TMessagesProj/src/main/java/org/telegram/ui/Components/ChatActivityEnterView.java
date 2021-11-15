@@ -124,6 +124,7 @@ import org.telegram.ui.ActionBar.AdjustPanLayoutHelper;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Cells.ShareDialogCell;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.DialogsActivity;
 import org.telegram.ui.GroupStickersActivity;
@@ -195,6 +196,10 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         void onSendLongClick();
 
         void onAudioVideoInterfaceUpdated();
+
+        default void showSendAsMenu() {
+
+        }
 
         default void bottomPanelTranslationYChanged(float translation) {
 
@@ -325,6 +330,8 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
     private ActionBarPopupWindow.ActionBarPopupWindowLayout sendPopupLayout;
     private ImageView cancelBotButton;
     private ImageView[] emojiButton = new ImageView[2];
+    private ShareDialogCell sendMessageAsButton;
+    private AvatarDrawable avatarDrawable = new AvatarDrawable();
     @SuppressWarnings("FieldCanBeLocal")
     private ImageView emojiButton1;
     @SuppressWarnings("FieldCanBeLocal")
@@ -1698,6 +1705,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                     int x = getMeasuredWidth() - AndroidUtilities.dp(botButton != null && botButton.getVisibility() == VISIBLE ? 96 : 48) - AndroidUtilities.dp(48);
                     scheduledButton.layout(x, scheduledButton.getTop(), x + scheduledButton.getMeasuredWidth(), scheduledButton.getBottom());
                 }
+
                 if (!animationParamsX.isEmpty()) {
                     for (int i = 0; i < getChildCount(); i++) {
                         View child = getChildAt(i);
@@ -1724,6 +1732,27 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             }
         };
         frameLayout.setClipChildren(false);
+
+        avatarDrawable.setSmallSize(true);
+        avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_REPLIES);
+
+        sendMessageAsButton = new ShareDialogCell(context, ShareDialogCell.TYPE_CHAT_INPUT, null);
+        sendMessageAsButton.setVisibility(View.GONE);
+        sendMessageAsButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (delegate != null) {
+                    delegate.showSendAsMenu();
+                }
+            }
+        });
+
+
+        if (Build.VERSION.SDK_INT >= 21) {
+            sendMessageAsButton.setBackgroundDrawable(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector)));
+        }
+        addView(sendMessageAsButton, LayoutHelper.createFrame(28, 28, Gravity.LEFT | Gravity.BOTTOM, 13, 10, 10, 10));
+
         textFieldContainer.addView(frameLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 0, 0, 48, 0));
 
         for (int a = 0; a < 2; a++) {
@@ -1743,7 +1772,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             if (Build.VERSION.SDK_INT >= 21) {
                 emojiButton[a].setBackgroundDrawable(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector)));
             }
-            frameLayout.addView(emojiButton[a], LayoutHelper.createFrame(48, 48, Gravity.BOTTOM | Gravity.LEFT, 3, 0, 0, 0));
+            frameLayout.addView(emojiButton[a], LayoutHelper.createFrame(48, 48, Gravity.BOTTOM | Gravity.LEFT, 0, 0, 0, 0));
             emojiButton[a].setOnClickListener(view -> {
                 if (adjustPanLayoutHelper != null && adjustPanLayoutHelper.animationInProgress()) {
                     return;
@@ -1912,6 +1941,11 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             }
 
             @Override
+            protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+                super.onLayout(changed, left, top, right, bottom);
+            }
+
+            @Override
             public boolean onTextContextMenuItem(int id) {
                 if (id == android.R.id.paste) {
                     isPaste = true;
@@ -2023,7 +2057,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         messageEditText.setHintColor(getThemedColor(Theme.key_chat_messagePanelHint));
         messageEditText.setHintTextColor(getThemedColor(Theme.key_chat_messagePanelHint));
         messageEditText.setCursorColor(getThemedColor(Theme.key_chat_messagePanelCursor));
-        frameLayout.addView(messageEditText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 52, 0, isChat ? 50 : 2, 0));
+        frameLayout.addView(messageEditText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM,  52, 0, isChat ? 50 : 2, 0));
         messageEditText.setOnKeyListener(new OnKeyListener() {
 
             boolean ctrlPressed = false;
@@ -3784,10 +3818,44 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
     }
 
     public void setChatInfo(TLRPC.ChatFull chatInfo) {
+        setChatInfo(chatInfo, false);
+    }
+
+    public void setChatInfo(TLRPC.ChatFull chatInfo, boolean checked) {
         info = chatInfo;
         if (emojiView != null) {
             emojiView.setChatInfo(info);
         }
+
+        sendMessageAsButton.setVisibility(info.default_send_as != null ? View.VISIBLE: View.GONE);
+
+        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) textFieldContainer.getLayoutParams();
+        int oldMarginLeft = layoutParams.leftMargin;
+        layoutParams.leftMargin = AndroidUtilities.dp(info.default_send_as != null?40:0);
+
+        if (oldMarginLeft != layoutParams.leftMargin) {
+            textFieldContainer.setLayoutParams(layoutParams);
+        }
+
+        long sendAsDialogId = 0;
+        if (info.default_send_as != null) {
+            if (info.default_send_as.chat_id != 0) {
+                sendAsDialogId = -info.default_send_as.chat_id;
+            } else if (info.default_send_as.channel_id != 0) {
+                sendAsDialogId = -info.default_send_as.channel_id;
+            } else if (info.default_send_as.user_id != 0) {
+                sendAsDialogId = info.default_send_as.user_id;
+            } else {
+                sendAsDialogId = 0;
+            }
+
+            if (sendAsDialogId != 0) {
+                sendMessageAsButton.setDialog(sendAsDialogId, checked, "");
+            }
+        }
+
+
+
         setSlowModeTimer(chatInfo.slowmode_next_send_date);
     }
 
@@ -4279,6 +4347,10 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
     private boolean supportsSendingNewEntities() {
         TLRPC.EncryptedChat encryptedChat = parentFragment != null ? parentFragment.getCurrentEncryptedChat() : null;
         return encryptedChat == null || AndroidUtilities.getPeerLayerVersion(encryptedChat.layer) >= 101;
+    }
+
+    public void setCheckedSendAsButton(boolean checked) {
+        sendMessageAsButton.setChecked(checked, true);
     }
 
     private void checkSendButton(boolean animated) {
@@ -4975,6 +5047,8 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         }
         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) messageEditText.getLayoutParams();
         int oldRightMargin = layoutParams.rightMargin;
+        int oldLeftMargin = layoutParams.leftMargin;
+
         if (attachVisible == 1) {
             if (botButton != null && botButton.getVisibility() == VISIBLE && scheduledButton != null && scheduledButton.getVisibility() == VISIBLE && attachLayout != null && attachLayout.getVisibility() == VISIBLE) {
                 layoutParams.rightMargin = AndroidUtilities.dp(146);
@@ -5000,7 +5074,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                 layoutParams.rightMargin = AndroidUtilities.dp(2);
             }
         }
-        if (oldRightMargin != layoutParams.rightMargin) {
+        if (oldRightMargin != layoutParams.rightMargin || oldLeftMargin != layoutParams.leftMargin) {
             messageEditText.setLayoutParams(layoutParams);
         }
     }

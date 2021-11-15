@@ -161,6 +161,24 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
     FlickerLoadingView globalGradientView;
     private final int viewType;
 
+    private ForwardHintView forwardHint;
+    public FrameLayout frameLayout;
+
+    private void showForwardHint() {
+         if (profileActivity.getParentActivity() == null || frameLayout == null) {
+            return;
+        }
+
+        if (forwardHint == null) {
+            forwardHint = new ForwardHintView(profileActivity.getParentActivity());
+
+            frameLayout.addView(forwardHint, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 10, 0, 10, 0));
+            forwardHint.setAlpha(0.0f);
+            forwardHint.setVisibility(View.INVISIBLE);
+            forwardHint.showForMenuItem(forwardItem, true);
+        }
+    }
+
     public boolean checkPinchToZoom(MotionEvent ev) {
         if (mediaPages[0].selectedType != 0 || getParent() == null) {
             return false;
@@ -3013,23 +3031,29 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
     }
 
     public void onActionBarItemClick(int id) {
+        TLRPC.Chat currentChat = null;
+        TLRPC.User currentUser = null;
+        TLRPC.EncryptedChat currentEncryptedChat = null;
+        if (DialogObject.isEncryptedDialog(dialog_id)) {
+            currentEncryptedChat = profileActivity.getMessagesController().getEncryptedChat(DialogObject.getEncryptedChatId(dialog_id));
+        } else if (DialogObject.isUserDialog(dialog_id)) {
+            currentUser = profileActivity.getMessagesController().getUser(dialog_id);
+        } else {
+            currentChat = profileActivity.getMessagesController().getChat(-dialog_id);
+        }
+
         if (id == delete) {
-            TLRPC.Chat currentChat = null;
-            TLRPC.User currentUser = null;
-            TLRPC.EncryptedChat currentEncryptedChat = null;
-            if (DialogObject.isEncryptedDialog(dialog_id)) {
-                currentEncryptedChat = profileActivity.getMessagesController().getEncryptedChat(DialogObject.getEncryptedChatId(dialog_id));
-            } else if (DialogObject.isUserDialog(dialog_id)) {
-                currentUser = profileActivity.getMessagesController().getUser(dialog_id);
-            } else {
-                currentChat = profileActivity.getMessagesController().getChat(-dialog_id);
-            }
             AlertsCreator.createDeleteMessagesAlert(profileActivity, currentUser, currentChat, currentEncryptedChat, null, mergeDialogId, null, selectedFiles, null, false, 1, () -> {
                 showActionMode(false);
                 actionBar.closeSearchField();
                 cantDeleteMessagesCount = 0;
             }, null);
         } else if (id == forward) {
+            if ( !ChatObject.canForwardMessages(currentChat)) {
+                showForwardHint();
+                return;
+            }
+
             Bundle args = new Bundle();
             args.putBoolean("onlySelect", true);
             args.putInt("dialogsType", 3);
@@ -3448,6 +3472,25 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
         if (isActionModeShowed == show) {
             return;
         }
+
+        boolean forwardEnable = true;
+        TLRPC.Chat currentChat = null;
+        if (DialogObject.isChatDialog(dialog_id)) {
+            currentChat = profileActivity.getMessagesController().getChat(-dialog_id);
+            if (!ChatObject.canForwardMessages(currentChat)) {
+                forwardEnable = false;
+            }
+        }
+
+        if (forwardEnable) {
+            int backgroundColor = Theme.getColor(Theme.key_actionBarActionModeDefaultSelector);
+            forwardItem.setBackgroundDrawable(Theme.createSelectorDrawable(backgroundColor, 1));
+            forwardItem.setAlpha(1f);
+        } else {
+            forwardItem.setBackgroundDrawable(null);
+            forwardItem.setAlpha(0.5f);
+        }
+
         isActionModeShowed = show;
         if (actionModeAnimation != null) {
             actionModeAnimation.cancel();
