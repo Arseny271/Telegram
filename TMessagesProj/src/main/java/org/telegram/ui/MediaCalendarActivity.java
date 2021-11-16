@@ -30,6 +30,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
@@ -145,6 +146,7 @@ public class MediaCalendarActivity extends BaseFragment {
         }
     }
 
+    @Keep
     public void setProgress(float value) {
         if (progress == value) {
             return;
