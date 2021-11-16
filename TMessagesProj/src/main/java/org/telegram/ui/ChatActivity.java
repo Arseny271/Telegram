@@ -1871,12 +1871,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             MediaController.getInstance().stopMediaObserver();
         }
 
-        try {
-            if ( Build.VERSION.SDK_INT >= 23 && (currentEncryptedChat != null || SharedConfig.passcodeHash.length() == 0 || SharedConfig.allowScreenCapture || !ChatObject.canForwardMessages(currentChat))) {
-                AndroidUtilities.setFlagSecure(this, false);
+        if (currentEncryptedChat != null || !ChatObject.canForwardMessages(currentChat)) {
+            try {
+                if (Build.VERSION.SDK_INT >= 23 && (SharedConfig.passcodeHash.length() == 0 || SharedConfig.allowScreenCapture)) {
+                    AndroidUtilities.setFlagSecure(this, false);
+                }
+            } catch (Throwable e) {
+                FileLog.e(e);
             }
-        } catch (Throwable e) {
-            FileLog.e(e);
         }
 
         if (currentUser != null) {
@@ -7730,7 +7732,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         chatScrollHelper.setAnimationCallback(chatScrollHelperCallback);
 
         try {
-            if (Build.VERSION.SDK_INT >= 23 && (currentEncryptedChat != null || SharedConfig.passcodeHash.length() == 0 || SharedConfig.allowScreenCapture || !ChatObject.canForwardMessages(currentChat))) {
+            if ((currentEncryptedChat != null || !ChatObject.canForwardMessages(currentChat)) && Build.VERSION.SDK_INT >= 23 && (SharedConfig.passcodeHash.length() == 0 || SharedConfig.allowScreenCapture)) {
                 AndroidUtilities.setFlagSecure(this, true);
             }
         } catch (Throwable e) {
