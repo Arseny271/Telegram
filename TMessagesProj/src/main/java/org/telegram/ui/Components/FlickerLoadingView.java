@@ -34,6 +34,7 @@ public class FlickerLoadingView extends View {
     public final static int MESSAGE_SEEN_TYPE = 13;
     public final static int CHAT_THEMES_TYPE = 14;
     public final static int MEMBER_REQUESTS_TYPE = 15;
+    public final static int REACTION_SEEN_TYPE = 16;
 
     private int gradientWidth;
     private LinearGradient gradient;
@@ -146,7 +147,23 @@ public class FlickerLoadingView extends View {
             }
             canvas.drawRect(0,0, getMeasuredWidth(), AndroidUtilities.dp(32), colorKey3 != null ? headerPaint : paint);
         }
-        if (getViewType() == DIALOG_CELL_TYPE) {
+        if (getViewType() == REACTION_SEEN_TYPE) {
+            if (backgroundPaint == null) {
+                backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                backgroundPaint.setColor(Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground));
+            }
+
+            float cy = getMeasuredHeight() / 2f;
+            canvas.drawCircle(AndroidUtilities.dp(28), cy, AndroidUtilities.dp(17), paint);
+
+            AndroidUtilities.rectTmp.set(AndroidUtilities.dp(56), cy - AndroidUtilities.dp(4), AndroidUtilities.dp(96), cy + AndroidUtilities.dp(4));
+            canvas.drawRoundRect(AndroidUtilities.rectTmp, AndroidUtilities.dp(4), AndroidUtilities.dp(4), paint);
+
+            AndroidUtilities.rectTmp.set(AndroidUtilities.dp(101), cy - AndroidUtilities.dp(4), AndroidUtilities.dp(155), cy + AndroidUtilities.dp(4));
+            canvas.drawRoundRect(AndroidUtilities.rectTmp, AndroidUtilities.dp(4), AndroidUtilities.dp(4), paint);
+
+            canvas.drawCircle(getMeasuredWidth() - AndroidUtilities.dp(23), cy, AndroidUtilities.dp(12), paint);
+        } else if (getViewType() == DIALOG_CELL_TYPE) {
             int k = 0;
             while (h <= getMeasuredHeight()) {
                 int childH = getCellHeight(getMeasuredWidth());
@@ -518,7 +535,7 @@ public class FlickerLoadingView extends View {
             height = getMeasuredHeight();
         }
         lastUpdateTime = newUpdateTime;
-        if (isSingleCell || viewType == MESSAGE_SEEN_TYPE || getViewType() == CHAT_THEMES_TYPE) {
+        if (isSingleCell || viewType == MESSAGE_SEEN_TYPE || viewType == REACTION_SEEN_TYPE || getViewType() == CHAT_THEMES_TYPE) {
             totalTranslation += dt * width / 400.0f;
             if (totalTranslation >= width * 2) {
                 totalTranslation = -gradientWidth * 2;
@@ -544,7 +561,7 @@ public class FlickerLoadingView extends View {
         if (this.color1 != color1 || this.color0 != color0) {
             this.color0 = color0;
             this.color1 = color1;
-            if (isSingleCell || viewType == MESSAGE_SEEN_TYPE || viewType == CHAT_THEMES_TYPE) {
+            if (isSingleCell || viewType == MESSAGE_SEEN_TYPE || viewType == REACTION_SEEN_TYPE || viewType == CHAT_THEMES_TYPE) {
                 gradient = new LinearGradient(0, 0, gradientWidth = AndroidUtilities.dp(200), 0, new int[]{color1, color0, color0, color1}, new float[]{0.0f, 0.4f, 0.6f, 1f}, Shader.TileMode.CLAMP);
             } else {
                 gradient = new LinearGradient(0, 0, 0, gradientWidth = AndroidUtilities.dp(600), new int[]{color1, color0, color0, color1}, new float[]{0.0f, 0.4f, 0.6f, 1f}, Shader.TileMode.CLAMP);

@@ -63,6 +63,8 @@ public class RecyclerListView extends RecyclerView {
     private OnItemClickListenerExtended onItemClickListenerExtended;
     private OnItemLongClickListener onItemLongClickListener;
     private OnItemLongClickListenerExtended onItemLongClickListenerExtended;
+    private OnItemDoubleTapListenerExtended onItemDoubleTapListenerExtended;
+
     private boolean longPressCalled;
     private OnScrollListener onScrollListener;
     private OnInterceptTouchListener onInterceptTouchListener;
@@ -161,6 +163,10 @@ public class RecyclerListView extends RecyclerView {
 
     public interface OnItemLongClickListener {
         boolean onItemClick(View view, int position);
+    }
+
+    public interface OnItemDoubleTapListenerExtended {
+        void onItemClick(View view, int position, float x, float y);
     }
 
     public interface OnItemLongClickListenerExtended {
@@ -722,9 +728,47 @@ public class RecyclerListView extends RecyclerView {
     private class RecyclerListViewItemClickListener implements OnItemTouchListener {
 
         public RecyclerListViewItemClickListener(Context context) {
-            gestureDetector = new GestureDetector(context, new GestureDetector.OnGestureListener() {
+            gestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
+
+                @Override
+                public boolean onDoubleTap(MotionEvent e) {
+                    if (currentChildView != null && onItemDoubleTapListenerExtended != null) {
+                        final float x = e.getX();
+                        final float y = e.getY();
+
+                        final View view = currentChildView;
+                        final int position = currentChildPosition;
+
+                        view.playSoundEffect(SoundEffectConstants.CLICK);
+                        onItemDoubleTapListenerExtended.onItemClick(view, position, x - view.getX(), y - view.getY());
+
+                        return true;
+                    }
+
+                    return super.onDoubleTap(e);
+                }
+
+                @Override
+                public boolean onSingleTapConfirmed(MotionEvent e) {
+                    boolean hasDoubleTapListener = (onItemDoubleTapListenerExtended != null);
+                    if (hasDoubleTapListener) {
+                        return onSingleTapUpEvent(e);
+                    }
+                    return super.onSingleTapConfirmed(e);
+                }
+
                 @Override
                 public boolean onSingleTapUp(MotionEvent e) {
+                    boolean hasDoubleTapListener = (onItemDoubleTapListenerExtended != null);
+                    if (!hasDoubleTapListener) {
+                        return onSingleTapUpEvent(e);
+                    }
+                    return super.onSingleTapUp(e);
+                }
+
+                public boolean onSingleTapUpEvent(MotionEvent e) {
+                    boolean hasDoubleTapListener = (onItemDoubleTapListenerExtended != null);
+
                     if (currentChildView != null && (onItemClickListener != null || onItemClickListenerExtended != null)) {
                         final float x = e.getX();
                         final float y = e.getY();
@@ -767,6 +811,11 @@ public class RecyclerListView extends RecyclerView {
                             View pressedChild = currentChildView;
                             AndroidUtilities.cancelRunOnUIThread(selectChildRunnable);
                             selectChildRunnable = null;
+                            currentChildView = null;
+                            interceptedByChild = false;
+                            removeSelection(pressedChild, e);
+                        } else if (hasDoubleTapListener) {
+                            View pressedChild = currentChildView;
                             currentChildView = null;
                             interceptedByChild = false;
                             removeSelection(pressedChild, e);
@@ -822,8 +871,9 @@ public class RecyclerListView extends RecyclerView {
         public boolean onInterceptTouchEvent(RecyclerView view, MotionEvent event) {
             int action = event.getActionMasked();
             boolean isScrollIdle = RecyclerListView.this.getScrollState() == RecyclerListView.SCROLL_STATE_IDLE;
+            boolean hasDoubleTapListener = (onItemDoubleTapListenerExtended != null);
 
-            if ((action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) && currentChildView == null && isScrollIdle) {
+            if ((action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) && (currentChildView == null || hasDoubleTapListener) && isScrollIdle) {
                 float ex = event.getX();
                 float ey = event.getY();
                 longPressCalled = false;
@@ -849,6 +899,11 @@ public class RecyclerListView extends RecyclerView {
                         }
                     }
                 }
+
+                if (hasDoubleTapListener) {
+                    interceptedByChild = false;
+                }
+
                 currentChildPosition = -1;
                 if (currentChildView != null) {
                     currentChildPosition = view.getChildPosition(currentChildView);
@@ -902,7 +957,7 @@ public class RecyclerListView extends RecyclerView {
                     selectorRect.setEmpty();
                 }
             } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_CANCEL || !isScrollIdle) {
-                if (currentChildView != null) {
+                if (currentChildView != null && !hasDoubleTapListener) {
                     if (selectChildRunnable != null) {
                         AndroidUtilities.cancelRunOnUIThread(selectChildRunnable);
                         selectChildRunnable = null;
@@ -1430,6 +1485,14 @@ public class RecyclerListView extends RecyclerView {
 
     public void setOnItemClickListener(OnItemClickListenerExtended listener) {
         onItemClickListenerExtended = listener;
+    }
+
+    public void setOnItemDoubleTapListenerExtended(OnItemDoubleTapListenerExtended onItemDoubleTapListenerExtended) {
+        this.onItemDoubleTapListenerExtended = onItemDoubleTapListenerExtended;
+    }
+
+    public OnItemDoubleTapListenerExtended getOnItemDoubleTapListenerExtended() {
+        return onItemDoubleTapListenerExtended;
     }
 
     public OnItemClickListener getOnItemClickListener() {

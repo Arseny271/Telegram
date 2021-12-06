@@ -1832,6 +1832,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         getNotificationCenter().addObserver(this, NotificationCenter.didClearDatabase);
 
         loadDialogs(getAccountInstance());
+        getMessagesController().loadAvailableReactionsList();
         getMessagesController().loadPinnedDialogs(folderId, 0, null);
         if (databaseMigrationHint != null && !getMessagesStorage().isDatabaseMigrationInProgress()) {
             View localView = databaseMigrationHint;
@@ -2096,9 +2097,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 actionBar.setTitle(LocaleController.getString("ArchivedChats", R.string.ArchivedChats));
             } else {
                 if (BuildVars.DEBUG_VERSION) {
-                    actionBar.setTitle("Telegram Beta");
+                    actionBar.setTitle("Telegram Beta" + " \uD83C\uDF46");
                 } else {
-                    actionBar.setTitle(LocaleController.getString("AppName", R.string.AppName));
+                    actionBar.setTitle(LocaleController.getString("AppName", R.string.AppName) + " \uD83C\uDF46");
                 }
             }
             if (folderId == 0) {

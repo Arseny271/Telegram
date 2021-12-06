@@ -113,6 +113,8 @@ public class MessageObject {
     public boolean viewsReloaded;
     public boolean pollVisibleOnScreen;
     public long pollLastCheckTime;
+    public boolean reactionsVisibleOnScreen;
+    public long reactionsLastCheckTime;
     public int wantedBotKeyboardWidth;
     public boolean attachPathExists;
     public boolean mediaExists;
@@ -2410,7 +2412,7 @@ public class MessageObject {
             return;
         }
         wantedBotKeyboardWidth = 0;
-        if (messageOwner.reply_markup instanceof TLRPC.TL_replyInlineMarkup || messageOwner.reactions != null && !messageOwner.reactions.results.isEmpty()) {
+        if (messageOwner.reply_markup instanceof TLRPC.TL_replyInlineMarkup) {
             Theme.createCommonMessageResources();
             if (botButtonsLayout == null) {
                 botButtonsLayout = new StringBuilder();
@@ -2442,24 +2444,6 @@ public class MessageObject {
                         }
                         maxButtonSize = Math.max(maxButtonSize, (int) Math.ceil(width) + AndroidUtilities.dp(4));
                     }
-                }
-                wantedBotKeyboardWidth = Math.max(wantedBotKeyboardWidth, (maxButtonSize + AndroidUtilities.dp(12)) * size + AndroidUtilities.dp(5) * (size - 1));
-            }
-        } else if (messageOwner.reactions != null) {
-            int size = messageOwner.reactions.results.size();
-            for (int a = 0; a < size; a++) {
-                TLRPC.TL_reactionCount reactionCount = messageOwner.reactions.results.get(a);
-                int maxButtonSize = 0;
-                botButtonsLayout.append(0).append(a);
-                CharSequence text = Emoji.replaceEmoji(String.format("%d %s", reactionCount.count, reactionCount.reaction), Theme.chat_msgBotButtonPaint.getFontMetricsInt(), AndroidUtilities.dp(15), false);
-                StaticLayout staticLayout = new StaticLayout(text, Theme.chat_msgBotButtonPaint, AndroidUtilities.dp(2000), Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
-                if (staticLayout.getLineCount() > 0) {
-                    float width = staticLayout.getLineWidth(0);
-                    float left = staticLayout.getLineLeft(0);
-                    if (left < width) {
-                        width -= left;
-                    }
-                    maxButtonSize = Math.max(maxButtonSize, (int) Math.ceil(width) + AndroidUtilities.dp(4));
                 }
                 wantedBotKeyboardWidth = Math.max(wantedBotKeyboardWidth, (maxButtonSize + AndroidUtilities.dp(12)) * size + AndroidUtilities.dp(5) * (size - 1));
             }
@@ -5345,6 +5329,28 @@ public class MessageObject {
 
     public boolean shouldDrawWithoutBackground() {
         return type == TYPE_STICKER || type == TYPE_ANIMATED_STICKER || type == TYPE_ROUND_VIDEO;
+    }
+
+    public boolean shouldDrawReactionsWithoutBackground() {
+        if (hasValidGroupId()) {
+            return false;
+        }
+
+        return shouldDrawWithoutBackground() || ((type == TYPE_PHOTO || type == TYPE_VIDEO || type == 4 || isGif()) && messageOwner.message.length() == 0);
+    }
+
+    public boolean hasSelectedReaction() {
+        if (messageOwner.reactions == null) {
+            return false;
+        }
+
+        for (TLRPC.TL_reactionCount reactionCount : messageOwner.reactions.results) {
+            if (reactionCount.chosen) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public boolean isLocation() {

@@ -1587,6 +1587,13 @@ public class ChatObject {
         return !isChannel(chat) || chat.creator || chat.admin_rights != null && chat.admin_rights.post_messages || !chat.broadcast && !chat.gigagroup || chat.gigagroup && ChatObject.hasAdminRights(chat);
     }
 
+    public static boolean canSendReactions(TLRPC.ChatFull chatFull) {
+        if (chatFull == null || chatFull.available_reactions == null) return false;
+        if (chatFull.available_reactions.size() == 0) return false;
+
+        return true;
+    }
+
     public static String getBannedRightsString(TLRPC.TL_chatBannedRights bannedRights) {
         String currentBannedRights = "";
         currentBannedRights += bannedRights.view_messages ? 1 : 0;

@@ -111,6 +111,7 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
 
     private LinearLayout infoContainer;
     private TextCell membersCell;
+    private TextCell reactionsCell;
     private TextCell memberRequestsCell;
     private TextCell inviteLinksCell;
     private TextCell adminCell;
@@ -810,6 +811,15 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
             presentFragment(fragment);
         });
 
+        reactionsCell = new TextCell(context);
+        reactionsCell.setBackgroundDrawable(Theme.getSelectorDrawable(false));
+        reactionsCell.setOnClickListener(v -> {
+            ChatEditReactionsActivity fragment = new ChatEditReactionsActivity(chatId, locationCell != null && locationCell.getVisibility() == View.VISIBLE);
+            fragment.setInfo(info);
+            presentFragment(fragment);
+        });
+
+
         adminCell = new TextCell(context);
         adminCell.setBackgroundDrawable(Theme.getSelectorDrawable(false));
         adminCell.setOnClickListener(v -> {
@@ -862,6 +872,9 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
         if (isChannel) {
             infoContainer.addView(inviteLinksCell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
+
+        infoContainer.addView(reactionsCell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
         if (isChannel || currentChat.gigagroup) {
             infoContainer.addView(blockCell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
@@ -1449,6 +1462,17 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
                     inviteLinksCell.setTextAndValueAndIcon(LocaleController.getString("InviteLinks", R.string.InviteLinks), "1", R.drawable.actions_link, true);
                 }
             }
+
+            if (info == null || !ChatObject.canUserDoAdminAction(currentChat, ChatObject.ACTION_CHANGE_INFO)) {
+                reactionsCell.setVisibility(View.GONE);
+            } else {
+                if (info.available_reactions == null || info.available_reactions.size() == 0) {
+                    reactionsCell.setTextAndValueAndIcon("Reactions", "Off", R.drawable.actions_reactions, true);
+                } else {
+                    reactionsCell.setTextAndValueAndIcon("Reactions", info.available_reactions.size() + "/" + getMessagesController().getAvailableReactionsList().size(), R.drawable.actions_reactions, true);
+                }
+            }
+
         }
 
         if (stickersCell != null && info != null) {

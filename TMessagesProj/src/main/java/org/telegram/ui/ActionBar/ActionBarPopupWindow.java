@@ -16,6 +16,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
@@ -23,7 +24,10 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 
 import androidx.annotation.Keep;
+
+import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
