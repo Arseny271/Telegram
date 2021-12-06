@@ -2985,6 +2985,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                         float viewClipRight = Math.min(chatListView.getRight(), chatListView.getLeft() + child.getX() + child.getMeasuredWidth());
                         float viewClipBottom = Math.min(chatListView.getY() + chatListView.getMeasuredHeight(), chatListView.getY() + child.getY() + child.getMeasuredHeight());
 
+                        if (cell != null && cell.getLongPressedReactionButton() != -1) {
+                            viewClipLeft = 0;
+                            viewClipRight = getMeasuredWidth();
+                        }
+
                         if (viewClipTop < viewClipBottom) {
                             if (child.getAlpha() != 1f) {
                                 canvas.saveLayerAlpha(viewClipLeft, viewClipTop, viewClipRight, viewClipBottom, (int) (255 * child.getAlpha()), Canvas.ALL_SAVE_FLAG);
@@ -19461,6 +19466,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         MessageObject messageObject = ((ChatMessageCell) view).getMessageObject();
         if (messageObject == null) {
             return;
+        }
+
+        MessageObject.GroupedMessages group = messageCell.getCurrentMessagesGroup();
+        if (group != null) {
+            MessageObject messageObject2 = group.findPrimaryMessageObject();
+            if (messageObject2 != null) {
+                messageObject = messageObject2;
+            }
         }
 
         if (messageObject.hasSelectedReaction()) {
