@@ -214,7 +214,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         default void didPressReaction(ChatMessageCell cell, TLRPC.TL_reactionCount reaction) {
         }
 
-        default void didLongPressReaction(ChatMessageCell cell, TLRPC.TL_reactionCount reaction, int position) {
+        default void didLongPressReaction(ChatMessageCell cell, TLRPC.TL_reactionCount reaction, int position, float x, float y) {
         }
 
         default void didPressVoteButtons(ChatMessageCell cell, ArrayList<TLRPC.TL_pollAnswer> buttons, int showCount, int x, int y) {
@@ -6448,7 +6448,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             } else {
                 int pressedReactionButton = getReactionButtonPositionByCords((int) lastTouchX, (int) lastTouchY);
                 if (pressedReactionButton >= 0) {
-                    delegate.didLongPressReaction(this, reactionButtons.get(pressedReactionButton).reaction, pressedReactionButton);
+                    delegate.didLongPressReaction(this, reactionButtons.get(pressedReactionButton).reaction, pressedReactionButton, lastTouchX, lastTouchY);
                     return true;
                 }
             }
@@ -8709,10 +8709,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     private void updateReactionAnimations(long dt) {
         if (reactionUpdateInProgress) {
             reactionUpdateProgressTime += dt;
-            if (reactionUpdateProgressTime >= 2500.0f) {
-                reactionUpdateProgressTime = 2500.0f;
+            if (reactionUpdateProgressTime >= 250.0f) {
+                reactionUpdateProgressTime = 250.0f;
             }
-            reactionUpdateProgress = AndroidUtilities.decelerateInterpolator.getInterpolation(reactionUpdateProgressTime / 2500.0f);
+            reactionUpdateProgress = AndroidUtilities.decelerateInterpolator.getInterpolation(reactionUpdateProgressTime / 250.0f);
             if (reactionUpdateProgress >= 1.0f) {
                 reactionUpdateProgress = 1.0f;
                 reactionUpdateInProgress = false;

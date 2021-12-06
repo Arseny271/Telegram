@@ -23384,10 +23384,10 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     }
 
                     @Override
-                    public void didLongPressReaction(ChatMessageCell cell, TLRPC.TL_reactionCount reaction, int position) {
+                    public void didLongPressReaction(ChatMessageCell cell, TLRPC.TL_reactionCount reaction, int position, float x, float y) {
                         if (!ChatObject.isChannel(currentChat) || ChatObject.isMegagroup(currentChat)) {
                             cell.setLongPressedReaction(position);
-                            createReactionsMenu(cell, 0, 0, position);
+                            createReactionsMenu(cell, x, y, position);
                         }
                     }
 
