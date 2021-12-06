@@ -6166,10 +6166,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     }
 
                     reactionButton.width = (newReaction != null) ? ((int) reactionButton.drawable.getButtonWidth()) : 0;
-                    /*if (reactionButton.prevWidth == -1 || reactionButton.prevHeight == -1) {
+                    if (messageChanged && (reactionButton.prevWidth == -1 || reactionButton.prevHeight == -1)) {
                         reactionButton.prevWidth = reactionButton.width;
                         reactionButton.prevHeight = reactionButton.height;
-                    }*/
+                    }
                 }
 
                 Log.i("REACTIONBUTTONS", "Update buttons");
