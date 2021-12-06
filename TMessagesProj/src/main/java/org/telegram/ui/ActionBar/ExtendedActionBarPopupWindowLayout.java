@@ -213,7 +213,9 @@ public class ExtendedActionBarPopupWindowLayout extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        int width = MeasureSpec.getSize(widthMeasureSpec);
+        int newWidth = Math.min(width, AndroidUtilities.dp(280));
+        super.onMeasure(MeasureSpec.makeMeasureSpec(newWidth, MeasureSpec.EXACTLY), heightMeasureSpec);
 
         if (linearLayout != null) {
             int maxWidth = linearLayout.getMeasuredWidth();

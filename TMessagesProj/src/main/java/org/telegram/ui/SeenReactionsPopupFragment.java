@@ -219,18 +219,6 @@ public class SeenReactionsPopupFragment extends ExtendedActionBarPopupWindowBase
     }
 
     @Override
-    public void onFragmentDestroy() {
-        super.onFragmentDestroy();
-        AndroidUtilities.removeAdjustResize(getParentActivity(), classGuid);
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        AndroidUtilities.requestAdjustResize(getParentActivity(), classGuid);
-    }
-
-    @Override
     public View createView(Context context) {
         linearLayout = new LinearLayout(context);
         linearLayout.setOrientation(LinearLayout.VERTICAL);

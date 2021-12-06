@@ -49,7 +49,6 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
 
     private boolean isFinished;
     private boolean finishing;
-    protected Dialog visibleDialog;
     protected int currentAccount = UserConfig.selectedAccount;
 
     protected View fragmentView;
@@ -58,7 +57,6 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
     protected Bundle arguments;
     protected boolean hasOwnBackground = false;
     protected boolean isPaused = true;
-    protected Dialog parentDialog;
     protected boolean inTransitionAnimation = false;
     protected boolean fragmentBeginToShow;
 
@@ -182,10 +180,6 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
     }
 
     public void finishFragment() {
-        if (parentDialog != null) {
-            parentDialog.dismiss();
-            return;
-        }
         finishFragment(true);
     }
 
@@ -199,10 +193,6 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
 
     public void removeSelfFromStack() {
         if (isFinished || parentLayout == null) {
-            return;
-        }
-        if (parentDialog != null) {
-            parentDialog.dismiss();
             return;
         }
         parentLayout.removeFragmentFromStack(this);
@@ -238,14 +228,6 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
 
     public void onPause() {
         isPaused = true;
-        try {
-            if (visibleDialog != null && visibleDialog.isShowing() && dismissDialogOnPause(visibleDialog)) {
-                visibleDialog.dismiss();
-                visibleDialog = null;
-            }
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
     }
 
     public ExtendedActionBarPopupWindowBaseFragment getFragmentForAlert(int offset) {
@@ -329,35 +311,12 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
         }
     }
 
-    public void dismissCurrentDialog() {
-        if (visibleDialog == null) {
-            return;
-        }
-        try {
-            visibleDialog.dismiss();
-            visibleDialog = null;
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-    }
-
-    public boolean dismissDialogOnPause(Dialog dialog) {
-        return true;
-    }
-
     public boolean canBeginSlide() {
         return true;
     }
 
     public void onBeginSlide() {
-        try {
-            if (visibleDialog != null && visibleDialog.isShowing()) {
-                visibleDialog.dismiss();
-                visibleDialog = null;
-            }
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
+
     }
 
     protected void onSlideProgress(boolean isOpen, float progress) {
@@ -379,84 +338,8 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
         inTransitionAnimation = false;
     }
 
-    protected int getPreviewHeight() {
-        return LayoutHelper.MATCH_PARENT;
-    }
-
-    protected void onBecomeFullyHidden() {
-
-    }
-
     protected AnimatorSet onCustomTransitionAnimation(boolean isOpen, final Runnable callback) {
         return null;
-    }
-
-    public Dialog showDialog(Dialog dialog) {
-        return showDialog(dialog, false, null);
-    }
-
-    public Dialog showDialog(Dialog dialog, Dialog.OnDismissListener onDismissListener) {
-        return showDialog(dialog, false, onDismissListener);
-    }
-
-    public Dialog showDialog(Dialog dialog, boolean allowInTransition, final Dialog.OnDismissListener onDismissListener) {
-        if (dialog == null || parentLayout == null || parentLayout.animationInProgress || parentLayout.startedTracking || !allowInTransition && parentLayout.checkTransitionAnimation()) {
-            return null;
-        }
-        try {
-            if (visibleDialog != null) {
-                visibleDialog.dismiss();
-                visibleDialog = null;
-            }
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-        try {
-            visibleDialog = dialog;
-            visibleDialog.setCanceledOnTouchOutside(true);
-            visibleDialog.setOnDismissListener(dialog1 -> {
-                if (onDismissListener != null) {
-                    onDismissListener.onDismiss(dialog1);
-                }
-                onDialogDismiss((Dialog) dialog1);
-                if (dialog1 == visibleDialog) {
-                    visibleDialog = null;
-                }
-            });
-            visibleDialog.show();
-            return visibleDialog;
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-        return null;
-    }
-
-    protected void onDialogDismiss(Dialog dialog) {
-
-    }
-
-    protected void onPanTranslationUpdate(float y) {
-
-    }
-
-    protected void onPanTransitionStart() {
-
-    }
-
-    protected void onPanTransitionEnd() {
-
-    }
-
-    public Dialog getVisibleDialog() {
-        return visibleDialog;
-    }
-
-    public void setVisibleDialog(Dialog dialog) {
-        visibleDialog = dialog;
-    }
-
-    public boolean extendActionMode(Menu menu) {
-        return false;
     }
 
     public ArrayList<ThemeDescription> getThemeDescriptions() {
@@ -527,12 +410,6 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
         return getAccountInstance().getUserConfig();
     }
 
-    public void setFragmentPanTranslationOffset(int offset) {
-        if (parentLayout != null) {
-            parentLayout.setFragmentPanTranslationOffset(offset);
-        }
-    }
-
     public void saveKeyboardPositionBeforeTransition() {
 
     }
@@ -549,48 +426,6 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
 
     }
 
-    public ExtendedActionBarPopupWindowFragmentsLayout[] showAsSheet(ExtendedActionBarPopupWindowBaseFragment fragment) {
-        if (getParentActivity() == null) {
-            return null;
-        }
-        ExtendedActionBarPopupWindowFragmentsLayout[] ExtendedActionBarPopupWindowFragmentsLayout = new ExtendedActionBarPopupWindowFragmentsLayout[]{new ExtendedActionBarPopupWindowFragmentsLayout(getParentActivity())};
-        BottomSheet bottomSheet = new BottomSheet(getParentActivity(), true) {
-            {
-                ExtendedActionBarPopupWindowFragmentsLayout[0].init(new ArrayList<>());
-                ExtendedActionBarPopupWindowFragmentsLayout[0].addFragmentToStack(fragment);
-                ExtendedActionBarPopupWindowFragmentsLayout[0].showLastFragment();
-                ExtendedActionBarPopupWindowFragmentsLayout[0].setPadding(backgroundPaddingLeft, 0, backgroundPaddingLeft, 0);
-                containerView = ExtendedActionBarPopupWindowFragmentsLayout[0];
-                setApplyBottomPadding(false);
-                setApplyBottomPadding(false);
-                setOnDismissListener(dialog -> fragment.onFragmentDestroy());
-            }
-
-            @Override
-            protected boolean canDismissWithSwipe() {
-                return false;
-            }
-
-            @Override
-            public void onBackPressed() {
-                if (ExtendedActionBarPopupWindowFragmentsLayout[0] == null || ExtendedActionBarPopupWindowFragmentsLayout[0].fragmentsStack.size() <= 1) {
-                    super.onBackPressed();
-                } else {
-                    ExtendedActionBarPopupWindowFragmentsLayout[0].onBackPressed();
-                }
-            }
-
-            @Override
-            public void dismiss() {
-                super.dismiss();
-                ExtendedActionBarPopupWindowFragmentsLayout[0] = null;
-            }
-        };
-        fragment.setParentDialog(bottomSheet);
-        bottomSheet.show();
-        return ExtendedActionBarPopupWindowFragmentsLayout;
-    }
-
     public int getThemedColor(String key) {
         return Theme.getColor(key);
     }
@@ -601,10 +436,6 @@ public abstract class ExtendedActionBarPopupWindowBaseFragment {
 
     public boolean isBeginToShow() {
         return fragmentBeginToShow;
-    }
-
-    private void setParentDialog(Dialog dialog) {
-        parentDialog = dialog;
     }
 
     public Theme.ResourcesProvider getResourceProvider() {

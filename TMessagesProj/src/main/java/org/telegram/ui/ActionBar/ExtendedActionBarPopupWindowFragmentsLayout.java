@@ -61,14 +61,11 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
     private static Drawable layerShadowDrawable;
     private static Paint scrimPaint;
 
-    private Runnable waitingForKeyboardCloseRunnable;
+    //private Runnable waitingForKeyboardCloseRunnable;
     private Runnable delayedOpenAnimationRunnable;
-
-    private boolean inBubbleMode;
 
     private FrameLayout containerView;
     private FrameLayout containerViewBack;
-    private DrawerLayoutContainer drawerLayoutContainer;
 
     private ExtendedActionBarPopupWindowBaseFragment newFragment;
     private ExtendedActionBarPopupWindowBaseFragment oldFragment;
@@ -199,27 +196,6 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
         }
     }
 
-    @Override
-    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        if (!fragmentsStack.isEmpty()) {
-            for (int a = 0, N = fragmentsStack.size(); a < N; a++) {
-                ExtendedActionBarPopupWindowBaseFragment fragment = fragmentsStack.get(a);
-                fragment.onConfigurationChanged(newConfig);
-                if (fragment.visibleDialog instanceof BottomSheet) {
-                    ((BottomSheet) fragment.visibleDialog).onConfigurationChanged(newConfig);
-                }
-            }
-        }
-    }
-
-    public void setInBubbleMode(boolean value) {
-        inBubbleMode = value;
-    }
-
-    public boolean isInBubbleMode() {
-        return inBubbleMode;
-    }
 
     @Keep
     public void setSubtractedHeight(float value) {
@@ -250,13 +226,6 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
         return innerTranslationX;
     }
 
-    public void dismissDialogs() {
-        if (!fragmentsStack.isEmpty()) {
-            ExtendedActionBarPopupWindowBaseFragment lastFragment = fragmentsStack.get(fragmentsStack.size() - 1);
-            lastFragment.dismissCurrentDialog();
-        }
-    }
-
     public void onResume() {
         if (transitionAnimationInProgress) {
             if (currentAnimation != null) {
@@ -267,10 +236,10 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
                 AndroidUtilities.cancelRunOnUIThread(animationRunnable);
                 animationRunnable = null;
             }
-            if (waitingForKeyboardCloseRunnable != null) {
+            /*if (waitingForKeyboardCloseRunnable != null) {
                 AndroidUtilities.cancelRunOnUIThread(waitingForKeyboardCloseRunnable);
                 waitingForKeyboardCloseRunnable = null;
-            }
+            }*/
             if (onCloseAnimationEndRunnable != null) {
                 onCloseAnimationEnd();
             } else if (onOpenAnimationEndRunnable != null) {
@@ -501,9 +470,9 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
                         }
                     } else if (startedTracking) {
                         if (!beginTrackingSent) {
-                            if (parentActivity.getCurrentFocus() != null) {
+                            /*if (parentActivity.getCurrentFocus() != null) {
                                 AndroidUtilities.hideKeyboard(parentActivity.getCurrentFocus());
-                            }
+                            }*/
                             ExtendedActionBarPopupWindowBaseFragment currentFragment = fragmentsStack.get(fragmentsStack.size() - 1);
                             currentFragment.onBeginSlide();
                             beginTrackingSent = true;
@@ -531,9 +500,9 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
                         if (velX >= 3500 && velX > Math.abs(velY) && currentFragment.canBeginSlide()) {
                             prepareForMoving(ev);
                             if (!beginTrackingSent) {
-                                if (((Activity) getContext()).getCurrentFocus() != null) {
+                                /*if (((Activity) getContext()).getCurrentFocus() != null) {
                                     AndroidUtilities.hideKeyboard(((Activity) getContext()).getCurrentFocus());
-                                }
+                                }*/
                                 beginTrackingSent = true;
                             }
                         }
@@ -633,20 +602,20 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
     private void onAnimationEndCheck(boolean byCheck) {
         onCloseAnimationEnd();
         onOpenAnimationEnd();
-        if (waitingForKeyboardCloseRunnable != null) {
+        /*if (waitingForKeyboardCloseRunnable != null) {
             AndroidUtilities.cancelRunOnUIThread(waitingForKeyboardCloseRunnable);
             waitingForKeyboardCloseRunnable = null;
-        }
+        }*/
         if (currentAnimation != null) {
             if (byCheck) {
                 currentAnimation.cancel();
             }
             currentAnimation = null;
         }
-        if (animationRunnable != null) {
+        /*if (animationRunnable != null) {
             AndroidUtilities.cancelRunOnUIThread(animationRunnable);
             animationRunnable = null;
-        }
+        }*/
         setAlpha(1.0f);
         containerView.setAlpha(1.0f);
         containerView.setScaleX(1.0f);
@@ -678,7 +647,6 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
         if (fragment == null) {
             return;
         }
-        fragment.onBecomeFullyHidden();
         fragment.onPause();
         if (removeLast) {
             fragment.onFragmentDestroy();
@@ -785,7 +753,7 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
 
     public void resumeDelayedFragmentAnimation() {
         delayedAnimationResumed = true;
-        if (delayedOpenAnimationRunnable == null || waitingForKeyboardCloseRunnable != null) {
+        if (delayedOpenAnimationRunnable == null/* || waitingForKeyboardCloseRunnable != null*/) {
             return;
         }
         AndroidUtilities.cancelRunOnUIThread(delayedOpenAnimationRunnable);
@@ -797,9 +765,9 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
         if (fragment == null || checkTransitionAnimation() || delegate != null && check && !delegate.needPresentFragment(fragment, removeLast, forceWithoutAnimation, this) || !fragment.onFragmentCreate()) {
             return false;
         }
-        if (parentActivity.getCurrentFocus() != null && fragment.hideKeyboardOnShow()) {
+        /*if (parentActivity.getCurrentFocus() != null && fragment.hideKeyboardOnShow()) {
             AndroidUtilities.hideKeyboard(parentActivity.getCurrentFocus());
-        }
+        }*/
         boolean needAnimation = !forceWithoutAnimation && MessagesController.getGlobalMainSettings().getBoolean("view_animations", true);
 
         final ExtendedActionBarPopupWindowBaseFragment currentFragment = !fragmentsStack.isEmpty() ? fragmentsStack.get(fragmentsStack.size() - 1) : null;
@@ -988,9 +956,9 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
         if (delegate != null && !delegate.needCloseLastFragment(this) || checkTransitionAnimation() || fragmentsStack.isEmpty()) {
             return;
         }
-        if (parentActivity.getCurrentFocus() != null) {
+        /*if (parentActivity.getCurrentFocus() != null) {
             AndroidUtilities.hideKeyboard(parentActivity.getCurrentFocus());
-        }
+        }*/
         setInnerTranslationX(0);
         boolean needAnimation = animated && MessagesController.getGlobalMainSettings().getBoolean("view_animations", true);
         final ExtendedActionBarPopupWindowBaseFragment currentFragment = fragmentsStack.get(fragmentsStack.size() - 1);
@@ -1083,9 +1051,6 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
                     setVisibility(GONE);
                     if (backgroundView != null) {
                         backgroundView.setVisibility(GONE);
-                    }
-                    if (drawerLayoutContainer != null) {
-                        drawerLayoutContainer.setAllowOpenDrawer(true, false);
                     }
                 };
 
@@ -1275,23 +1240,9 @@ public class ExtendedActionBarPopupWindowFragmentsLayout extends FrameLayout {
         backgroundView = view;
     }
 
-    public void setDrawerLayoutContainer(DrawerLayoutContainer layout) {
-        drawerLayoutContainer = layout;
-    }
-
-    public DrawerLayoutContainer getDrawerLayoutContainer() {
-        return drawerLayoutContainer;
-    }
-
     @Override
     public boolean hasOverlappingRendering() {
         return false;
-    }
-
-    public void setFragmentPanTranslationOffset(int offset) {
-        /*if (containerView != null) {
-            containerView.setFragmentPanTranslationOffset(offset);
-        }*/
     }
 
     private View findScrollingChild(ViewGroup parent, float x, float y) {
