@@ -199,14 +199,25 @@ public class ExtendedActionBarPopupWindowLayout extends FrameLayout {
         float y = event.getY();
 
         float x1 = getMeasuredWidth() - AndroidUtilities.dp(36);
-        float x2 = getMeasuredWidth();
         float y1 = AndroidUtilities.dp(61);
+        float x2 = getMeasuredWidth();
         float y2 = getMeasuredHeight();
 
-        if (event != null && x1 < x && x < x2 && y1 < x && x < y2 && event.getAction() == MotionEvent.ACTION_DOWN) {
+        float x3 = 0;
+        float x4 = getMeasuredWidth() - availableReactionsListWidth - AndroidUtilities.dp(16);
+        float y3 = 0;
+        float y4 = AndroidUtilities.dp(45) + AndroidUtilities.dp(8);
+
+        if (event != null && x1 < x && x < x2 && y1 < y && y < y2 && event.getAction() == MotionEvent.ACTION_DOWN) {
             delegate.onWindowClose();
             return true;
         }
+
+        if (event != null && x3 < x && x < x4 && y3 < y && y < y4 && event.getAction() == MotionEvent.ACTION_DOWN) {
+            delegate.onWindowClose();
+            return true;
+        }
+
 
         return super.onTouchEvent(event);
     }
