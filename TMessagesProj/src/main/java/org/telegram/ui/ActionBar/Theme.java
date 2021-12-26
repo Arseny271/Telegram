@@ -3331,6 +3331,10 @@ public class Theme {
     public static final String key_chat_outFileBackground = "chat_outFileBackground";
     public static final String key_chat_inFileBackgroundSelected = "chat_inFileBackgroundSelected";
     public static final String key_chat_outFileBackgroundSelected = "chat_outFileBackgroundSelected";
+    public static final String key_chat_qrcode = "key_chat_qrcode";
+    public static final String key_chat_qrcode_gradient_to1 = "key_chat_qrcode_gradient_to";
+    public static final String key_chat_qrcode_gradient_to2 = "key_chat_qrcode_gradient_to2";
+    public static final String key_chat_qrcode_gradient_to3 = "key_chat_qrcode_gradient_to3";
     public static final String key_chat_inVenueInfoText = "chat_inVenueInfoText";
     public static final String key_chat_outVenueInfoText = "chat_outVenueInfoText";
     public static final String key_chat_inVenueInfoSelectedText = "chat_inVenueInfoSelectedText";

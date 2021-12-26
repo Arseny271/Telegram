@@ -64,6 +64,12 @@ public class ActionBar extends FrameLayout {
         }
     }
 
+    public static class ActionBarMenuOnItemLongClick {
+        public boolean onItemClick(int id) {
+            return false;
+        }
+    }
+
     private ImageView backButtonImageView;
     private SimpleTextView[] titleTextView = new SimpleTextView[2];
     private SimpleTextView subtitleTextView;
@@ -113,6 +119,7 @@ public class ActionBar extends FrameLayout {
     private boolean isBackOverlayVisible;
     protected BaseFragment parentFragment;
     public ActionBarMenuOnItemClick actionBarMenuOnItemClick;
+    public ActionBarMenuOnItemLongClick actionBarMenuOnItemLongClick;
     private int titleColorToSet = 0;
     private boolean overlayTitleAnimation;
     private boolean titleAnimationRunning;
@@ -459,6 +466,14 @@ public class ActionBar extends FrameLayout {
 
     public ActionBarMenuOnItemClick getActionBarMenuOnItemClick() {
         return actionBarMenuOnItemClick;
+    }
+
+    public void setActionBarMenuOnItemLongClick(ActionBarMenuOnItemLongClick listener) {
+        actionBarMenuOnItemLongClick = listener;
+    }
+
+    public ActionBarMenuOnItemLongClick getActionBarMenuOnItemLongClick() {
+        return actionBarMenuOnItemLongClick;
     }
 
     public ImageView getBackButton() {

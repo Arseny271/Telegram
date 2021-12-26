@@ -22,6 +22,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.SystemClock;
 import android.view.View;
+import android.view.animation.Interpolator;
 
 import androidx.core.graphics.ColorUtils;
 
@@ -51,7 +52,7 @@ public class MotionBackgroundDrawable extends Drawable {
     private long lastUpdateTime;
     private WeakReference<View> parentView;
 
-    private final CubicBezierInterpolator interpolator = new CubicBezierInterpolator(0.33, 0.0, 0.0, 1.0);
+    private Interpolator interpolator = new CubicBezierInterpolator(0.33, 0.0, 0.0, 1.0);
 
     private int translationY;
 
@@ -108,6 +109,18 @@ public class MotionBackgroundDrawable extends Drawable {
         init();
     }
 
+    public void setInterpolator(Interpolator interpolator) {
+        this.interpolator = interpolator;
+    }
+
+    public float getInterpolation(float value) {
+        if (interpolator == null) {
+            return value;
+        } else {
+            return interpolator.getInterpolation(value);
+        }
+    }
+
     public MotionBackgroundDrawable(int c1, int c2, int c3, int c4, boolean preview) {
         this(c1, c2, c3 ,c4, 0, preview);
     }
@@ -130,7 +143,7 @@ public class MotionBackgroundDrawable extends Drawable {
         gradientFromBitmap = Bitmap.createBitmap(60, 80, Bitmap.Config.ARGB_8888);
         gradientFromCanvas = new Canvas(gradientFromBitmap);
 
-        Utilities.generateGradient(currentBitmap, true, phase, interpolator.getInterpolation(posAnimationProgress), currentBitmap.getWidth(), currentBitmap.getHeight(), currentBitmap.getRowBytes(), colors);
+        Utilities.generateGradient(currentBitmap, true, phase, getInterpolation(posAnimationProgress), currentBitmap.getWidth(), currentBitmap.getHeight(), currentBitmap.getRowBytes(), colors);
         if (useSoftLight) {
             paint2.setBlendMode(BlendMode.SOFT_LIGHT);
         }
@@ -223,7 +236,7 @@ public class MotionBackgroundDrawable extends Drawable {
         } else if (phase > 7) {
             phase = 7;
         }
-        Utilities.generateGradient(currentBitmap, true, phase, interpolator.getInterpolation(posAnimationProgress), currentBitmap.getWidth(), currentBitmap.getHeight(), currentBitmap.getRowBytes(), colors);
+        Utilities.generateGradient(currentBitmap, true, phase, getInterpolation(posAnimationProgress), currentBitmap.getWidth(), currentBitmap.getHeight(), currentBitmap.getRowBytes(), colors);
     }
 
     public void switchToNextPosition() {
@@ -245,6 +258,14 @@ public class MotionBackgroundDrawable extends Drawable {
         invalidateParent();
         gradientFromCanvas.drawBitmap(currentBitmap, 0, 0, null);
         generateNextGradient();
+    }
+
+    public void setPosAnimationProgress(float value) {
+        posAnimationProgress = value;
+    }
+
+    public float getPosAnimationProgress() {
+        return posAnimationProgress;
     }
 
     private void generateNextGradient() {
@@ -309,7 +330,7 @@ public class MotionBackgroundDrawable extends Drawable {
         colors[1] = c2;
         colors[2] = c3;
         colors[3] = c4;
-        Utilities.generateGradient(bitmap, true, phase, interpolator.getInterpolation(posAnimationProgress), currentBitmap.getWidth(), currentBitmap.getHeight(), currentBitmap.getRowBytes(), colors);
+        Utilities.generateGradient(bitmap, true, phase, getInterpolation(posAnimationProgress), currentBitmap.getWidth(), currentBitmap.getHeight(), currentBitmap.getRowBytes(), colors);
     }
 
     public void setColors(int c1, int c2, int c3, int c4, int rotation, boolean invalidate) {
@@ -323,7 +344,7 @@ public class MotionBackgroundDrawable extends Drawable {
         colors[2] = c3;
         colors[3] = c4;
         if (currentBitmap != null) {
-            Utilities.generateGradient(currentBitmap, true, phase, interpolator.getInterpolation(posAnimationProgress), currentBitmap.getWidth(), currentBitmap.getHeight(), currentBitmap.getRowBytes(), colors);
+            Utilities.generateGradient(currentBitmap, true, phase, getInterpolation(posAnimationProgress), currentBitmap.getWidth(), currentBitmap.getHeight(), currentBitmap.getRowBytes(), colors);
             if (invalidate) {
                 invalidateParent();
             }
@@ -611,6 +632,11 @@ public class MotionBackgroundDrawable extends Drawable {
         updateAnimation();
     }
 
+    private boolean slowMode = false;
+    public void setSlowMode(boolean mode) {
+        slowMode = mode;
+    }
+
     private void updateAnimation() {
         long newTime = SystemClock.elapsedRealtime();
         long dt = newTime - lastUpdateTime;
@@ -626,7 +652,7 @@ public class MotionBackgroundDrawable extends Drawable {
             float progress;
             if (rotatingPreview) {
                 int stageBefore;
-                float progressBefore = interpolator.getInterpolation(posAnimationProgress);
+                float progressBefore = getInterpolation(posAnimationProgress);
                 if (progressBefore <= 0.25f) {
                     stageBefore = 0;
                 } else if (progressBefore <= 0.5f) {
@@ -640,7 +666,7 @@ public class MotionBackgroundDrawable extends Drawable {
                 if (posAnimationProgress > 1.0f) {
                     posAnimationProgress = 1.0f;
                 }
-                progress = interpolator.getInterpolation(posAnimationProgress);
+                progress = getInterpolation(posAnimationProgress);
                 if (stageBefore == 0 && progress > 0.25f ||
                         stageBefore == 1 && progress > 0.5f ||
                         stageBefore == 2 && progress > 0.75f) {
@@ -677,11 +703,11 @@ public class MotionBackgroundDrawable extends Drawable {
                     }
                 }
             } else {
-                posAnimationProgress += dt / (fastAnimation ? 300.0f : 500.0f);
+                posAnimationProgress += dt / (slowMode ? 1500f : (fastAnimation ? 300.0f : 500.0f));
                 if (posAnimationProgress > 1.0f) {
                     posAnimationProgress = 1.0f;
                 }
-                progress = interpolator.getInterpolation(posAnimationProgress);
+                progress = getInterpolation(posAnimationProgress);
                 if (rotationBack) {
                     progress = 1.0f - progress;
                     if (posAnimationProgress >= 1.0f) {

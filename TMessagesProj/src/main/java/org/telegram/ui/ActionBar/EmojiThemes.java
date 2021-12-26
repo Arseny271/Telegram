@@ -556,6 +556,10 @@ public class EmojiThemes {
         return items.get(index);
     }
 
+    public ArrayList<EmojiThemes.ThemeItem> getThemeItems() {
+        return items;
+    }
+
     public static void saveCustomTheme(Theme.ThemeInfo themeInfo, int accentId) {
         if (themeInfo == null) {
             return;
@@ -591,7 +595,7 @@ public class EmojiThemes {
     public static class ThemeItem {
 
         public Theme.ThemeInfo themeInfo;
-        TLRPC.TL_theme tlTheme;
+        public TLRPC.TL_theme tlTheme;
         int settingsIndex;
         public int accentId = -1;
         public HashMap<String, Integer> currentPreviewColors;

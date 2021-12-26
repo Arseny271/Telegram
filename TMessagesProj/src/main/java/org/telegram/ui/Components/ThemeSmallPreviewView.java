@@ -23,6 +23,7 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatThemeController;
@@ -49,6 +50,7 @@ public class ThemeSmallPreviewView extends FrameLayout implements NotificationCe
 
     public final static int TYPE_DEFAULT = 0;
     public final static int TYPE_GRID = 1;
+    public final static int TYPE_QRCODE = 2;
 
     private final float STROKE_RADIUS = AndroidUtilities.dp(8);
     private final float INNER_RADIUS = AndroidUtilities.dp(6);
@@ -72,6 +74,7 @@ public class ThemeSmallPreviewView extends FrameLayout implements NotificationCe
     private StaticLayout textLayout;
     public ChatThemeBottomSheet.ChatThemeItem chatThemeItem;
     private BackupImageView backupImageView;
+    private ImageView imageView;
     private boolean hasAnimatedEmoji;
     private final int currentAccount;
     Runnable animationCancelRunnable;
@@ -85,11 +88,18 @@ public class ThemeSmallPreviewView extends FrameLayout implements NotificationCe
         this.currentAccount = currentAccount;
         this.resourcesProvider = resourcesProvider;
         setBackgroundColor(getThemedColor(Theme.key_dialogBackgroundGray));
+
+        if (currentType == TYPE_QRCODE) {
+            imageView = new ImageView(context);
+            imageView.setImageResource(R.drawable.msg_qr_mini);
+            addView(imageView, LayoutHelper.createFrame(28, 28, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 22, 0, 00));
+        }
+
         backupImageView = new BackupImageView(context);
         backupImageView.getImageReceiver().setCrossfadeWithOldImage(true);
         backupImageView.getImageReceiver().setAllowStartLottieAnimation(false);
         backupImageView.getImageReceiver().setAutoRepeat(0);
-        if (currentType == TYPE_DEFAULT) {
+        if (currentType == TYPE_DEFAULT || currentType == TYPE_QRCODE) {
             addView(backupImageView, LayoutHelper.createFrame(28, 28, Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, 0, 0, 0, 12));
         } else {
             addView(backupImageView, LayoutHelper.createFrame(36, 36, Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, 0, 0, 0, 12));
@@ -258,7 +268,7 @@ public class ThemeSmallPreviewView extends FrameLayout implements NotificationCe
                         AndroidUtilities.runOnUIThread(() -> {
                             if (item.previewDrawable instanceof MotionBackgroundDrawable) {
                                 MotionBackgroundDrawable motionBackgroundDrawable = (MotionBackgroundDrawable) item.previewDrawable;
-                                motionBackgroundDrawable.setPatternBitmap(100, bitmap);
+                                motionBackgroundDrawable.setPatternBitmap( currentType == TYPE_QRCODE ? ( item.themeIndex > 0 ? -100 : 100 ) : 100, bitmap);
                                 motionBackgroundDrawable.setPatternColorFilter(patternColor);
                                 invalidate();
                             }
@@ -417,6 +427,15 @@ public class ThemeSmallPreviewView extends FrameLayout implements NotificationCe
         int color3 = item.patternBgGradientColor2;
         int color4 = item.patternBgGradientColor3;
         int rotation = item.patternBgRotation;
+
+        if (currentType == TYPE_QRCODE) {
+            if (chatThemeItem.chatTheme.getEmoticon().equals("\uD83C\uDFE0") && item.themeInfo.isDark()) {
+                color1 = 0xFF5FA5A1;
+                color2 = 0xFF2158A0;
+                color3 = 0xFF53639F;
+                color4 = 0xFF3B86B7;
+            }
+        }
 
         if (item.themeInfo.getAccent(false) != null) {
             if (color2 != 0) {
@@ -601,6 +620,11 @@ public class ThemeSmallPreviewView extends FrameLayout implements NotificationCe
                 rectF.set(rectSpace, rectSpace, getWidth() - rectSpace, getHeight() - rectSpace);
                 canvas.drawRoundRect(rectF, STROKE_RADIUS, STROKE_RADIUS, strokePaint);
             }
+
+            if (currentType == TYPE_QRCODE) {
+                return;
+            }
+
             outBubblePaintSecond.setAlpha((int) (255 * alpha));
             inBubblePaint.setAlpha((int) (255 * alpha));
             rectF.set(INNER_RECT_SPACE, INNER_RECT_SPACE, getWidth() - INNER_RECT_SPACE, getHeight() - INNER_RECT_SPACE);

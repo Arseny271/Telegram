@@ -101,6 +101,7 @@ public class CameraScanActivity extends BaseFragment implements Camera.PreviewCa
     private BarcodeDetector visionQrReader;
 
     private boolean needGalleryButton;
+    private boolean ignoreTextChecks;
 
     private int currentType;
 
@@ -119,6 +120,10 @@ public class CameraScanActivity extends BaseFragment implements Camera.PreviewCa
     }
 
     public static ActionBarLayout[] showAsSheet(BaseFragment parentFragment, boolean gallery, int type, CameraScanActivityDelegate delegate) {
+        return showAsSheet(parentFragment, gallery, false, type, delegate);
+    }
+
+    public static ActionBarLayout[] showAsSheet(BaseFragment parentFragment, boolean gallery, boolean ignoreChecks, int type, CameraScanActivityDelegate delegate) {
         if (parentFragment == null || parentFragment.getParentActivity() == null) {
             return null;
         }
@@ -137,6 +142,7 @@ public class CameraScanActivity extends BaseFragment implements Camera.PreviewCa
                         dismiss();
                     }
                 };
+                fragment.ignoreTextChecks = ignoreChecks;
                 fragment.needGalleryButton = gallery;
                 actionBarLayout[0].addFragmentToStack(fragment);
                 actionBarLayout[0].showLastFragment();
@@ -365,7 +371,7 @@ public class CameraScanActivity extends BaseFragment implements Camera.PreviewCa
             viewGroup.addView(actionBar);
         }
 
-        if (currentType == TYPE_QR_LOGIN) {
+        if (currentType == TYPE_QR_LOGIN || currentType == TYPE_QR) {
             actionBar.setTitle(LocaleController.getString("AuthAnotherClientScan", R.string.AuthAnotherClientScan));
         }
 
@@ -720,6 +726,9 @@ public class CameraScanActivity extends BaseFragment implements Camera.PreviewCa
             if (TextUtils.isEmpty(text)) {
                 onNoQrFound();
                 return null;
+            }
+            if (ignoreTextChecks) {
+                return text;
             }
             if (needGalleryButton) {
                 if (!text.startsWith("ton://transfer/")) {

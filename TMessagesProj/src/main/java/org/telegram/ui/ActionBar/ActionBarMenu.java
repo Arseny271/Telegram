@@ -121,6 +121,9 @@ public class ActionBarMenu extends LinearLayout {
                 onItemClick((Integer) view.getTag());
             }
         });
+        menuItem.setOnLongClickListener(view -> {
+            return onItemLongClick((Integer) view.getTag());
+        });
         if (title != null) {
             menuItem.setContentDescription(title);
         }
@@ -168,6 +171,14 @@ public class ActionBarMenu extends LinearLayout {
         if (parentActionBar.actionBarMenuOnItemClick != null) {
             parentActionBar.actionBarMenuOnItemClick.onItemClick(id);
         }
+    }
+
+    public boolean onItemLongClick(int id) {
+        if (parentActionBar.actionBarMenuOnItemLongClick != null) {
+            return parentActionBar.actionBarMenuOnItemLongClick.onItemClick(id);
+        }
+
+        return false;
     }
 
     public void clearItems() {

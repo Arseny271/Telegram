@@ -417,16 +417,18 @@ public class BottomSheet extends Dialog {
             boolean isPortrait = width < height;
 
             if (containerView != null) {
-                if (!fullWidth) {
-                    int widthSpec;
-                    if (AndroidUtilities.isTablet()) {
-                        widthSpec = MeasureSpec.makeMeasureSpec((int) (Math.min(AndroidUtilities.displaySize.x, AndroidUtilities.displaySize.y) * 0.8f) + backgroundPaddingLeft * 2, MeasureSpec.EXACTLY);
+                if (!onCustomMeasureContainerLayout(containerView, width, height)) {
+                    if (!fullWidth) {
+                        int widthSpec;
+                        if (AndroidUtilities.isTablet()) {
+                            widthSpec = MeasureSpec.makeMeasureSpec((int) (Math.min(AndroidUtilities.displaySize.x, AndroidUtilities.displaySize.y) * 0.8f) + backgroundPaddingLeft * 2, MeasureSpec.EXACTLY);
+                        } else {
+                            widthSpec = MeasureSpec.makeMeasureSpec(isPortrait ? width + backgroundPaddingLeft * 2 : (int) Math.max(width * 0.8f, Math.min(AndroidUtilities.dp(480), width)) + backgroundPaddingLeft * 2, MeasureSpec.EXACTLY);
+                        }
+                        containerView.measure(widthSpec, MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST));
                     } else {
-                        widthSpec = MeasureSpec.makeMeasureSpec(isPortrait ? width + backgroundPaddingLeft * 2 : (int) Math.max(width * 0.8f, Math.min(AndroidUtilities.dp(480), width)) + backgroundPaddingLeft * 2, MeasureSpec.EXACTLY);
+                        containerView.measure(MeasureSpec.makeMeasureSpec(width + backgroundPaddingLeft * 2, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST));
                     }
-                    containerView.measure(widthSpec, MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST));
-                } else {
-                    containerView.measure(MeasureSpec.makeMeasureSpec(width + backgroundPaddingLeft * 2, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST));
                 }
             }
             int childCount = getChildCount();
@@ -1078,6 +1080,10 @@ public class BottomSheet extends Dialog {
 
     public void setApplyBottomPadding(boolean value) {
         applyBottomPadding = value;
+    }
+
+    protected boolean onCustomMeasureContainerLayout(View view, int width, int height) {
+        return false;
     }
 
     protected boolean onCustomMeasure(View view, int width, int height) {
