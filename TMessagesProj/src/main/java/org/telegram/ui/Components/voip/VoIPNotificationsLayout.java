@@ -4,7 +4,9 @@ import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.RectF;
 import android.os.Build;
 import android.transition.ChangeBounds;
 import android.transition.Fade;
@@ -17,7 +19,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -26,14 +27,16 @@ import androidx.annotation.NonNull;
 import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.ui.ActionBar.Theme;
+import org.telegram.messenger.utils.AnimationUtilities;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 public class VoIPNotificationsLayout extends LinearLayout {
+    private final VoIPBackground backgroundView;
 
     HashMap<String, NotificationView> viewsByTag = new HashMap<>();
     ArrayList<NotificationView> viewToAdd = new ArrayList<>();
@@ -43,9 +46,10 @@ public class VoIPNotificationsLayout extends LinearLayout {
     boolean wasChanged;
     Runnable onViewsUpdated;
 
-    public VoIPNotificationsLayout(Context context) {
+    public VoIPNotificationsLayout(Context context, VoIPBackground backgroundView) {
         super(context);
         setOrientation(VERTICAL);
+        this.backgroundView = backgroundView;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             transitionSet = new TransitionSet();
@@ -75,10 +79,21 @@ public class VoIPNotificationsLayout extends LinearLayout {
             return;
         }
 
-        NotificationView view = new NotificationView(getContext());
+        NotificationView view = new NotificationView(getContext(), backgroundView, iconRes != 0) {
+            @Override
+            public float getOffsetX() {
+                return VoIPNotificationsLayout.this.getX() + super.getOffsetY();
+            }
+
+            @Override
+            public float getOffsetY() {
+                return VoIPNotificationsLayout.this.getY() + super.getOffsetY();
+            }
+        };
         view.tag = tag;
         view.iconView.setImageResource(iconRes);
         view.textView.setText(text);
+        view.setBackgroundAlpha(bgAlpha);
         viewsByTag.put(tag, view);
 
         if (animated) {
@@ -176,49 +191,63 @@ public class VoIPNotificationsLayout extends LinearLayout {
         wasChanged = false;
     }
 
-    public int getChildsHight() {
+    public int getChildsHeight() {
         int n = getChildCount();
         return (n > 0 ? AndroidUtilities.dp(16) : 0) + n * AndroidUtilities.dp(32);
     }
 
-    private static class NotificationView extends FrameLayout {
+    private int bgAlpha;
+    public void updateLayout (float hasAnyVideo) {
+        bgAlpha = (int)AnimationUtilities.fromTo(180f, 74f, hasAnyVideo);
+        for(Map.Entry<String, NotificationView> entry : viewsByTag.entrySet()) {
+            entry.getValue().setBackgroundAlpha(bgAlpha);
+        }
+    }
+
+    private static class NotificationView extends VoIPBackground.BackgroundedView {
 
         public String tag;
         ImageView iconView;
         TextView textView;
+        private final RectF rectF = new RectF();
 
-        public NotificationView(@NonNull Context context) {
-            super(context);
+        public NotificationView(@NonNull Context context, VoIPBackground backgroundView, boolean hasIcon) {
+            super(context, backgroundView);
             setFocusable(true);
             setFocusableInTouchMode(true);
+            setWillNotDraw(false);
 
             iconView = new ImageView(context);
-            setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.4f))));
-            addView(iconView, LayoutHelper.createFrame(24, 24, 0, 10, 4, 10, 4));
+            addView(iconView, LayoutHelper.createFrame(24, 24, 0, 10, 2, 10, 2));
 
             textView = new TextView(context);
             textView.setTextColor(Color.WHITE);
-            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-            addView(textView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, 44, 4, 16, 4));
+            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+            addView(textView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, hasIcon ? 36: 12, 2, 12, 2));
+        }
+
+        public void setBackgroundAlpha (int alpha) {
+            backgroundDarkPaint.setAlpha(alpha);
+            invalidate();
+        }
+
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            rectF.set(0, 0, getMeasuredWidth(), getMeasuredHeight());
+        }
+
+        @Override
+        protected void dispatchDraw(Canvas canvas) {
+            canvas.drawRoundRect(rectF, AndroidUtilities.dp(14), AndroidUtilities.dp(14), backgroundDarkPaint);
+            super.dispatchDraw(canvas);
         }
 
         public void startAnimation() {
-            textView.setVisibility(View.GONE);
-            postDelayed(() -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    TransitionSet transitionSet = new TransitionSet();
-                    transitionSet.
-                            addTransition(new Fade(Fade.IN).setDuration(150))
-                            .addTransition(new ChangeBounds().setDuration(200));
-                    transitionSet.setOrdering(TransitionSet.ORDERING_TOGETHER);
-                    ViewParent parent = getParent();
-                    if (parent != null) {
-                        TransitionManager.beginDelayedTransition((ViewGroup) parent, transitionSet);
-                    }
-                }
-
-                textView.setVisibility(View.VISIBLE);
-            }, 400);
+            setScaleX(0.3f);
+            setScaleY(0.3f);
+            setAlpha(0f);
+            animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(200).start();
         }
     }
 

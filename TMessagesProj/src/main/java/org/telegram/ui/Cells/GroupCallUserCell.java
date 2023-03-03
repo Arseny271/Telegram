@@ -957,6 +957,31 @@ public class GroupCallUserCell extends FrameLayout {
             blobDrawable2.paint.setColor(ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_voipgroup_speakingText), (int) (255 * WaveDrawable.CIRCLE_ALPHA_2)));
         }
 
+        public void setRadius (int minRadius1, int maxRadius1, int minRadius2, int maxRadius2, boolean updateBlob) {
+            blobDrawable.minRadius = minRadius1;
+            blobDrawable.maxRadius = maxRadius1;
+            blobDrawable2.minRadius = minRadius2;
+            blobDrawable2.maxRadius = maxRadius2;
+            if (updateBlob) {
+                blobDrawable.generateBlob();
+                blobDrawable2.generateBlob();
+            }
+        }
+
+        public void setColor (int color1, int color2) {
+            hasCustomColor = true;
+            blobDrawable.paint.setColor(color1);
+            blobDrawable2.paint.setColor(color2);
+        }
+
+        private boolean inStopMode = false;
+
+        public void setStopMode (boolean stopMode) {
+            blobDrawable.setStopMode(stopMode);
+            blobDrawable2.setStopMode(stopMode);
+            inStopMode = stopMode;
+        }
+
         public void update() {
             if (animateToAmplitude != amplitude) {
                 amplitude += animateAmplitudeDiff * 16;
@@ -1013,6 +1038,7 @@ public class GroupCallUserCell extends FrameLayout {
                     if (invalidateColor) {
                         int color = ColorUtils.blendARGB(Theme.getColor(Theme.key_voipgroup_speakingText), isMuted == 2 ? Theme.getColor(Theme.key_voipgroup_mutedByAdminIcon) : Theme.getColor(Theme.key_voipgroup_listeningText), progressToMuted);
                         blobDrawable.paint.setColor(ColorUtils.setAlphaComponent(color, (int) (255 * WaveDrawable.CIRCLE_ALPHA_2)));
+                        blobDrawable2.paint.setColor(ColorUtils.setAlphaComponent(color, (int) (255 * WaveDrawable.CIRCLE_ALPHA_2)));
                     }
                 }
 
@@ -1020,11 +1046,14 @@ public class GroupCallUserCell extends FrameLayout {
                 blobDrawable.draw(cx, cy, canvas, blobDrawable.paint);
 
                 blobDrawable2.update(amplitude, 1f);
-                blobDrawable2.draw(cx, cy, canvas, blobDrawable.paint);
+                blobDrawable2.draw(cx, cy, canvas, blobDrawable2.paint);
                 canvas.restore();
             }
 
-            if (wavesEnter != 0) {
+            if (!inStopMode && wavesEnter != 0) {
+                parentView.invalidate();
+            }
+            if (inStopMode && (!(blobDrawable.isFinished() && blobDrawable2.isFinished()) || amplitude > 0.01f)) {
                 parentView.invalidate();
             }
         }
@@ -1033,6 +1062,12 @@ public class GroupCallUserCell extends FrameLayout {
             float scaleAvatar = 0.9f + 0.2f * amplitude;
             float wavesEnter = CubicBezierInterpolator.EASE_OUT.getInterpolation(this.wavesEnter);
             return scaleAvatar * wavesEnter + 1f * (1f - wavesEnter);
+        }
+
+        public float getAvatarScale(float scale) {
+            float scaleAvatar = 1f - scale / 2f + scale * amplitude;
+            float wavesEnter = CubicBezierInterpolator.EASE_OUT.getInterpolation(this.wavesEnter);
+            return scaleAvatar * wavesEnter + (1f - wavesEnter);
         }
 
         public void setShowWaves(boolean show, View parentView) {
@@ -1044,7 +1079,7 @@ public class GroupCallUserCell extends FrameLayout {
 
         public void setAmplitude(double value) {
             float amplitude = (float) value / 80f;
-            if (!showWaves) {
+            if (!showWaves || inStopMode) {
                 amplitude = 0;
             }
             if (amplitude > 1f) {
@@ -1059,6 +1094,7 @@ public class GroupCallUserCell extends FrameLayout {
         public void setColor(int color) {
             hasCustomColor = true;
             blobDrawable.paint.setColor(color);
+            blobDrawable2.paint.setColor(color);
         }
 
         public void setMuted(int status, boolean animated) {

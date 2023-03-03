@@ -3937,7 +3937,7 @@
     <string name="VoipOutgoingCall">Ongoing Telegram call</string>
     <string name="VoipVoiceChat">Ongoing Voice Chat</string>
     <string name="VoipLiveStream">Ongoing Live Stream</string>
-    <string name="VoipEndCall">End call</string>
+    <string name="VoipEndCall">End Call</string>
     <string name="VoipOngoingAlertTitle">Another call in progress</string>
     <string name="VoipOngoingAlert">You currently have an ongoing call with **%1$s**. Would you like to hang up and start a new one with **%2$s**?</string>
     <string name="VoipOngoingAlert2">End call with **%1$s** and start voice chat in **%2$s**?</string>
@@ -3988,6 +3988,8 @@
     <string name="VoipPeerOutdated">**%1$s**\'s app does not support calls. They need to update their app before you can call them.</string>
     <string name="VoipPeerVideoOutdated">Sorry, **%1$s** is using an old version of Telegram that doesn\'t support video calls.</string>
     <string name="VoipPeerVideoOutdatedMakeVoice">Make a voice call</string>
+    <string name="VoipRateCallHeader">Rate this call</string>
+    <string name="VoipRateCallAlert2">Please rate the quality of this call.</string>
     <string name="VoipRateCallAlert">Please rate the quality of your Telegram call</string>
     <string name="VoipNeedMicPermissionWithHint">**Telegram** needs microphone access so that you can make calls. Tap Settings -> Permissions, and turn **Microphone** on.</string>
     <string name="VoipNeedMicCameraPermissionWithHint">**Telegram** needs camera and microphone access so that you can make video calls. Tap Settings -> Permissions, and turn **Microphone** and **Camera** on.</string>
@@ -4007,7 +4009,9 @@
     <string name="VoipOutputDevices">Output Devices</string>
     <string name="ReturnToCall">RETURN TO CALL</string>
     <string name="CallNotAvailable">Sorry, **%1$s** doesn\'t accept calls.</string>
-    <string name="CallEmojiKeyTooltip">If emoji on %1$s\'s screen are the same, this call is 100%% secure.</string>
+    <string name="CallEmojiKeyHeaderTooltip">This call is end-to-end encrypted</string>
+    <string name="CallEmojiKeyTooltip">If emoji on **%1$s\'s** screen are the same, this call is 100%% secure.</string>
+    <string name="CallEmojiKeyHide">Hide Emoji</string>
     <string name="CallMessageReportProblem">Rate Call</string>
     <string name="CallReportHint">What went wrong?</string>
     <string name="CallReportIncludeLogs">Include technical information</string>
@@ -4036,6 +4040,7 @@
     <string name="RateCallVideoDistorted">Video was distorted</string>
     <string name="RateCallVideoPixelated">Video was pixelated</string>
     <string name="TapToTurnCamera">Tap here to turn on your camera</string>
+    <string name="VoipEmojiKeyHint">Encryption key of this call</string>
     <string name="VoipUnmute">Unmute</string>
     <string name="VoipHoldAndTalk">or hold and talk</string>
     <string name="VoipTapToMute">You\'re Live</string>
@@ -4063,6 +4068,13 @@
     <string name="VideoCallAlert">Are you sure you want to video call **%1$s**?</string>
     <string name="VideoCallAlertTitle">Video Call</string>
     <string name="VoipReconnecting">Reconnecting</string>
+    <string name="VoipWeakSignal">Weak network signal</string>
+    <string name="VoipSelfMicrophoneIsOff">Your microphone is turned off</string>
+    <string name="VoipBtDeviceConnected">Bluetooth device connected</string>
+    <string name="VoipBtDeviceDisconnected">Bluetooth device disconnected</string>
+    <string name="VoipHeadsetConnected">Headset connected</string>
+    <string name="VoipHeadsetDisconnected">Headset disconnected</string>
+    <string name="VoipVideoUnavailableHint">Video sharing is not available for this call</string>
     <string name="StartVoipChat">Start Voice chat</string>
     <string name="StartVoipChatTitle">Voice Chat</string>
     <string name="StartVoipChannel">Start Live stream</string>

@@ -25,6 +25,7 @@ import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -158,6 +159,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 	public static final int STATE_RECONNECTING = Instance.STATE_RECONNECTING;
 	public static final int STATE_CREATING = 6;
 	public static final int STATE_ENDED = 11;
+	public static final int STATE_ASK_RATING = 20;
 	public static final String ACTION_HEADSET_PLUG = "android.intent.action.HEADSET_PLUG";
 
 	private static final int ID_ONGOING_CALL_NOTIFICATION = 201;
@@ -291,7 +293,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 	private byte[] g_a_hash;
 	private byte[] authKey;
 	private long keyFingerprint;
-	private boolean forceRating;
+	private boolean forceRating = /*true*/ false;
 
 	public static TLRPC.PhoneCall callIShouldHavePutIntoIntent;
 
@@ -2277,6 +2279,12 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 		return switchingStream;
 	}
 
+	private boolean needStartVideoOnInit = true;
+
+	public void setNeedStartVideoOnInit (boolean needStartVideoOnInit) {
+		this.needStartVideoOnInit = needStartVideoOnInit;
+	}
+
 	private void initiateActualEncryptedCall() {
 		if (timeoutRunnable != null) {
 			AndroidUtilities.cancelRunOnUIThread(timeoutRunnable);
@@ -2383,11 +2391,12 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 				videoState[CAPTURE_DEVICE_CAMERA] = Instance.VIDEO_STATE_INACTIVE;
 			}
 			if (!isOutgoing) {
-				if (videoCall && (Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)) {
+				if (videoCall && needStartVideoOnInit && (Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)) {
 					captureDevice[CAPTURE_DEVICE_CAMERA] = NativeInstance.createVideoCapturer(localSink[CAPTURE_DEVICE_CAMERA], isFrontFaceCamera ? 1 : 0);
 					videoState[CAPTURE_DEVICE_CAMERA] = Instance.VIDEO_STATE_ACTIVE;
 				} else {
 					videoState[CAPTURE_DEVICE_CAMERA] = Instance.VIDEO_STATE_INACTIVE;
+					needStartVideoOnInit = true;
 				}
 			}
 			// init
@@ -2668,32 +2677,67 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 		return micMute;
 	}
 
+	public void showOutputDeviceSheet (Context context, final DialogInterface.OnClickListener onClickListener, boolean fromOverlayWindow) {
+		int currentRoute = getCurrentAudioRoute();
+
+		BottomSheet.Builder builder = new BottomSheet.Builder(context);
+		builder.setTitle(LocaleController.getString("VoipOutputDevices", R.string.VoipOutputDevices), true);
+		builder.setItems(new CharSequence[]{
+				LocaleController.getString("VoipAudioRoutingSpeaker", R.string.VoipAudioRoutingSpeaker),
+				isHeadsetPlugged ? LocaleController.getString("VoipAudioRoutingHeadset", R.string.VoipAudioRoutingHeadset) : LocaleController.getString("VoipAudioRoutingEarpiece", R.string.VoipAudioRoutingEarpiece),
+				currentBluetoothDeviceName != null ? currentBluetoothDeviceName : LocaleController.getString("VoipAudioRoutingBluetooth", R.string.VoipAudioRoutingBluetooth)
+		}, new int[]{
+				R.drawable.msg_call_speaker,
+				isHeadsetPlugged ? R.drawable.msg_voice_headphones : R.drawable.msg_call_earpiece,
+				R.drawable.msg_call_bluetooth
+		}, onClickListener);
+
+		BottomSheet bottomSheet = builder.create();
+		if (fromOverlayWindow) {
+			if (Build.VERSION.SDK_INT >= 26) {
+				bottomSheet.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
+			} else {
+				bottomSheet.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+			}
+		}
+		builder.show();
+
+		bottomSheet.setTitleColor(Theme.getColor(Theme.key_dialogTextBlack));
+		for (int i = 0; i < bottomSheet.getItemViews().size(); i++) {
+			boolean isSelected = (i == 0 && currentRoute == VoIPService.AUDIO_ROUTE_SPEAKER)
+					|| (i == 1 && currentRoute == VoIPService.AUDIO_ROUTE_EARPIECE)
+					|| (i == 2 && currentRoute == VoIPService.AUDIO_ROUTE_BLUETOOTH);
+
+			BottomSheet.BottomSheetCell cell = bottomSheet.getItemViews().get(i);
+			int color;
+			if (isSelected) {
+				color = Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4);
+				cell.isSelected = true;
+			} else {
+				color = Theme.getColor(Theme.key_dialogTextBlack);
+			}
+			cell.setEnabled(true);
+			cell.setTextColor(color);
+			cell.setIconColor(color);
+			cell.getTextView().setPadding(
+					AndroidUtilities.dp(LocaleController.isRTL ? 21 : 56), 0,
+					AndroidUtilities.dp(LocaleController.isRTL ? 56 : 21), 0
+			);
+		}
+	}
+
+	public void showOutputDeviceSheet (Context context, boolean fromOverlayWindow) {
+		showOutputDeviceSheet(context, (dialog, which) -> {
+			if (getSharedInstance() == null) {
+				return;
+			}
+			setAudioOutput(which);
+		}, fromOverlayWindow);
+	}
+
 	public void toggleSpeakerphoneOrShowRouteSheet(Context context, boolean fromOverlayWindow) {
 		if (isBluetoothHeadsetConnected() && hasEarpiece()) {
-			BottomSheet.Builder builder = new BottomSheet.Builder(context)
-					.setTitle(LocaleController.getString("VoipOutputDevices", R.string.VoipOutputDevices), true)
-					.setItems(new CharSequence[]{
-									LocaleController.getString("VoipAudioRoutingSpeaker", R.string.VoipAudioRoutingSpeaker),
-									isHeadsetPlugged ? LocaleController.getString("VoipAudioRoutingHeadset", R.string.VoipAudioRoutingHeadset) : LocaleController.getString("VoipAudioRoutingEarpiece", R.string.VoipAudioRoutingEarpiece),
-									currentBluetoothDeviceName != null ? currentBluetoothDeviceName : LocaleController.getString("VoipAudioRoutingBluetooth", R.string.VoipAudioRoutingBluetooth)},
-							new int[]{R.drawable.calls_menu_speaker,
-									isHeadsetPlugged ? R.drawable.calls_menu_headset : R.drawable.calls_menu_phone,
-									R.drawable.calls_menu_bluetooth}, (dialog, which) -> {
-								if (getSharedInstance() == null) {
-									return;
-								}
-								setAudioOutput(which);
-							});
-
-			BottomSheet bottomSheet = builder.create();
-			if (fromOverlayWindow) {
-				if (Build.VERSION.SDK_INT >= 26) {
-					bottomSheet.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
-				} else {
-					bottomSheet.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-				}
-			}
-			builder.show();
+			showOutputDeviceSheet(context, fromOverlayWindow);
 			return;
 		}
 		if (USE_CONNECTION_SERVICE && systemCallConnection != null && systemCallConnection.getCallAudioState() != null) {
@@ -2999,8 +3043,6 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			AndroidUtilities.cancelRunOnUIThread(timeoutRunnable);
 			timeoutRunnable = null;
 		}
-		super.onDestroy();
-		sharedInstance = null;
 		Arrays.fill(mySource, 0);
 		cancelGroupCheckShortPoll();
 		AndroidUtilities.runOnUIThread(() -> NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.didEndCall));
@@ -3024,6 +3066,10 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			tgVoip[CAPTURE_DEVICE_CAMERA] = null;
 			Instance.destroyInstance();
 		}
+
+		super.onDestroy();
+		sharedInstance = null;
+
 		if (tgVoip[CAPTURE_DEVICE_SCREEN] != null) {
 			NativeInstance instance = tgVoip[CAPTURE_DEVICE_SCREEN];
 			Utilities.globalQueue.postRunnable(instance::stopGroup);
@@ -3412,7 +3458,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 		}
 		
 		if (needRateCall || forceRating || finalState.isRatingSuggested) {
-			startRatingActivity();
+			dispatchStateChanged(STATE_ASK_RATING);
 			needRateCall = false;
 		}
 		if (needSendDebugLog && finalState.debugLog != null) {

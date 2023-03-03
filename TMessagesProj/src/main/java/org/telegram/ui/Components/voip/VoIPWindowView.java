@@ -11,6 +11,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
+import android.view.ViewPropertyAnimator;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 
@@ -138,7 +139,10 @@ public class VoIPWindowView extends FrameLayout {
             } else {
                 int account = UserConfig.selectedAccount;
                 animationIndex = NotificationCenter.getInstance(account).setAnimationInProgress(animationIndex, null);
-                animate().translationX(getMeasuredWidth()).setListener(new AnimatorListenerAdapter() {
+                animate()
+                    .translationX(getTranslationX() > 0f ? getMeasuredWidth(): 0)
+                    .translationY(getTranslationX() > 0f ? 0: getMeasuredHeight())
+                    .setListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
                         NotificationCenter.getInstance(account).onAnimationFinish(animationIndex);
@@ -154,15 +158,15 @@ public class VoIPWindowView extends FrameLayout {
                             }
                         }
                     }
-                }).setDuration(animDuration).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
+                }).setDuration((long) (animDuration * (getTranslationX() == 0 ? 1.5f: 1f))).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
             }
         }
     }
 
     public void startEnterTransition() {
         if (!lockOnScreen) {
-            setTranslationX(getMeasuredWidth());
-            animate().translationX(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
+            setTranslationY(getMeasuredHeight());
+            animate().translationY(0).setDuration(150 + 75).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
         }
     }
 

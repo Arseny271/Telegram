@@ -32,16 +32,17 @@ public class HintView extends FrameLayout {
     public static final int TYPE_SEARCH_AS_LIST = 3;
     public static final int TYPE_COMMON = 4;
     public static final int TYPE_POLL_VOTE = 5;
+    public static final int TYPE_VOIP = 66;
 
     public TextView textView;
-    private ImageView imageView;
-    private ImageView arrowImageView;
+    protected ImageView imageView;
+    protected ImageView arrowImageView;
     private ChatMessageCell messageCell;
     private View currentView;
     private AnimatorSet animatorSet;
     private Runnable hideRunnable;
     private int currentType;
-    private boolean isTopArrow;
+    protected boolean isTopArrow;
     private String overrideText;
     private int shownY;
     private float translationY;
@@ -81,7 +82,7 @@ public class HintView extends FrameLayout {
         } else {
             textView.setMaxWidth(AndroidUtilities.dp(250));
         }
-        if (currentType == TYPE_SEARCH_AS_LIST) {
+        if (currentType == TYPE_SEARCH_AS_LIST || currentType == TYPE_VOIP && isTopArrow) {
             textView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
             textView.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(5), getThemedColor(Theme.key_chat_gifSaveHintBackground)));
             textView.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
@@ -341,6 +342,8 @@ public class HintView extends FrameLayout {
             top += view.getMeasuredHeight() + getMeasuredHeight() + AndroidUtilities.dp(8);
         } else if (currentType == 8) {
             top -= AndroidUtilities.dp(10);
+        } else if (currentType == TYPE_VOIP && isTopArrow) {
+            top += getMeasuredHeight() + textView.getMeasuredHeight() + AndroidUtilities.dp(17 + 4 - 6);
         }
 
         int centerX;
@@ -369,7 +372,7 @@ public class HintView extends FrameLayout {
         top -= bottomOffset;
 
         int parentWidth = parentView.getMeasuredWidth();
-        if (isTopArrow && currentType != 6 && currentType != 7 && currentType != 8) {
+        if (isTopArrow && currentType != 6 && currentType != 7 && currentType != 8 && currentType != TYPE_VOIP) {
             setTranslationY(extraTranslationY + (translationY = AndroidUtilities.dp(44)));
         } else {
             setTranslationY(extraTranslationY + (translationY = top - getMeasuredHeight()));
@@ -394,8 +397,8 @@ public class HintView extends FrameLayout {
                 offset = parentWidth - getMeasuredWidth() - (leftMargin + rightMargin);
             }
         } else {
-            if (currentType == TYPE_SEARCH_AS_LIST) {
-                offset = centerX - getMeasuredWidth() / 2 - arrowImageView.getMeasuredWidth();
+            if (currentType == TYPE_SEARCH_AS_LIST || currentType == TYPE_VOIP) {
+                offset = centerX - getMeasuredWidth() / 2 - arrowImageView.getMeasuredWidth() - (currentType == TYPE_VOIP ? AndroidUtilities.dp(10): 0);
                 if (offset < 0) {
                     offset = 0;
                 }

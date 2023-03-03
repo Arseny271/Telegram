@@ -6,7 +6,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 
 import org.telegram.messenger.LiteMode;
-import org.telegram.messenger.SharedConfig;
 
 import java.util.Random;
 
@@ -37,19 +36,21 @@ public class BlobDrawable {
     public float minRadius;
     public float maxRadius;
 
-    private Path path = new Path();
+    private final Path path = new Path();
     public Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private float[] radius;
-    private float[] angle;
-    private float[] radiusNext;
-    private float[] angleNext;
-    private float[] progress;
-    private float[] speed;
+    private boolean needFinish = false;
+    private final int[] isFinished;
+    private final float[] radius;
+    private final float[] angle;
+    private final float[] radiusNext;
+    private final float[] angleNext;
+    private final float[] progress;
+    private final float[] speed;
 
 
-    private float[] pointStart = new float[4];
-    private float[] pointEnd = new float[4];
+    private final float[] pointStart = new float[4];
+    private final float[] pointEnd = new float[4];
 
     final Random random = new Random();
 
@@ -69,8 +70,10 @@ public class BlobDrawable {
         angleNext = new float[n];
         progress = new float[n];
         speed = new float[n];
+        isFinished = new int[n];
 
         for (int i = 0; i < N; i++) {
+            isFinished[i] = 0;
             generateBlob(radius, angle, i);
             generateBlob(radiusNext, angleNext, i);
             progress[i] = 0;
@@ -79,10 +82,36 @@ public class BlobDrawable {
 
     private void generateBlob(float[] radius, float[] angle, int i) {
         float angleDif = 360f / N * 0.05f;
-        float radDif = maxRadius - minRadius;
+        float radDif = isFinished[i] == 0 ? maxRadius - minRadius: 0;
         radius[i] = minRadius + Math.abs(((random.nextInt() % 100f) / 100f)) * radDif;
         angle[i] = 360f / N * i + ((random.nextInt() % 100f) / 100f) * angleDif;
         speed[i] = (float) (0.017 + 0.003 * (Math.abs(random.nextInt() % 100f) / 100f));
+    }
+
+    public void setStopMode(boolean stopMode) {
+        this.needFinish = stopMode;
+        if (!stopMode) {
+            for (int i = 0; i < N; i++) {
+                if (isFinished[i] > 1) {
+                    isFinished[i] = 0;
+                    generateBlob(radiusNext, angleNext, i);
+                    progress[i] = 0;
+                } else {
+                    isFinished[i] = 0;
+                }
+            }
+        }
+    }
+
+    public boolean isFinished() {
+        if (!needFinish) return false;
+
+        for (int i = 0; i < N; i++) {
+            if (isFinished[i] < 2) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public void update(float amplitude, float speedScale) {
@@ -92,6 +121,11 @@ public class BlobDrawable {
         for (int i = 0; i < N; i++) {
             progress[i] += (speed[i] * MIN_SPEED) + amplitude * speed[i] * MAX_SPEED * speedScale;
             if (progress[i] >= 1f) {
+                if (needFinish) {
+                    isFinished[i] += 1;
+                } else {
+                    isFinished[i] = 0;
+                }
                 progress[i] = 0;
                 radius[i] = radiusNext[i];
                 angle[i] = angleNext[i];

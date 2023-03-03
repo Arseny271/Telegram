@@ -17,6 +17,9 @@ import android.graphics.Shader;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.Parcelable;
+import android.text.Layout;
+import android.text.StaticLayout;
+import android.text.TextPaint;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -67,6 +70,12 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
     private int visibleCameraPage = 1;
     private boolean cameraReady;
 
+    private final Paint whitePaint;
+    private final Paint[] gradientPaint;
+    private final TextPaint positiveButtonPaint;
+    private final StaticLayout positiveButtonLayout;
+    private final boolean appearAnimation;
+
     public boolean micEnabled;
 
     private float pageOffset;
@@ -75,8 +84,13 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
     private boolean needScreencast;
 
     public PrivateVideoPreviewDialog(Context context, boolean mic, boolean screencast) {
+        this(context, mic, screencast, true);
+    }
+
+    public PrivateVideoPreviewDialog(Context context, boolean mic, boolean screencast, boolean appearAnimation) {
         super(context);
 
+        this.appearAnimation = appearAnimation;
         needScreencast = screencast;
         titles = new TextView[needScreencast ? 3 : 2];
 
@@ -150,41 +164,40 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
         });
         addView(actionBar);
 
+        whitePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        whitePaint.setColor(Color.WHITE);
+        gradientPaint = new Paint[titles.length];
+        for (int a = 0; a < gradientPaint.length; a++) {
+            gradientPaint[a] = new Paint(Paint.ANTI_ALIAS_FLAG);
+        }
+
+        positiveButtonPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        positiveButtonPaint.setTextSize(AndroidUtilities.dp(16));
+        positiveButtonPaint.setColor(Theme.getColor(Theme.key_voipgroup_nameText));
+        positiveButtonPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+
+        String text = LocaleController.getString("VoipShareVideo", R.string.VoipShareVideo);
+        positiveButtonLayout = new StaticLayout(text, positiveButtonPaint, (int) positiveButtonPaint.measureText(text), Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
+
         positiveButton = new TextView(getContext()) {
-
-            private Paint[] gradientPaint = new Paint[titles.length];
-            {
-                for (int a = 0; a < gradientPaint.length; a++) {
-                    gradientPaint[a] = new Paint(Paint.ANTI_ALIAS_FLAG);
-                }
-            }
-
             @Override
             protected void onSizeChanged(int w, int h, int oldw, int oldh) {
                 super.onSizeChanged(w, h, oldw, oldh);
                 for (int a = 0; a < gradientPaint.length; a++) {
                     int color1;
                     int color2;
-                    int color3;
                     if (a == 0 && needScreencast) {
                         color1 = 0xff77E55C;
                         color2 = 0xff56C7FE;
-                        color3 = 0;
                     } else if (a == 0 || a == 1 && needScreencast) {
-                        color1 = 0xff57A4FE;
-                        color2 = 0xff766EE9;
-                        color3 = 0;
+                        color1 = 0xff237df3;
+                        color2 = 0xff099fe9;
                     } else {
-                        color1 = 0xff766EE9;
-                        color2 = 0xffF05459;
-                        color3 = 0xffE4A756;
+                        color1 = 0xff19b881;
+                        color2 = 0xff57cb57;
                     }
                     Shader gradient;
-                    if (color3 != 0) {
-                        gradient = new LinearGradient(0, 0, getMeasuredWidth(), 0, new int[]{color1, color2, color3}, null, Shader.TileMode.CLAMP);
-                    } else {
-                        gradient = new LinearGradient(0, 0, getMeasuredWidth(), 0, new int[]{color1, color2}, null, Shader.TileMode.CLAMP);
-                    }
+                    gradient = new LinearGradient(0, 0, getMeasuredWidth(), 0, new int[]{color1, color2}, null, Shader.TileMode.CLAMP);
                     gradientPaint[a].setShader(gradient);
                 }
             }
@@ -192,19 +205,13 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
 
             @Override
             protected void onDraw(Canvas canvas) {
-                AndroidUtilities.rectTmp.set(0, 0, getMeasuredWidth(), getMeasuredHeight());
-                gradientPaint[currentPage].setAlpha(255);
-                canvas.drawRoundRect(AndroidUtilities.rectTmp, AndroidUtilities.dp(6), AndroidUtilities.dp(6), gradientPaint[currentPage]);
-                if (pageOffset > 0 && currentPage + 1 < gradientPaint.length) {
-                    gradientPaint[currentPage + 1].setAlpha((int) (255 * pageOffset));
-                    canvas.drawRoundRect(AndroidUtilities.rectTmp, AndroidUtilities.dp(6), AndroidUtilities.dp(6), gradientPaint[currentPage + 1]);
-                }
+                drawButtonBackground(canvas, 0, 0, getMeasuredWidth(), getMeasuredHeight(), AndroidUtilities.dp(6), 1f);
                 super.onDraw(canvas);
             }
         };
         positiveButton.setMinWidth(AndroidUtilities.dp(64));
         positiveButton.setTag(Dialog.BUTTON_POSITIVE);
-        positiveButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        positiveButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         positiveButton.setTextColor(Theme.getColor(Theme.key_voipgroup_nameText));
         positiveButton.setGravity(Gravity.CENTER);
         positiveButton.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
@@ -225,14 +232,14 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
             }
         });
 
-        addView(positiveButton, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.BOTTOM, 0, 0, 0, 64));
+        addView(positiveButton, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 54, Gravity.BOTTOM, 0, 0, 0, 64));
 
         titlesLayout = new LinearLayout(context);
         addView(titlesLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 64, Gravity.BOTTOM));
 
         for (int a = 0; a < titles.length; a++) {
             titles[a] = new TextView(context);
-            titles[a].setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+            titles[a].setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
             titles[a].setTextColor(0xffffffff);
             titles[a].setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
             titles[a].setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
@@ -250,9 +257,11 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
             titles[a].setOnClickListener(view -> viewPager.setCurrentItem(num, true));
         }
 
-        setAlpha(0);
-        setTranslationX(AndroidUtilities.dp(32));
-        animate().alpha(1f).translationX(0).setDuration(150).start();
+        if (appearAnimation) {
+            setAlpha(0);
+            setTranslationX(AndroidUtilities.dp(32));
+            animate().alpha(1f).translationX(0).setDuration(150).start();
+        }
 
         setWillNotDraw(false);
 
@@ -298,6 +307,39 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
         }
     }
 
+    public void drawButtonBackground (Canvas canvas, float left, float top, float right, float bottom, float radius, float alpha) {
+        AndroidUtilities.rectTmp.set(left, top, right, bottom);
+        gradientPaint[currentPage].setAlpha((int) (255 * alpha));
+        canvas.drawRoundRect(AndroidUtilities.rectTmp, radius, radius, gradientPaint[currentPage]);
+        if (pageOffset > 0 && currentPage + 1 < gradientPaint.length) {
+            gradientPaint[currentPage + 1].setAlpha((int) (255 * pageOffset * alpha));
+            canvas.drawRoundRect(AndroidUtilities.rectTmp, radius, radius, gradientPaint[currentPage + 1]);
+        }
+    }
+
+    public void drawButton (Canvas canvas, float left, float top, float right, float bottom, float radius, float alpha) {
+        if (alpha < 1f) {
+            AndroidUtilities.rectTmp.set(left, top, right, bottom);
+            canvas.drawRoundRect(AndroidUtilities.rectTmp, radius, radius, whitePaint);
+        }
+        drawButtonBackground(canvas, left, top, right, bottom, radius, alpha);
+
+        positiveButtonPaint.setAlpha((int) (alpha * 255));
+        canvas.save();
+        canvas.translate(
+        (left + right) / 2f - positiveButtonLayout.getWidth() / 2f,
+        (top + bottom) / 2f - positiveButtonLayout.getHeight() / 2f);
+
+        positiveButtonLayout.draw(canvas);
+        canvas.restore();
+    }
+
+    public void setInterfaceVisibility (float alpha, boolean buttonVisibility) {
+        positiveButton.setAlpha(buttonVisibility ? alpha: 0f);
+        titlesLayout.setAlpha(alpha);
+
+    }
+
     public void setBottomPadding(int padding) {
         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) positiveButton.getLayoutParams();
         layoutParams.bottomMargin = AndroidUtilities.dp(64) + padding;
@@ -318,20 +360,24 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
         }
         for (int a = 0; a < titles.length; a++) {
             float alpha;
-            float scale;
+            float scaleX;
+            float scaleY;
             if (a < currentPage || a > currentPage + 1) {
                 alpha = 0.7f;
-                scale = 0.9f;
+                scaleX = 0.80f;
+                scaleY = 0.9f;
             } else if (a == currentPage) {
                 alpha = 1.0f - 0.3f * pageOffset;
-                scale = 1.0f - 0.1f * pageOffset;
+                scaleX = 1.0f - 0.2f * pageOffset;
+                scaleY = 1.0f - 0.1f * pageOffset;
             } else {
                 alpha = 0.7f + 0.3f * pageOffset;
-                scale = 0.9f + 0.1f * pageOffset;
+                scaleX = 0.80f + 0.2f * pageOffset;
+                scaleY = 0.9f + 0.1f * pageOffset;
             }
             titles[a].setAlpha(alpha);
-            titles[a].setScaleX(scale);
-            titles[a].setScaleY(scale);
+            titles[a].setScaleX(scaleX);
+            titles[a].setScaleY(scaleY);
         }
         titlesLayout.setTranslationX(tx);
         positiveButton.invalidate();
@@ -432,6 +478,13 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
         isDismissed = true;
         saveLastCameraBitmap();
         onDismiss(screencast, apply);
+        if (appearAnimation || !apply) {
+            animateDismiss();
+        }
+        invalidate();
+    }
+
+    public void animateDismiss () {
         animate().alpha(0f).translationX(AndroidUtilities.dp(32)).setDuration(150).setListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
@@ -441,7 +494,6 @@ public abstract class PrivateVideoPreviewDialog extends FrameLayout implements V
                 }
             }
         });
-        invalidate();
     }
 
     @Override
