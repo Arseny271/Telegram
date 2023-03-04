@@ -182,7 +182,7 @@ public class VoIPBackground extends View {
         private final Paint blackPaint = new Paint();
         private final Paint whitePaint = new Paint();
 
-        private final View parent;
+        private final VoIPBackground parent;
         private final BackgroundAnimationCycle backgroundInitCycle = new BackgroundAnimationCycle(new MotionBackgroundTrio[]{ blueVioletBackgroundTrio, blueGreenBackgroundTrio });
         private final BackgroundAnimationCycle backgroundConnectedCycle = new BackgroundAnimationCycle(new MotionBackgroundTrio[]{ greenBackgroundTrio, blueGreenBackgroundTrio, blueVioletBackgroundTrio, blueGreenBackgroundTrio });
         private final BackgroundAnimationCycle backgroundProblemsCycle = new BackgroundAnimationCycle(new MotionBackgroundTrio[]{ orangeRedBackgroundTrio });
@@ -200,7 +200,7 @@ public class VoIPBackground extends View {
         private final Matrix matrix = new Matrix();
         private int offsetX, offsetY;
 
-        public BackgroundRenderer (View parent) {
+        public BackgroundRenderer (VoIPBackground parent) {
             this.parent = parent;
 
             for (int i = 0; i < 3; i++) {
@@ -269,7 +269,7 @@ public class VoIPBackground extends View {
             connectedExpandStartY = y;
 
             ValueAnimator connectedAnimator = ValueAnimator.ofFloat(0, 1);
-            connectedAnimator.setDuration(550);
+            connectedAnimator.setDuration(450);
             connectedAnimator.setInterpolator(CubicBezierInterpolator.DEFAULT);
             connectedAnimator.addUpdateListener(this::onAnimationConnectedUpdate);
             connectedAnimator.start();
@@ -278,11 +278,13 @@ public class VoIPBackground extends View {
 
         private void onAnimationProblemsUpdate(ValueAnimator valueAnimator) {
             problemsAnimatorValue = (float) valueAnimator.getAnimatedValue();
+            parent.forceInvalidate = true;
             parent.invalidate();
         }
 
         private void onAnimationConnectedUpdate(ValueAnimator valueAnimator) {
             connectedAnimatorValue = (float) valueAnimator.getAnimatedValue();
+            parent.forceInvalidate = true;
             parent.invalidate();
         }
 

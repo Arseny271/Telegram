@@ -1307,7 +1307,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 break;
             case VoIPService.STATE_BUSY:
                 showAcceptDeclineView = true;
-                showProblems = true;
+                // showProblems = true;
                 statusTextView.setText(LocaleController.getString("VoipBusy", R.string.VoipBusy), false, animated);
                 buttonsLayout.setRetryMod(true);
                 currentUserIsVideo = false;

@@ -367,8 +367,10 @@ public class VoIPButtonsLayout2 extends VoIPBackground.BackgroundedView {
             canvas.save();
             canvas.translate(leftOffsetX, 0);
 
-            acceptButtonWaves.update();
-            acceptButtonWaves.draw(canvas, acceptButtonRect.centerX(), acceptButtonRect.centerY(), this);
+            if (!retryMod) {
+                acceptButtonWaves.update();
+                acceptButtonWaves.draw(canvas, acceptButtonRect.centerX(), acceptButtonRect.centerY(), this);
+            }
 
             final float acceptRadius = acceptButtonRect.width() / 2;
             canvas.drawRoundRect(acceptButtonRect, acceptRadius, acceptRadius, acceptButtonPaint);

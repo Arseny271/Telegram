@@ -36,35 +36,29 @@ public class VoIPStatusTextView extends VoIPBackground.BackgroundedView {
     private final VoIPFragment.BooleanAnimation weakSignalVisible = new VoIPFragment.BooleanAnimation(this::checkLayout);
     private final RectF reconnectingBackgroundRect = new RectF();
 
-    TextView[] textView = new TextView[2];
-    boolean[] ellipsisT = new boolean[2];
-    TextView reconnectTextView;
+    TextViewWithProgress[] textView = new TextViewWithProgress[2];
+    TextViewWithProgress reconnectTextView;
     TextView weakSignalTextView;
     VoIPTimerView timerView;
 
     CharSequence nextTextToSet;
+    boolean nextEllipsisToSet;
     boolean animationInProgress;
 
     ValueAnimator animator;
     boolean timerShowing;
-
-    StatusDrawable statusDrawable;
 
     public VoIPStatusTextView(@NonNull Context context, VoIPBackground backgroundView) {
         super(context, backgroundView);
         setWillNotDraw(false);
 
         for (int i = 0; i < 2; i++) {
-            textView[i] = new TextView(context);
+            textView[i] = new TextViewWithProgress(context);
             textView[i].setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17);
             textView[i].setTextColor(Color.WHITE);
             textView[i].setGravity(Gravity.CENTER_HORIZONTAL);
-            ellipsisT[i] = false;
             addView(textView[i], LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL));
         }
-
-        statusDrawable = Theme.getChatStatusDrawable(0);
-        statusDrawable.setColor(Color.WHITE);
 
         weakSignalTextView = new TextView(context);
         weakSignalTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17);
@@ -75,17 +69,12 @@ public class VoIPStatusTextView extends VoIPBackground.BackgroundedView {
         weakSignalTextView.setVisibility(View.GONE);
 
 
-        reconnectTextView = new TextView(context);
+        reconnectTextView = new TextViewWithProgress(context);
         reconnectTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17);
         reconnectTextView.setTextColor(Color.WHITE);
         reconnectTextView.setGravity(Gravity.CENTER_HORIZONTAL);
         addView(reconnectTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 42, 0, 0));
-
-        SpannableStringBuilder ssb2 = new SpannableStringBuilder(LocaleController.getString("VoipReconnecting", R.string.VoipReconnecting));
-        ssb2.append(".");
-        ssb2.setSpan(new DialogCell.FixedWidthSpan(statusDrawable.getMinimumWidth() + AndroidUtilities.dp(6)), ssb2.length() - 1, ssb2.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-
-        reconnectTextView.setText(ssb2);
+        reconnectTextView.setText(LocaleController.getString("VoipReconnecting", R.string.VoipReconnecting), true);
         reconnectTextView.setVisibility(View.GONE);
 
         timerView = new VoIPTimerView(context);
@@ -99,43 +88,9 @@ public class VoIPStatusTextView extends VoIPBackground.BackgroundedView {
         if (backgroundDarkPaint.getAlpha() > 0) {
             float r = reconnectingBackgroundRect.height() / 2f;
             canvas.drawRoundRect(reconnectingBackgroundRect, r, r, backgroundDarkPaint);
-
-            if (reconnectingVisible.get() > 0f) {
-                TextView t = reconnectTextView;
-                canvas.save();
-                canvas.scale(reconnectTextScale, reconnectTextScale,
-                        reconnectingBackgroundRect.centerX(),
-                        reconnectingBackgroundRect.centerY());
-                canvas.translate(
-                        t.getX() + t.getMeasuredWidth() - statusDrawable.getMinimumWidth(),
-                        t.getY() + t.getMeasuredHeight() / 2f - statusDrawable.getMinimumHeight() / 2f + AndroidUtilities.dp(2));
-                statusDrawable.setColor(ColorUtils.setAlphaComponent(Color.WHITE, (int) (255f * reconnectingVisible.get())));
-                statusDrawable.draw(canvas);
-                canvas.restore();
-            }
         }
 
         super.dispatchDraw(canvas);
-
-        boolean needInvalidate = false;
-        for (int i = 0; i < 2; i++) {
-            TextView t = textView[i];
-            if (t.getVisibility() == View.GONE || t.getAlpha() == 0f || !ellipsisT[i]) continue;
-            needInvalidate = true;
-
-            canvas.save();
-            canvas.scale(t.getScaleX(), t.getScaleY(), getMeasuredWidth() / 2f, getMeasuredHeight() / 2f);
-            canvas.translate(
-                    t.getX() + t.getMeasuredWidth() - statusDrawable.getMinimumWidth(),
-                    t.getY() + t.getMeasuredHeight() / 2f - statusDrawable.getMinimumHeight() / 2f + AndroidUtilities.dp(2));
-            statusDrawable.setColor(ColorUtils.setAlphaComponent(Color.WHITE, (int)(255f * t.getAlpha())));
-            statusDrawable.draw(canvas);
-            canvas.restore();
-        }
-
-        if (needInvalidate) {
-            invalidate();
-        }
     }
 
     private String currentText;
@@ -143,14 +98,6 @@ public class VoIPStatusTextView extends VoIPBackground.BackgroundedView {
     public void setText(String text, boolean ellipsis, boolean animated) {
         if (text.equals(currentText)) return;
         currentText = text;
-
-        CharSequence nextString = text;
-        if (ellipsis) {
-            SpannableStringBuilder ssb = new SpannableStringBuilder(text);
-            ssb.append(".");
-            ssb.setSpan(new DialogCell.FixedWidthSpan(statusDrawable.getMinimumWidth() + AndroidUtilities.dp(6)), ssb.length() - 1, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            nextString = ssb;
-        }
 
         if (TextUtils.isEmpty(textView[0].getText())) {
             animated = false;
@@ -161,34 +108,28 @@ public class VoIPStatusTextView extends VoIPBackground.BackgroundedView {
                 animator.cancel();
             }
             animationInProgress = false;
-            ellipsisT[0] = ellipsis;
-            textView[0].setText(nextString);
+            textView[0].setText(text, ellipsis);
             textView[0].setVisibility(View.VISIBLE);
             textView[1].setVisibility(View.GONE);
             timerView.setVisibility(View.GONE);
 
         } else {
             if (animationInProgress) {
-                nextTextToSet = nextString;
+                nextTextToSet = text;
+                nextEllipsisToSet = ellipsis;
                 return;
             }
 
             if (timerShowing) {
-                ellipsisT[0] = ellipsis;
-                textView[0].setText(nextString);
+                textView[0].setText(text, ellipsis);
                 replaceViews(timerView, textView[0], null);
             } else {
-                if (!textView[0].getText().equals(nextString)) {
-                    textView[1].setText(nextString);
-                    ellipsisT[1] = ellipsis;
+                if (!textView[0].getText().equals(text)) {
+                    textView[1].setText(text, ellipsis);
                     replaceViews(textView[0], textView[1], () -> {
-                        TextView v = textView[0];
+                        TextViewWithProgress v = textView[0];
                         textView[0] = textView[1];
                         textView[1] = v;
-
-                        boolean b = ellipsisT[0];
-                        ellipsisT[0] = ellipsisT[1];
-                        ellipsisT[1] = b;
                     });
                 }
             }
@@ -215,6 +156,7 @@ public class VoIPStatusTextView extends VoIPBackground.BackgroundedView {
         } else {
             if (animationInProgress) {
                 nextTextToSet = "timer";
+                nextEllipsisToSet = false;
                 return;
             }
             timerShowing = true;
@@ -268,18 +210,15 @@ public class VoIPStatusTextView extends VoIPBackground.BackgroundedView {
                     if (nextTextToSet.equals("timer")) {
                         showTimer(true);
                     } else {
-                        textView[1].setText(nextTextToSet);
+                        textView[1].setText(nextTextToSet, nextEllipsisToSet);
                         replaceViews(textView[0], textView[1], () -> {
-                            TextView v = textView[0];
+                            TextViewWithProgress v = textView[0];
                             textView[0] = textView[1];
                             textView[1] = v;
-
-                            boolean b = ellipsisT[0];
-                            ellipsisT[0] = ellipsisT[1];
-                            ellipsisT[1] = b;
                         });
                     }
                     nextTextToSet = null;
+                    nextEllipsisToSet = false;
                 }
             }
         });
@@ -337,5 +276,52 @@ public class VoIPStatusTextView extends VoIPBackground.BackgroundedView {
         );
 
         invalidate();
+    }
+
+    private static class TextViewWithProgress extends TextView {
+
+        private StatusDrawable statusDrawable;
+        private boolean withEllipsis = false;
+
+        public TextViewWithProgress(Context context) {
+            super(context);
+
+            statusDrawable = Theme.getChatStatusDrawable(0);
+            statusDrawable.setColor(Color.WHITE);
+        }
+
+        public void setText (CharSequence text, boolean withEllipsis) {
+            CharSequence nextString = text;
+            if (withEllipsis) {
+                SpannableStringBuilder ssb = new SpannableStringBuilder(text);
+                ssb.append(".");
+                ssb.setSpan(new DialogCell.FixedWidthSpan(statusDrawable.getMinimumWidth() + AndroidUtilities.dp(6)), ssb.length() - 1, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                nextString = ssb;
+            }
+
+            setText(nextString);
+            this.withEllipsis = withEllipsis;
+            invalidate();
+        }
+
+        @Override
+        public void setAlpha(float alpha) {
+            super.setAlpha(alpha);
+            if (withEllipsis && alpha > 0) {
+                invalidate();
+            }
+        }
+
+        @Override
+        protected void dispatchDraw(Canvas canvas) {
+            super.dispatchDraw(canvas);
+            if (withEllipsis && getAlpha() > 0 && getVisibility() != View.GONE) {
+                canvas.translate(
+                    getMeasuredWidth() - statusDrawable.getMinimumWidth(),
+                    getMeasuredHeight() / 2f - statusDrawable.getMinimumHeight() / 2f + AndroidUtilities.dp(2));
+                statusDrawable.draw(canvas);
+                invalidate();
+            }
+        }
     }
 }
