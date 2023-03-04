@@ -177,6 +177,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     private boolean isFinished;
     boolean cameraForceExpanded;
     boolean enterFromPiP;
+    boolean enterFromPiP2;
     private boolean deviceIsLocked;
 
     long lastContentTapTime;
@@ -256,6 +257,32 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                     }
                 }
                 return super.dispatchKeyEvent(event);
+            }
+
+            @Override
+            protected void dispatchDraw(Canvas canvas) {
+                if (fragment.switchingToPip && fragment.enterFromPiP2 && !fragment.currentUserCameraFloatingLayout.switchingToPip  ) {
+                    return;
+                }
+                boolean b = fragment.switchingToPip;
+                if (b) {
+                    float width = fragment.callingUserTextureView.getWidth() * fragment.callingUserTextureView.getScaleX();
+                    float height = fragment.callingUserTextureView.getHeight() * fragment.callingUserTextureView.getScaleY();
+                    float paddingW = (fragment.callingUserTextureView.getWidth() - width) / 2;
+                    float paddingH = (fragment.callingUserTextureView.getHeight() - height) / 2;
+
+                    float left = fragment.callingUserTextureView.getX() + paddingW;
+                    float top = fragment.callingUserTextureView.getY() + paddingH;
+
+                    canvas.save();
+                    canvas.clipRect(left, top, left + width, top + height);
+                }
+
+                super.dispatchDraw(canvas);
+
+                if (b) {
+                    canvas.restore();
+                }
             }
         };
         instance.deviceIsLocked = ((KeyguardManager) activity.getSystemService(Context.KEYGUARD_SERVICE)).inKeyguardRestrictedInputMode();
@@ -1107,10 +1134,12 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         animator.setDuration(350);
         animator.setInterpolator(CubicBezierInterpolator.DEFAULT);
         animator.start();
+        windowView.invalidate();
     }
 
     public void startTransitionFromPiP() {
         enterFromPiP = true;
+        enterFromPiP2 = true;
         VoIPService service = VoIPService.getSharedInstance();
         if (service != null && service.getVideoState(false) == Instance.VIDEO_STATE_ACTIVE) {
             callingUserTextureView.setStub(VoIPPiPView.getInstance().callingUserTextureView);
@@ -1148,6 +1177,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                         NotificationCenter.getInstance(currentAccount).onAnimationFinish(animationIndex);
                         currentUserCameraFloatingLayout.setCornerRadius(-1f);
                         switchingToPip = false;
+                        enterFromPiP2 = false;
                         currentUserCameraFloatingLayout.switchingToPip = false;
                         previousState = currentState;
                         updateViewState();
@@ -1158,7 +1188,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 animator.start();
             }, 32);
         }, 32);
-
+        windowView.invalidate();
     }
 
     public Animator createPiPTransition(boolean enter) {
@@ -1257,6 +1287,8 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             if (!currentUserCameraFloatingLayout.measuredAsFloatingMode) {
                 currentUserTextureView.setScreenshareMiniProgress(v, false);
             }
+            fragmentView.invalidate();
+            windowView.invalidate();
         });
         return animator;
     }
