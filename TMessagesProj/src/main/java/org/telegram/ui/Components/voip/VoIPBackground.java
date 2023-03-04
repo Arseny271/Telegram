@@ -280,13 +280,49 @@ public class VoIPBackground extends View {
             problemsAnimatorValue = (float) valueAnimator.getAnimatedValue();
             parent.forceInvalidate = true;
             parent.invalidate();
+            checkAvatarScale();
         }
 
         private void onAnimationConnectedUpdate(ValueAnimator valueAnimator) {
             connectedAnimatorValue = (float) valueAnimator.getAnimatedValue();
             parent.forceInvalidate = true;
             parent.invalidate();
+            checkAvatarScale();
         }
+
+        private Runnable onUpdateAvatarScale;
+
+        private float currentAvatarScale = 1f;
+        private float currentAcceptButtonScale = 1f;
+
+        public void setOnUpdateAvatarScaleListener (Runnable onUpdateAvatarScale) {
+            this.onUpdateAvatarScale = onUpdateAvatarScale;
+        }
+
+        private void checkAvatarScale () {
+            float value1 = Math.min(connectedAnimatorValue, 1f - problemsAnimatorValue);
+            float value2 = CubicBezierInterpolator.DEFAULT.getInterpolation(Math.min((backgroundInitCycle.progress / 0.2f) % 1f, 1f - Math.max(problemsAnimatorValue, connectedAnimatorValue)));
+            float scale1 = 1f + (1f - Math.abs((value1 - 0.5f) * 2f)) * 0.15f;
+            float scale2 = 1f + (1f - Math.abs((value2 - 0.5f) * 2f)) * 0.075f;
+            float scale = Math.max(scale1, scale2);
+
+            currentAcceptButtonScale = scale2;
+            if (scale != currentAvatarScale) {
+                currentAvatarScale = scale;
+                if (onUpdateAvatarScale != null) {
+                    onUpdateAvatarScale.run();
+                }
+            }
+        }
+
+        public float getAcceptButtonWavesScale () {
+            return currentAcceptButtonScale;
+        }
+
+        public float getAvatarScale () {
+            return currentAvatarScale;
+        }
+
 
         public void setSize (int width, int height) {
             this.width = width;
@@ -331,6 +367,8 @@ public class VoIPBackground extends View {
             for (int i = 0; i < 3; i++) {
                 drawToBitmap(currentCanvases[i], i);
             }
+
+            checkAvatarScale();
 
             return needInvalidate;
         }

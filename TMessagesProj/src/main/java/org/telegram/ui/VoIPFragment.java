@@ -705,6 +705,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         //     callingUserTextureView.attachBackgroundRenderer();
 
         callGradientBackground = new VoIPBackground(context);
+        callGradientBackground.renderer.setOnUpdateAvatarScaleListener(this::checkAvatarLayout);
         frameLayout.addView(callGradientBackground);
 
         callingUserAvatarView = new VoIPAvatarWithWavesView(context);
@@ -2219,6 +2220,25 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         overlayBottomPaint.setColor(ColorUtils.setAlphaComponent(Color.BLACK, (int) (100f * shadowsValue)));
     }
 
+    private void checkAvatarLayout () {
+        float buttonsPresentValue = callOutButtonsPresent.get();
+        float ratingValue = ratingVisible.get();
+        float emojiValue = Math.min(emojiExpand.get(), (1f - ratingValue));
+
+        float avatarScale = Math.min(1f - emojiValue, 0.85f + 0.15f * Math.min(buttonsPresentValue / 0.3f, 1f)) * callGradientBackground.renderer.getAvatarScale();
+        float avatarOffset = 0f
+                + AndroidUtilities.dp(60 + VoIPFragment.STATUS_LAYOUT_EMOJI_EXPAND_OFFSET) * emojiValue
+                - AndroidUtilities.dp(33) * ratingValue;
+
+        callingUserAvatarView.setTranslationY(avatarOffset);
+        callingUserAvatarView.setAlpha(1f - emojiValue);
+        callingUserAvatarView.setScaleX(avatarScale);
+        callingUserAvatarView.setScaleY(avatarScale);
+
+        float s = callGradientBackground.renderer.getAcceptButtonWavesScale();
+        buttonsLayout.setAcceptButtonWavesScale(s * 1.1f + (s % 1f) * 2f);
+    }
+
     private void checkLayout () {
         float buttonsPresentValue = callOutButtonsPresent.get();
         float ratingValue = ratingVisible.get();
@@ -2228,6 +2248,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         float uiValue = uiVisibility.get();
 
         checkUiShadowsLayout();
+        checkAvatarLayout();
 
         callGradientBackground.setHasAnyVideoValue(videoValue);
 
@@ -2267,18 +2288,6 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
         statusLayout.setTranslationY(statusLayoutOffset);
         statusLayout.setAlpha(statusLayoutVisibility);
-
-        // Avatar
-
-        float avatarScale = Math.min(1f - emojiValue, 0.85f + 0.15f * Math.min(buttonsPresentValue / 0.3f, 1f));
-        float avatarOffset = 0f
-                + AndroidUtilities.dp(60 + VoIPFragment.STATUS_LAYOUT_EMOJI_EXPAND_OFFSET) * emojiValue
-                - AndroidUtilities.dp(33) * ratingValue;
-
-        callingUserAvatarView.setTranslationY(avatarOffset);
-        callingUserAvatarView.setAlpha(1f - emojiValue);
-        callingUserAvatarView.setScaleX(avatarScale);
-        callingUserAvatarView.setScaleY(avatarScale);
 
         // Buttons
 

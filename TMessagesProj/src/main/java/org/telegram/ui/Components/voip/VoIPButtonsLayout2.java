@@ -88,7 +88,7 @@ public class VoIPButtonsLayout2 extends VoIPBackground.BackgroundedView {
         setWillNotDraw(false);
 
         acceptButtonWaves = new GroupCallUserCell.AvatarWavesDrawable(AndroidUtilities.dp(50), AndroidUtilities.dp(60));
-        acceptButtonWaves.setRadius(AndroidUtilities.dp(46f / 0.8f), AndroidUtilities.dp(51f / 0.8f), AndroidUtilities.dp(39f / 0.8f), AndroidUtilities.dp(44f / 0.8f), true);
+        acceptButtonWaves.setRadius(AndroidUtilities.dp(36f / 0.8f), AndroidUtilities.dp(40f / 0.8f), AndroidUtilities.dp(32f / 0.8f), AndroidUtilities.dp(34f / 0.8f), true);
         acceptButtonWaves.setColor(ColorUtils.setAlphaComponent(Color.WHITE, 20), ColorUtils.setAlphaComponent(Color.WHITE, 36));
         acceptButtonWaves.setShowWaves(true, this);
 
@@ -368,8 +368,11 @@ public class VoIPButtonsLayout2 extends VoIPBackground.BackgroundedView {
             canvas.translate(leftOffsetX, 0);
 
             if (!retryMod) {
+                canvas.save();
+                canvas.scale(acceptButtonWavesScale, acceptButtonWavesScale, acceptButtonRect.centerX(), acceptButtonRect.centerY());
                 acceptButtonWaves.update();
                 acceptButtonWaves.draw(canvas, acceptButtonRect.centerX(), acceptButtonRect.centerY(), this);
+                canvas.restore();
             }
 
             final float acceptRadius = acceptButtonRect.width() / 2;
@@ -532,6 +535,13 @@ public class VoIPButtonsLayout2 extends VoIPBackground.BackgroundedView {
         }
 
         return false;
+    }
+
+    float acceptButtonWavesScale = 1f;
+
+    public void setAcceptButtonWavesScale (float scale) {
+        acceptButtonWavesScale = scale;
+        invalidate();
     }
 
     public float getAcceptButtonCenterX () {
