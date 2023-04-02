@@ -144,7 +144,9 @@ public class SharedPhotoVideoCell extends FrameLayout {
         }
 
         public void setChecked(final boolean checked, boolean animated) {
-            if (checkBox.getVisibility() != VISIBLE) {
+            if (!checked && !animated && checkBox.getVisibility() != INVISIBLE) {
+                checkBox.setVisibility(INVISIBLE);
+            } else if (checked && checkBox.getVisibility() != VISIBLE) {
                 checkBox.setVisibility(VISIBLE);
             }
             checkBox.setChecked(checked, animated);
