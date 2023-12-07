@@ -309,6 +309,8 @@ import org.telegram.ui.Components.URLSpanUserMention;
 import org.telegram.ui.Components.UndoView;
 import org.telegram.ui.Components.UnreadCounterTextView;
 import org.telegram.ui.Components.ViewHelper;
+import org.telegram.ui.Components.effects.sprayer.SprayerBitmapState;
+import org.telegram.ui.Components.effects.sprayer.SprayerEffectOverlayView;
 import org.telegram.ui.Components.spoilers.SpoilerEffect;
 import org.telegram.ui.Components.voip.CellFlickerDrawable;
 import org.telegram.ui.Components.voip.VoIPHelper;
@@ -333,6 +335,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -393,7 +396,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private ActionBarMenuItem.Item closeTopicItem;
     private ActionBarMenuItem.Item openForumItem;
     private ClippingImageView animatingImageView;
-    private RecyclerListView chatListView;
+    private RecyclerListViewInternal chatListView;
     private ChatListItemAnimator chatListItemAnimator;
     private GridLayoutManagerFixed chatLayoutManager;
     private ChatActivityAdapter chatAdapter;
@@ -906,6 +909,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
     private ChatMessageCell dummyMessageCell;
     private FireworksOverlay fireworksOverlay;
+    private SprayerEffectOverlayView sprayerOverlayView;
 
     private boolean swipeBackEnabled = true;
 
@@ -4549,7 +4553,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 canvas.restore();
             }
 
-            private void drawChatForegroundElements(Canvas canvas) {
+            @Override
+            public void drawChatForegroundElements(Canvas canvas) {
                 int size = drawTimeAfter.size();
                 if (size > 0) {
                     for (int a = 0; a < size; a++) {
@@ -4619,12 +4624,16 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
             }
 
-            private void drawChatBackgroundElements(Canvas canvas) {
+            @Override
+            public void drawChatBackgroundElements(Canvas canvas, @Nullable Set<View> childsToDraw) {
                 int count = getChildCount();
                 MessageObject.GroupedMessages lastDrawnGroup = null;
 
                 for (int a = 0; a < count; a++) {
                     View child = getChildAt(a);
+                    if (childsToDraw != null && !childsToDraw.contains(child)) {
+                        continue;
+                    }
                     if (chatAdapter.isBot && child instanceof BotHelpCell) {
                         BotHelpCell botCell = (BotHelpCell) child;
                         float top = (getMeasuredHeight() - chatListViewPaddingTop - blurredViewBottomOffset) / 2 - child.getMeasuredHeight() / 2 + chatListViewPaddingTop;
@@ -4754,6 +4763,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     }
                     for (int i = 0; i < count; i++) {
                         View child = chatListView.getChildAt(i);
+                        if (childsToDraw != null && !childsToDraw.contains(child)) {
+                            continue;
+                        }
                         if (child instanceof ChatMessageCell) {
                             ChatMessageCell cell = (ChatMessageCell) child;
                             if (child.getY() > chatListView.getHeight() || child.getY() + child.getHeight() < 0) {
@@ -5361,6 +5373,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     });
                 }
             };
+            chatListItemAnimator.setRemoveDuration(240L);
         }
 
         chatLayoutManager = new GridLayoutManagerFixed(context, 1000, LinearLayoutManager.VERTICAL, true) {
@@ -7256,6 +7269,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         textSelectionHelper.setParentView(chatListView);
 
         contentView.addView(fireworksOverlay = new FireworksOverlay(context), LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        contentView.addView(sprayerOverlayView = new SprayerEffectOverlayView(getContext()), LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         checkInstantSearch();
         if (replyingMessageObject != null) {
@@ -14691,7 +14705,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
                 if (child == blurredView || child == backgroundView) {
                     childTop = 0;
-                } else if (child instanceof HintView || child instanceof ChecksHintView) {
+                } else if (child instanceof HintView || child instanceof ChecksHintView || child instanceof SprayerEffectOverlayView) {
                     childTop = 0;
                 } else if (child == mentionContainer) {
                     childTop -= chatActivityEnterView.getMeasuredHeight() - AndroidUtilities.dp(2);
@@ -33972,6 +33986,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         int lastBottom;
     }
 
+    public void drawChatBackgroundElements(Canvas c, @Nullable Set<View> childsToDraw) {
+        chatListView.drawChatBackgroundElements(c, childsToDraw);
+    }
+
+    public void drawChatForegroundElements(Canvas c) {
+        chatListView.drawChatForegroundElements(c);
+    }
+
     private class RecyclerListViewInternal extends RecyclerListView implements StoriesListPlaceProvider.ClippedView {
         public RecyclerListViewInternal(Context context, ThemeDelegate themeDelegate) {
             super(context, themeDelegate);
@@ -33981,6 +34003,27 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         public void updateClip(int[] clip) {
             clip[0] = (int) chatListViewPaddingTop - AndroidUtilities.dp(4);
             clip[1] = chatListView.getMeasuredHeight() - (chatListView.getPaddingBottom() - AndroidUtilities.dp(3));
+        }
+
+        protected void drawChatBackgroundElements (Canvas c) {
+            drawChatBackgroundElements(c, null);
+        }
+
+        public void drawChatBackgroundElements(Canvas c, @Nullable Set<View> childsToDraw) {
+
+        }
+
+        public void drawChatForegroundElements (Canvas c) {
+
+        }
+    }
+
+
+    /* * */
+
+    public void onMessagesRemoved (SprayerBitmapState state) {
+        if (sprayerOverlayView != null) {
+            sprayerOverlayView.startSprayAnimation(state);
         }
     }
     

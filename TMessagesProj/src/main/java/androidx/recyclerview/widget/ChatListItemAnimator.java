@@ -27,6 +27,7 @@ import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.ChatGreetingsView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.Components.effects.sprayer.MessagesToCanvasRenderer;
 import org.telegram.ui.TextMessageEnterTransition;
 import org.telegram.ui.VoiceMessageEnterTransition;
 
@@ -42,6 +43,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
 
     private final ChatActivity activity;
     private final RecyclerListView recyclerListView;
+    private final MessagesToCanvasRenderer messagesToCanvasRenderer;
 
     private HashMap<Integer, MessageObject.GroupedMessages> willRemovedGroup = new HashMap<>();
     private ArrayList<MessageObject.GroupedMessages> willChangedGroups = new ArrayList<>();
@@ -62,6 +64,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         this.resourcesProvider = resourcesProvider;
         this.activity = activity;
         this.recyclerListView = listView;
+        this.messagesToCanvasRenderer = new MessagesToCanvasRenderer(activity);
         translationInterpolator = DEFAULT_INTERPOLATOR;
         alwaysCreateMoveAnimationIfPossible = true;
         setSupportsChangeAnimations(false);
@@ -360,6 +363,10 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
 
                 if (holder.itemView instanceof ChatMessageCell) {
                     ChatMessageCell chatMessageCell = (ChatMessageCell) holder.itemView;
+                    MessageObject messageObject = chatMessageCell.getMessageObject();
+                    if (messageObject.deleted) {
+                        messagesToCanvasRenderer.onMessageRemoved(holder.itemView);
+                    }
                     if (deltaX != 0) {
                         chatMessageCell.setAnimationOffsetX(-deltaX);
                     }
@@ -368,6 +375,12 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
                         chatMessageCell.setImageCoords(infoExtended.imageX, infoExtended.imageY, infoExtended.imageWidth, infoExtended.imageHeight);
                     }
                 } else {
+                    if (holder.itemView instanceof ChatActionCell) {
+                        MessageObject messageObject = ((ChatActionCell) holder.itemView).getMessageObject();
+                        if (messageObject.deleted) {
+                            messagesToCanvasRenderer.onMessageRemoved(holder.itemView);
+                        }
+                    }
                     if (deltaX != 0) {
                         holder.itemView.setTranslationX(-deltaX);
                     }
