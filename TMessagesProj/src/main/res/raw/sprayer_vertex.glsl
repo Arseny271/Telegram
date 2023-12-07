@@ -121,7 +121,7 @@ void main() {
     vec2 dpGlobalCenter = viewportSizeDp * (imagePositionAndSize.rg + imagePositionAndSize.ba / 2.0);
     vec2 dpScaleCenter = dpPosition + normalize((dpGlobalCenter - dpPosition) + (feedbackRandom1.rg * 2.0 - 1.0) * SCALE_CENTER_RANDOMIZE) * DISTANCE_TO_SCALE_CENTER;
 
-    float distanceToRotateCenter = min(dpImageSize.x, dpImageSize.y) * 0.2 * ((3.0 + feedbackRandom2.r) / 4.0);
+    float distanceToRotateCenter = min(dpImageSize.x, dpImageSize.y) * 0.12 * ((3.0 + feedbackRandom2.r) / 4.0);
     vec2 dpRotateCenter = dpPosition + (feedbackNoise.xy * 2.0 - 1.0) * distanceToRotateCenter;
 
     /* Waves */
@@ -136,7 +136,7 @@ void main() {
     float waveSecondGravitySpeed = feedbackRandom2.g;
     float waveFirsrGravity  = max(wave(normalizedImagePosition.x, progress, 3.4, 0.05, 0.75), 0.0);                                 // up to ~1.75
     float waveSecondGravity = max(wave(normalizedImagePosition.x, progress, 7.5, 0.5, 1.0 - waveSecondGravitySpeed * 0.15), 0.0);   // up to ~1.61
-    float gravityOffset = waveFirsrGravity * 10.0 + waveSecondGravity * 18.0 * (0.8 + normalizedImagePosition.y * 0.4);
+    vec2 dpGravityOffset = vec2(0.0, -(waveFirsrGravity * 10.0 + waveSecondGravity * 18.0 * (0.8 + normalizedImagePosition.y * 0.4)));
 
     vec2 dpOffsetStart = vec2(pointSize / density * waveFirsrDestruction) * feedbackRandom1.ba;
 
@@ -154,7 +154,7 @@ void main() {
 
     vec2 positionOffsetDp = vec2(
         (waveDistortion + wind) * denormalizedImagePosition.x * 0.5 + wind * 0.25,
-        waveDistortion * denormalizedImagePosition.y - gravityOffset
+        waveDistortion * denormalizedImagePosition.y
     );
 
     float scaleForScaleC = feedbackRandom2.a;
@@ -171,7 +171,7 @@ void main() {
 
     /* * */
 
-    vec2 offsetDp = dpOffsetStart + positionOffsetDp;
+    vec2 offsetDp = dpOffsetStart + dpGravityOffset + positionOffsetDp;
 
     mat2 scaleMatrix = mat2(scale, 0.0 ,0.0, scale);
     mat2 rotationMatrix = mat2(cos(angle), sin(angle), -sin(angle), cos(angle));
