@@ -90,7 +90,7 @@ public class SprayerEffectThread extends ShaderEffectThread {
         GLES31.glAttachShader(programHandler_program, shaderHandler_fragment);
         GLES31.glAttachShader(programHandler_program, shaderHandler_vertex);
 
-        String[] feedbackVaryings = {"feedbackNoise"};
+        String[] feedbackVaryings = {"feedbackNoise", "feedbackRandom1", "feedbackRandom2", "feedbackRandom3"};
         GLES31.glTransformFeedbackVaryings(programHandler_program, feedbackVaryings, GLES31.GL_INTERLEAVED_ATTRIBS);
 
         int[] status = new int[1];
@@ -211,12 +211,24 @@ public class SprayerEffectThread extends ShaderEffectThread {
 
 
             GLES31.glBindBuffer(GLES31.GL_ARRAY_BUFFER, animation.feedbackBufferHandlers[animation.frameNumber % 2]);
-            GLES31.glVertexAttribPointer(1, 3, GLES31.GL_FLOAT, false, 0, 0);
+            GLES31.glVertexAttribPointer(1, 3, GLES31.GL_FLOAT, false, 60, 0);
             GLES31.glEnableVertexAttribArray(1);
+            GLES31.glVertexAttribPointer(2, 4, GLES31.GL_FLOAT, false, 60, 12);
+            GLES31.glEnableVertexAttribArray(2);
+            GLES31.glVertexAttribPointer(3, 4, GLES31.GL_FLOAT, false, 60, 28);
+            GLES31.glEnableVertexAttribArray(3);
+            GLES31.glVertexAttribPointer(4, 4, GLES31.GL_FLOAT, false, 60, 44);
+            GLES31.glEnableVertexAttribArray(4);
 
             GLES31.glBindBufferBase(GLES31.GL_TRANSFORM_FEEDBACK_BUFFER, 0, animation.feedbackBufferHandlers[(animation.frameNumber + 1) % 2]);
-            GLES31.glVertexAttribPointer(1, 3, GLES31.GL_FLOAT, false, 0, 0);
+            GLES31.glVertexAttribPointer(1, 3, GLES31.GL_FLOAT, false, 60, 0);
             GLES31.glEnableVertexAttribArray(1);
+            GLES31.glVertexAttribPointer(2, 4, GLES31.GL_FLOAT, false, 60, 12);
+            GLES31.glEnableVertexAttribArray(2);
+            GLES31.glVertexAttribPointer(3, 4, GLES31.GL_FLOAT, false, 60, 28);
+            GLES31.glEnableVertexAttribArray(3);
+            GLES31.glVertexAttribPointer(4, 4, GLES31.GL_FLOAT, false, 60, 44);
+            GLES31.glEnableVertexAttribArray(4);
 
 
 
@@ -354,9 +366,9 @@ public class SprayerEffectThread extends ShaderEffectThread {
         vertexDataBuffer.position(0);
 
         GLES31.glBindBuffer(GLES31.GL_ARRAY_BUFFER, animation.feedbackBufferHandlers[0]);
-        GLES31.glBufferData(GLES31.GL_ARRAY_BUFFER, animation.pointsCount * 3 * 4, null, GLES31.GL_DYNAMIC_DRAW);
+        GLES31.glBufferData(GLES31.GL_ARRAY_BUFFER, animation.pointsCount * 15 * 4, null, GLES31.GL_DYNAMIC_DRAW);
         GLES31.glBindBuffer(GLES31.GL_ARRAY_BUFFER, animation.feedbackBufferHandlers[1]);
-        GLES31.glBufferData(GLES31.GL_ARRAY_BUFFER, animation.pointsCount * 3 * 4, null, GLES31.GL_DYNAMIC_DRAW);
+        GLES31.glBufferData(GLES31.GL_ARRAY_BUFFER, animation.pointsCount * 15 * 4, null, GLES31.GL_DYNAMIC_DRAW);
 
         GLES31.glBindVertexArray(animation.vertexArrayHandler);
         GLES31.glBindBuffer(GLES31.GL_ARRAY_BUFFER, animation.vertexBufferHandler);
