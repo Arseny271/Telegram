@@ -3450,6 +3450,7 @@
     <string name="BotStart">START</string>
     <string name="BotUnblock">RESTART</string>
     <string name="BotRestart">Restart bot</string>
+    <string name="BotStartHint">Tap here to use this bot</string>
     <string name="BotAddToMenu">Add to Menu</string>
     <string name="BotCantOpenAttachMenuBot">This bot can\'t be opened in chats with bots.</string>
     <string name="BotCantOpenAttachMenuUser">This bot can\'t be opened in chats with users.</string>
@@ -3951,6 +3952,8 @@
     <string name="CallMessageVideoOutgoingMissed">Cancelled Video Call</string>
     <string name="CallMessageVideoIncomingDeclined">Declined Video Call</string>
     <string name="CallMessageWithDuration">%1$s (%2$s)</string>
+    <string name="CallNotifyMe">Notify me</string>
+    <string name="CallNotifyHint">You will be notified when the live stream starts.</string>
     <string name="NoRecentCalls">No recent calls</string>
     <string name="NoRecentCallsInfo">Your recent voice and video calls\nwill appear here.</string>
     <string name="VoipPeerIncompatible">**%1$s**\'s app is using an incompatible protocol. They need to update their app before you can call them.</string>
@@ -8179,4 +8182,5 @@
     <string name="Gift2ButtonSendGift">send a gift</string>
     <string name="Gift2ButtonSell_one">sell for %d Star</string>
     <string name="Gift2ButtonSell_other">sell for %d Stars</string>
+    <string name="ChromecastStartedAt">Media available at **%1$s**.</string>
 </resources>
