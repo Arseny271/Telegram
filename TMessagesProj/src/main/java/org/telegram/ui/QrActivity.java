@@ -155,6 +155,7 @@ public class QrActivity extends BaseFragment {
     private boolean isCurrentThemeDark;
     private long userId;
     private long chatId;
+    private String inviteLink;
     private int prevSystemUiVisibility;
     private int selectedPosition = -1;
 
@@ -168,6 +169,7 @@ public class QrActivity extends BaseFragment {
     public boolean onFragmentCreate() {
         userId = arguments.getLong("user_id");
         chatId = arguments.getLong("chat_id");
+        inviteLink = arguments.getString("invite_link", null);
         return super.onFragmentCreate();
     }
 
@@ -275,6 +277,7 @@ public class QrActivity extends BaseFragment {
         String username = null;
         boolean isPhone = false;
         boolean isTimer = false;
+        boolean isLink = false;
         String userfullname = null;
         ImageLocation imageLocationSmall = null;
         ImageLocation imageLocation = null;
@@ -307,6 +310,13 @@ public class QrActivity extends BaseFragment {
                 imageLocationSmall = ImageLocation.getForChat(chat, ImageLocation.TYPE_SMALL);
                 imageLocation = ImageLocation.getForChat(chat, ImageLocation.TYPE_BIG);
             }
+            if (inviteLink != null) {
+                link = inviteLink;
+                isLink = true;
+                if (chat != null) {
+                    username = chat.title;
+                }
+            }
         }
 
         qrView = new QrView(context);
@@ -314,7 +324,7 @@ public class QrActivity extends BaseFragment {
         if (link == null && username != null) {
             link = "https://" + MessagesController.getInstance(currentAccount).linkPrefix + "/" + username;
         }
-        qrView.setData(link, userfullname != null ? userfullname : username, isPhone, isTimer);
+        qrView.setData(link, userfullname != null ? userfullname : username, isPhone, isTimer, isLink);
         qrView.setCenterChangedListener((left, top, right, bottom) -> {
             logoRect.set(left, top, right, bottom);
             qrView.requestLayout();
@@ -813,6 +823,7 @@ public class QrActivity extends BaseFragment {
         private final int crossfadeWidthDp = 120;
         private String username;
         private boolean isPhone;
+        private boolean isLink;
         private String link;
         private int linkExpires;
 
@@ -997,8 +1008,9 @@ public class QrActivity extends BaseFragment {
             this.centerChangedListener = centerChangedListener;
         }
 
-        void setData(String link, String username, boolean isPhone, boolean isTimer) {
+        void setData(String link, String username, boolean isPhone, boolean isTimer, boolean isLink) {
             this.setData = true;
+            this.isLink = isLink;
             this.username = username;
             this.isPhone = isPhone;
             if (isTimer) {
@@ -1057,7 +1069,7 @@ public class QrActivity extends BaseFragment {
                             }
                         }
                         linkExpires = token.expires;
-                        setData(token.url, null, false, true);
+                        setData(token.url, null, false, true, false);
                     });
                 });
             }
@@ -1109,7 +1121,7 @@ public class QrActivity extends BaseFragment {
                 return;
             }
 
-            String userText = hasTimer ? null : (isPhone ? username : username.toUpperCase());
+            String userText = hasTimer ? null : ((isPhone || isLink) ? username : username.toUpperCase());
             if (TextUtils.equals(userText, hadUserText) && TextUtils.equals(link, hadLink) && hadWidth != null && hadHeight != null && hadWidth == w && hadHeight == h) {
                 return;
             }
@@ -1143,7 +1155,7 @@ public class QrActivity extends BaseFragment {
                     }
 
                     SpannableStringBuilder string = new SpannableStringBuilder(" " + userText);
-                    if (!isPhone) {
+                    if (!isPhone && !isLink) {
                         string.setSpan(new SettingsSearchCell.VerticalImageSpan(drawable), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     }
                     float textWidth = textPaint.measureText(string, 1, string.length()) + drawable.getBounds().width();
@@ -1152,10 +1164,10 @@ public class QrActivity extends BaseFragment {
                     }
                     int linesCount = textWidth > textMaxWidth ? 2 : 1;
                     int layoutWidth = textMaxWidth;
-                    if (linesCount > 1) {
+                    if (linesCount > 1 && !isLink) {
                         layoutWidth = (int)(textWidth + drawable.getBounds().width()) / 2 + AndroidUtilities.dp(2);
                     }
-                    if (layoutWidth > textMaxWidth) {
+                    if (layoutWidth > textMaxWidth && !isLink) {
                         linesCount = 3;
                         layoutWidth = (int)(textWidth + drawable.getBounds().width()) / 3 + AndroidUtilities.dp(4);
                     }

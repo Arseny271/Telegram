@@ -63,6 +63,7 @@ import android.text.style.CharacterStyle;
 import android.text.style.ClickableSpan;
 import android.text.style.LeadingMarginSpan;
 import android.text.style.URLSpan;
+import android.util.Log;
 import android.util.Pair;
 import android.util.Property;
 import android.util.SparseArray;
@@ -558,6 +559,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
 
         default void didPressSideButton(ChatMessageCell cell) {
+        }
+
+        default void didQuickShareStart(ChatMessageCell cell, float x, float y) {
+        }
+
+        default void didQuickShareMove(ChatMessageCell cell, float x, float y) {
+        }
+
+        default void didQuickShareEnd(ChatMessageCell cell, float x, float y) {
         }
 
         default void didPressOther(ChatMessageCell cell, float otherX, float otherY) {
@@ -1372,11 +1382,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     private boolean drawTopic;
     private MessageTopicButton topicButton;
 
+    private boolean hideSideButtonByQuickShare;
     private int drawSideButton;
     private boolean sideButtonVisible;
     private int drawSideButton2;
     private boolean sideButtonPressed;
     private int pressedSideButton;
+    private boolean inQuickShareMode;
     private Path sideButtonPath1, sideButtonPath2;
     private float[] sideButtonPathCorners1, sideButtonPathCorners2;
     private static final int SIDE_BUTTON_SPONSORED_CLOSE = 4;
@@ -1798,6 +1810,28 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             end = buffer.getSpanEnd(link);
         }
         return new int[]{start, end};
+    }
+
+    private boolean checkQuickShareMotionEvent(MotionEvent event) {
+        if (!inQuickShareMode) {
+            return false;
+        }
+
+        final int action = event.getAction();
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            inQuickShareMode = false;
+            if (delegate != null) {
+                delegate.didQuickShareEnd(this, event.getX(), event.getY());
+            }
+
+            return true;
+        } else if (action == MotionEvent.ACTION_MOVE) {
+            if (delegate != null) {
+                delegate.didQuickShareMove(this, event.getX(), event.getY());
+            }
+        }
+
+        return true;
     }
 
     private boolean checkAdminMotionEvent(MotionEvent event) {
@@ -3933,6 +3967,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 disallowLongPress = true;
             }
         }
+
+        if (!result) {
+            result = checkQuickShareMotionEvent(event);
+        }
         if(!result) {
             result = checkAdminMotionEvent(event);
         }
@@ -4076,8 +4114,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
 
         if (!result) {
-            float x = event.getX();
-            float y = event.getY();
+            final float x = event.getX();
+            final float y = event.getY();
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 if (delegate == null || delegate.canPerformActions()) {
                     if (isAvatarVisible && avatarImage.isInsideImage(x, y + getTop())) {
@@ -10057,8 +10095,6 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
 
         linkPreviewPressed = false;
-        sideButtonPressed = false;
-        pressedSideButton = 0;
         imagePressed = false;
         timePressed = false;
         gamePreviewPressed = false;
@@ -10110,12 +10146,29 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     }
                     handled = delegate.didLongPressChannelAvatar(this, currentChat, id, lastTouchX, lastTouchY);
                 }
+            } else if (sideButtonPressed) {
+                if (pressedSideButton != SIDE_BUTTON_SPONSORED_CLOSE
+                        && pressedSideButton != SIDE_BUTTON_SPONSORED_MORE
+                        && pressedSideButton != 3 && pressedSideButton != 2
+                ) {
+                    delegate.didQuickShareStart(this, lastTouchX, lastTouchY);
+                    sideButtonPressed = false;
+                    pressedSideButton = 0;
+                    inQuickShareMode = true;
+                    handled = true;
+
+                    return false;
+                }
             }
 
             if (!handled) {
                 delegate.didLongPress(this, lastTouchX, lastTouchY);
             }
         }
+
+        sideButtonPressed = false;
+        pressedSideButton = 0;
+
         return true;
     }
 
@@ -17956,7 +18009,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         applyServiceShaderMatrix(getMeasuredWidth(), backgroundHeight, getX(), viewTop);
     }
 
-    private void applyServiceShaderMatrix(int measuredWidth, int backgroundHeight, float x, float viewTop) {
+    public void applyServiceShaderMatrix(int measuredWidth, int backgroundHeight, float x, float viewTop) {
         if (resourcesProvider != null) {
             resourcesProvider.applyServiceShaderMatrix(measuredWidth, backgroundHeight, x, viewTop);
         } else {
@@ -18308,153 +18361,177 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
     }
 
-    private void drawSideButton(Canvas canvas) {
-        if (drawSideButton != 0) {
-            if (currentPosition != null && currentMessagesGroup != null && currentMessagesGroup.isDocuments && !currentPosition.last) {
-                return;
-            }
-            if (currentMessageObject.isOutOwner()) {
-                sideStartX = transitionParams.lastBackgroundLeft - AndroidUtilities.dp(8 + 32);
-                if (currentMessagesGroup != null) {
-                    sideStartX += currentMessagesGroup.transitionParams.offsetLeft - animationOffsetX;
-                }
-            } else {
-                sideStartX = transitionParams.lastBackgroundRight + AndroidUtilities.dp(8);
-                if (currentMessagesGroup != null) {
-                    sideStartX += currentMessagesGroup.transitionParams.offsetRight - animationOffsetX;
-                }
-            }
-            if (drawSideButton == SIDE_BUTTON_SPONSORED_CLOSE) {
-                sideStartY = AndroidUtilities.dp(6);
-            } else {
-                sideStartY = layoutHeight + transitionParams.deltaBottom - AndroidUtilities.dp(41);
-                if (currentMessageObject.type == MessageObject.TYPE_EMOJIS && currentMessageObject.textWidth < timeTextWidth) {
-                    sideStartY -= AndroidUtilities.dp(22);
-                }
-                if (currentMessagesGroup != null) {
-                    sideStartY += currentMessagesGroup.transitionParams.offsetBottom;
-                    if (currentMessagesGroup.transitionParams.backgroundChangeBounds) {
-                        sideStartY -= getTranslationY();
-                    }
-                }
-                if (currentMessageObject.shouldDrawReactions() && !reactionsLayoutInBubble.isSmall) {
-                    if (isRoundVideo) {
-                        sideStartY -= reactionsLayoutInBubble.getCurrentTotalHeight(transitionParams.animateChangeProgress) * (1f - getVideoTranscriptionProgress());
-                    } else if (reactionsLayoutInBubble.drawServiceShaderBackground > 0) {
-                        sideStartY -= reactionsLayoutInBubble.getCurrentTotalHeight(transitionParams.animateChangeProgress);
-                    }
-                }
-            }
-            if (drawSideButton != SIDE_BUTTON_SPONSORED_CLOSE) {
-                float sideMin = (layoutHeight + transitionParams.deltaBottom - AndroidUtilities.dp(32)) / 2f;
-                if (sideStartY < sideMin) {
-                    sideStartY = sideMin;
-                }
-            }
-            if (currentMessageObject.type == MessageObject.TYPE_EMOJIS) {
-                if (drawSideButton == 3 && commentLayout != null) {
-                    sideStartY = dp(18);
-                } else {
-                    sideStartY = 0;
-                }
-            }
-            if (!currentMessageObject.isOutOwner() && isRoundVideo && !hasLinkPreview) {
-                float offsetSize = isAvatarVisible ? ((AndroidUtilities.roundPlayingMessageSize - AndroidUtilities.roundMessageSize) * 0.7f) : AndroidUtilities.dp(50);
-                float offsetX = isPlayingRound ? offsetSize * (1f - getVideoTranscriptionProgress()) : 0;
-                float offsetY = isPlayingRound ? AndroidUtilities.dp(28) * (1f - getVideoTranscriptionProgress()) : 0;
-                if (transitionParams.animatePlayingRound) {
-                    offsetX = (isPlayingRound ? transitionParams.animateChangeProgress : (1f - transitionParams.animateChangeProgress)) * (1f - getVideoTranscriptionProgress()) * offsetSize;
-                    offsetY = (isPlayingRound ? transitionParams.animateChangeProgress : (1f - transitionParams.animateChangeProgress)) * (1f - getVideoTranscriptionProgress()) * AndroidUtilities.dp(28);
-                }
-                sideStartX -= offsetX;
-                sideStartY -= offsetY;
-            }
-            sideButtonVisible = true;
-            if (drawSideButton == 3) {
-                if (!(enterTransitionInProgress && !currentMessageObject.isVoice())) {
-                    drawCommentButton(canvas, 1f);
-                }
-            } else {
-                if (SizeNotifierFrameLayout.drawingBlur) {
-                    return;
-                }
-                rect.set(sideStartX, sideStartY, sideStartX + AndroidUtilities.dp(32), sideStartY + AndroidUtilities.dp(drawSideButton2 == SIDE_BUTTON_SPONSORED_MORE ? 64 : 32));
-                if (rect.right >= getMeasuredWidth()) {
-                    sideButtonVisible = false;
-                    return;
-                }
-                applyServiceShaderMatrix();
-                if (drawSideButton == SIDE_BUTTON_SPONSORED_CLOSE && drawSideButton2 == SIDE_BUTTON_SPONSORED_MORE && sideButtonPressed) {
-                    if (sideButtonPath1 == null) {
-                        sideButtonPath1 = new Path();
-                    } else {
-                        sideButtonPath1.rewind();
-                    }
-                    if (sideButtonPath2 == null) {
-                        sideButtonPath2 = new Path();
-                    } else {
-                        sideButtonPath2.rewind();
-                    }
-                    if (sideButtonPathCorners1 == null) {
-                        sideButtonPathCorners1 = new float[8];
-                        sideButtonPathCorners1[0] = sideButtonPathCorners1[1] = sideButtonPathCorners1[2] = sideButtonPathCorners1[3] = dp(16);
-                    }
-                    if (sideButtonPathCorners2 == null) {
-                        sideButtonPathCorners2 = new float[8];
-                        sideButtonPathCorners2[4] = sideButtonPathCorners2[5] = sideButtonPathCorners2[6] = sideButtonPathCorners2[7] = dp(16);
-                    }
-                    AndroidUtilities.rectTmp.set(sideStartX, sideStartY, sideStartX + AndroidUtilities.dp(32), sideStartY + AndroidUtilities.dp(32));
-                    sideButtonPath1.addRoundRect(AndroidUtilities.rectTmp, sideButtonPathCorners1, Path.Direction.CW);
+    public void setHideSideButtonByQuickShare (boolean hide) {
+        if (hideSideButtonByQuickShare != hide) {
+            hideSideButtonByQuickShare = hide;
+            boolean b = invalidatesParent;
+            invalidatesParent = true;
+            invalidate();
+            invalidatesParent = b;
+        }
+    }
 
-                    AndroidUtilities.rectTmp.set(sideStartX, sideStartY + AndroidUtilities.dp(32), sideStartX + AndroidUtilities.dp(32), sideStartY + AndroidUtilities.dp(64));
-                    sideButtonPath2.addRoundRect(AndroidUtilities.rectTmp, sideButtonPathCorners2, Path.Direction.CW);
-                    if (pressedSideButton == SIDE_BUTTON_SPONSORED_CLOSE) {
-                        canvas.drawPath(sideButtonPath1, getThemedPaint(Theme.key_paint_chatActionBackgroundSelected));
-                        canvas.drawPath(sideButtonPath2, getThemedPaint(Theme.key_paint_chatActionBackground));
-                    } else {
-                        canvas.drawPath(sideButtonPath1, getThemedPaint(Theme.key_paint_chatActionBackground));
-                        canvas.drawPath(sideButtonPath2, getThemedPaint(Theme.key_paint_chatActionBackgroundSelected));
-                    }
-                } else {
-                    canvas.drawRoundRect(rect, AndroidUtilities.dp(16), AndroidUtilities.dp(16), getThemedPaint(sideButtonPressed ? Theme.key_paint_chatActionBackgroundSelected : Theme.key_paint_chatActionBackground));
-                }
-                if (hasGradientService()) {
-                    canvas.drawRoundRect(rect, AndroidUtilities.dp(16), AndroidUtilities.dp(16), Theme.chat_actionBackgroundGradientDarkenPaint);
-                }
+    public void drawSideButton(Canvas canvas) {
+        drawSideButton(canvas, false);
+    }
 
-                if (drawSideButton == 2) {
-                    Drawable goIconDrawable = getThemedDrawable(Theme.key_drawable_goIcon);
-                    setDrawableBounds(goIconDrawable, sideStartX + AndroidUtilities.dp(16) - goIconDrawable.getIntrinsicWidth() / 2f, sideStartY + AndroidUtilities.dp(16) - goIconDrawable.getIntrinsicHeight() / 2f);
-                    goIconDrawable.draw(canvas);
-                } else if (drawSideButton == SIDE_BUTTON_SPONSORED_CLOSE) {
-                    final int scx = (int) (sideStartX + AndroidUtilities.dp(16)), scy = (int) (sideStartY + AndroidUtilities.dp(16));
-                    Drawable drawable = getThemedDrawable(Theme.key_drawable_closeIcon);
-                    int shw = drawable.getIntrinsicWidth() / 2, shh = drawable.getIntrinsicHeight() / 2;
-                    drawable.setBounds(scx - shw, scy - shh, scx + shw, scy + shh);
-                    setDrawableBounds(drawable, sideStartX + AndroidUtilities.dp(4), sideStartY + AndroidUtilities.dp(4));
-                    canvas.save();
-                    canvas.scale(.65f, .65f, drawable.getBounds().centerX(), drawable.getBounds().centerY());
-                    drawable.draw(canvas);
-                    canvas.restore();
+    public void drawSideButton(Canvas canvas, boolean fromQuickShare) {
+        if (drawSideButton == 0 || hideSideButtonByQuickShare && !fromQuickShare) {
+            return;
+        }
 
-                    if (drawSideButton2 == SIDE_BUTTON_SPONSORED_MORE) {
-                        drawable = getThemedDrawable(Theme.key_drawable_moreIcon);
-                        shw = drawable.getIntrinsicWidth() / 2;
-                        shh = drawable.getIntrinsicHeight() / 2;
-                        drawable.setBounds(scx - shw, scy - shh, scx + shw, scy + shh);
-                        setDrawableBounds(drawable, sideStartX + AndroidUtilities.dp(4), sideStartY + AndroidUtilities.dp(34));
-                        drawable.draw(canvas);
-                    }
-                } else {
-                    final int scx = (int) (sideStartX + AndroidUtilities.dp(16)), scy = (int) (sideStartY + AndroidUtilities.dp(16));
-                    Drawable drawable = getThemedDrawable(Theme.key_drawable_shareIcon);
-                    final int shw = drawable.getIntrinsicWidth() / 2, shh = drawable.getIntrinsicHeight() / 2;
-                    drawable.setBounds(scx - shw, scy - shh, scx + shw, scy + shh);
-                    setDrawableBounds(drawable, sideStartX + AndroidUtilities.dp(4), sideStartY + AndroidUtilities.dp(4));
-                    drawable.draw(canvas);
+        if (currentPosition != null && currentMessagesGroup != null && currentMessagesGroup.isDocuments && !currentPosition.last) {
+            return;
+        }
+        if (currentMessageObject.isOutOwner()) {
+            sideStartX = transitionParams.lastBackgroundLeft - AndroidUtilities.dp(8 + 32);
+            if (currentMessagesGroup != null) {
+                sideStartX += currentMessagesGroup.transitionParams.offsetLeft - animationOffsetX;
+            }
+        } else {
+            sideStartX = transitionParams.lastBackgroundRight + AndroidUtilities.dp(8);
+            if (currentMessagesGroup != null) {
+                sideStartX += currentMessagesGroup.transitionParams.offsetRight - animationOffsetX;
+            }
+        }
+        if (drawSideButton == SIDE_BUTTON_SPONSORED_CLOSE) {
+            sideStartY = AndroidUtilities.dp(6);
+        } else {
+            sideStartY = layoutHeight + transitionParams.deltaBottom - AndroidUtilities.dp(41);
+            if (currentMessageObject.type == MessageObject.TYPE_EMOJIS && currentMessageObject.textWidth < timeTextWidth) {
+                sideStartY -= AndroidUtilities.dp(22);
+            }
+            if (currentMessagesGroup != null) {
+                sideStartY += currentMessagesGroup.transitionParams.offsetBottom;
+                if (currentMessagesGroup.transitionParams.backgroundChangeBounds) {
+                    sideStartY -= getTranslationY();
+                }
+            }
+            if (currentMessageObject.shouldDrawReactions() && !reactionsLayoutInBubble.isSmall) {
+                if (isRoundVideo) {
+                    sideStartY -= reactionsLayoutInBubble.getCurrentTotalHeight(transitionParams.animateChangeProgress) * (1f - getVideoTranscriptionProgress());
+                } else if (reactionsLayoutInBubble.drawServiceShaderBackground > 0) {
+                    sideStartY -= reactionsLayoutInBubble.getCurrentTotalHeight(transitionParams.animateChangeProgress);
                 }
             }
         }
+        if (drawSideButton != SIDE_BUTTON_SPONSORED_CLOSE) {
+            float sideMin = (layoutHeight + transitionParams.deltaBottom - AndroidUtilities.dp(32)) / 2f;
+            if (sideStartY < sideMin) {
+                sideStartY = sideMin;
+            }
+        }
+        if (currentMessageObject.type == MessageObject.TYPE_EMOJIS) {
+            if (drawSideButton == 3 && commentLayout != null) {
+                sideStartY = dp(18);
+            } else {
+                sideStartY = 0;
+            }
+        }
+        if (!currentMessageObject.isOutOwner() && isRoundVideo && !hasLinkPreview) {
+            float offsetSize = isAvatarVisible ? ((AndroidUtilities.roundPlayingMessageSize - AndroidUtilities.roundMessageSize) * 0.7f) : AndroidUtilities.dp(50);
+            float offsetX = isPlayingRound ? offsetSize * (1f - getVideoTranscriptionProgress()) : 0;
+            float offsetY = isPlayingRound ? AndroidUtilities.dp(28) * (1f - getVideoTranscriptionProgress()) : 0;
+            if (transitionParams.animatePlayingRound) {
+                offsetX = (isPlayingRound ? transitionParams.animateChangeProgress : (1f - transitionParams.animateChangeProgress)) * (1f - getVideoTranscriptionProgress()) * offsetSize;
+                offsetY = (isPlayingRound ? transitionParams.animateChangeProgress : (1f - transitionParams.animateChangeProgress)) * (1f - getVideoTranscriptionProgress()) * AndroidUtilities.dp(28);
+            }
+            sideStartX -= offsetX;
+            sideStartY -= offsetY;
+        }
+        sideButtonVisible = true;
+        if (drawSideButton == 3) {
+            if (!(enterTransitionInProgress && !currentMessageObject.isVoice())) {
+                drawCommentButton(canvas, 1f);
+            }
+        } else {
+            if (SizeNotifierFrameLayout.drawingBlur) {
+                return;
+            }
+            rect.set(sideStartX, sideStartY, sideStartX + AndroidUtilities.dp(32), sideStartY + AndroidUtilities.dp(drawSideButton2 == SIDE_BUTTON_SPONSORED_MORE ? 64 : 32));
+            if (rect.right >= getMeasuredWidth()) {
+                sideButtonVisible = false;
+                return;
+            }
+            applyServiceShaderMatrix();
+            if (drawSideButton == SIDE_BUTTON_SPONSORED_CLOSE && drawSideButton2 == SIDE_BUTTON_SPONSORED_MORE && sideButtonPressed) {
+                if (sideButtonPath1 == null) {
+                    sideButtonPath1 = new Path();
+                } else {
+                    sideButtonPath1.rewind();
+                }
+                if (sideButtonPath2 == null) {
+                    sideButtonPath2 = new Path();
+                } else {
+                    sideButtonPath2.rewind();
+                }
+                if (sideButtonPathCorners1 == null) {
+                    sideButtonPathCorners1 = new float[8];
+                    sideButtonPathCorners1[0] = sideButtonPathCorners1[1] = sideButtonPathCorners1[2] = sideButtonPathCorners1[3] = dp(16);
+                }
+                if (sideButtonPathCorners2 == null) {
+                    sideButtonPathCorners2 = new float[8];
+                    sideButtonPathCorners2[4] = sideButtonPathCorners2[5] = sideButtonPathCorners2[6] = sideButtonPathCorners2[7] = dp(16);
+                }
+                AndroidUtilities.rectTmp.set(sideStartX, sideStartY, sideStartX + AndroidUtilities.dp(32), sideStartY + AndroidUtilities.dp(32));
+                sideButtonPath1.addRoundRect(AndroidUtilities.rectTmp, sideButtonPathCorners1, Path.Direction.CW);
+
+                AndroidUtilities.rectTmp.set(sideStartX, sideStartY + AndroidUtilities.dp(32), sideStartX + AndroidUtilities.dp(32), sideStartY + AndroidUtilities.dp(64));
+                sideButtonPath2.addRoundRect(AndroidUtilities.rectTmp, sideButtonPathCorners2, Path.Direction.CW);
+                if (pressedSideButton == SIDE_BUTTON_SPONSORED_CLOSE) {
+                    canvas.drawPath(sideButtonPath1, getThemedPaint(Theme.key_paint_chatActionBackgroundSelected));
+                    canvas.drawPath(sideButtonPath2, getThemedPaint(Theme.key_paint_chatActionBackground));
+                } else {
+                    canvas.drawPath(sideButtonPath1, getThemedPaint(Theme.key_paint_chatActionBackground));
+                    canvas.drawPath(sideButtonPath2, getThemedPaint(Theme.key_paint_chatActionBackgroundSelected));
+                }
+            } else {
+                canvas.drawRoundRect(rect, AndroidUtilities.dp(16), AndroidUtilities.dp(16), getThemedPaint(sideButtonPressed ? Theme.key_paint_chatActionBackgroundSelected : Theme.key_paint_chatActionBackground));
+            }
+            if (hasGradientService()) {
+                canvas.drawRoundRect(rect, AndroidUtilities.dp(16), AndroidUtilities.dp(16), Theme.chat_actionBackgroundGradientDarkenPaint);
+            }
+
+            if (drawSideButton == 2) {
+                Drawable goIconDrawable = getThemedDrawable(Theme.key_drawable_goIcon);
+                setDrawableBounds(goIconDrawable, sideStartX + AndroidUtilities.dp(16) - goIconDrawable.getIntrinsicWidth() / 2f, sideStartY + AndroidUtilities.dp(16) - goIconDrawable.getIntrinsicHeight() / 2f);
+                goIconDrawable.draw(canvas);
+            } else if (drawSideButton == SIDE_BUTTON_SPONSORED_CLOSE) {
+                final int scx = (int) (sideStartX + AndroidUtilities.dp(16)), scy = (int) (sideStartY + AndroidUtilities.dp(16));
+                Drawable drawable = getThemedDrawable(Theme.key_drawable_closeIcon);
+                int shw = drawable.getIntrinsicWidth() / 2, shh = drawable.getIntrinsicHeight() / 2;
+                drawable.setBounds(scx - shw, scy - shh, scx + shw, scy + shh);
+                setDrawableBounds(drawable, sideStartX + AndroidUtilities.dp(4), sideStartY + AndroidUtilities.dp(4));
+                canvas.save();
+                canvas.scale(.65f, .65f, drawable.getBounds().centerX(), drawable.getBounds().centerY());
+                drawable.draw(canvas);
+                canvas.restore();
+
+                if (drawSideButton2 == SIDE_BUTTON_SPONSORED_MORE) {
+                    drawable = getThemedDrawable(Theme.key_drawable_moreIcon);
+                    shw = drawable.getIntrinsicWidth() / 2;
+                    shh = drawable.getIntrinsicHeight() / 2;
+                    drawable.setBounds(scx - shw, scy - shh, scx + shw, scy + shh);
+                    setDrawableBounds(drawable, sideStartX + AndroidUtilities.dp(4), sideStartY + AndroidUtilities.dp(34));
+                    drawable.draw(canvas);
+                }
+            } else {
+                final int scx = (int) (sideStartX + AndroidUtilities.dp(16)), scy = (int) (sideStartY + AndroidUtilities.dp(16));
+                Drawable drawable = getThemedDrawable(Theme.key_drawable_shareIcon);
+                final int shw = drawable.getIntrinsicWidth() / 2, shh = drawable.getIntrinsicHeight() / 2;
+                drawable.setBounds(scx - shw, scy - shh, scx + shw, scy + shh);
+                setDrawableBounds(drawable, sideStartX + AndroidUtilities.dp(4), sideStartY + AndroidUtilities.dp(4));
+                drawable.draw(canvas);
+            }
+        }
+    }
+
+    public float getSideButtonStartX() {
+        return sideStartX;
+    }
+
+    public float getSideButtonStartY() {
+        return sideStartY;
     }
 
     public void setTimeAlpha(float value) {

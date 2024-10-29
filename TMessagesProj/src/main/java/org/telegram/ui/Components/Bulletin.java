@@ -48,6 +48,7 @@ import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.core.math.MathUtils;
 import androidx.core.util.Consumer;
 import androidx.core.view.ViewCompat;
 import androidx.dynamicanimation.animation.DynamicAnimation;
@@ -71,6 +72,7 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.Reactions.ReactionsLayoutInBubble;
+import org.telegram.ui.Components.quickforward.BlurVisibilityDrawable;
 import org.telegram.ui.DialogsActivity;
 import org.telegram.ui.LaunchActivity;
 
@@ -153,6 +155,7 @@ public class Bulletin {
     private final Runnable hideRunnable = this::hide;
     private int duration;
 
+    private boolean allowBlurAnimation;
     private boolean showing;
     private boolean canHide;
     private boolean loaded = true;
@@ -214,6 +217,11 @@ public class Bulletin {
 
     public Bulletin hideAfterBottomSheet(boolean hide) {
         this.hideAfterBottomSheet = hide;
+        return this;
+    }
+
+    public Bulletin allowBlur() {
+        this.allowBlurAnimation = true;
         return this;
     }
 
@@ -812,6 +820,9 @@ public class Bulletin {
             for (int i = 0, size = callbacks.size(); i < size; i++) {
                 callbacks.get(i).onDetach(this);
             }
+            if (blurVisibilityDrawable != null) {
+                blurVisibilityDrawable.recycle();
+            }
         }
 
         @CallSuper
@@ -875,6 +886,13 @@ public class Bulletin {
                 }
             }
             setTranslationY(-translation + inOutOffset * (top ? -1 : 1));
+        }
+
+        public float getTopOffset() {
+            if (delegate != null) {
+                return delegate.getTopOffset(bulletin != null ? bulletin.tag : 0);
+            }
+            return 0;
         }
 
         public float getBottomOffset() {
@@ -1044,6 +1062,9 @@ public class Bulletin {
         private void setInOutOffset(float offset) {
             inOutOffset = offset;
             updatePosition();
+            if (bulletin != null && bulletin.allowBlurAnimation) {
+                invalidate();
+            }
         }
 
         private LinearGradient clipGradient;
@@ -1054,20 +1075,50 @@ public class Bulletin {
             return getMeasuredHeight();
         }
 
+        private BlurVisibilityDrawable blurVisibilityDrawable;
+
         @Override
         protected void dispatchDraw(Canvas canvas) {
-            if (bulletin == null) {
+            if (bulletin != null && bulletin.allowBlurAnimation) {
+                if (blurVisibilityDrawable == null) {
+                    blurVisibilityDrawable = new BlurVisibilityDrawable(this::dispatchDrawImplBlur);
+                }
+
+                if (!blurVisibilityDrawable.hasBitmap()) {
+                    blurVisibilityDrawable.render(getMeasuredWidth(), getMeasuredHeight(), dp(10), 6);
+                }
+
+                blurVisibilityDrawable.setAlpha(MathUtils.clamp((int) (255 * (1f - inOutOffset / getMeasuredHeight())), 0, 255));
+                blurVisibilityDrawable.setBounds(0, 0, getMeasuredWidth(), getMeasuredHeight());
+                blurVisibilityDrawable.draw(canvas);
+
                 return;
             }
+
+            dispatchDrawImpl(canvas, false, 255);
+        }
+
+        protected void dispatchDrawImplBlur(Canvas canvas, int alpha) {
+            dispatchDrawImpl(canvas, true, alpha);
+        }
+
+        protected void dispatchDrawImpl(Canvas canvas, boolean fromBlurRender, int alpha) {
+            if (bulletin == null || alpha == 0) {
+                return;
+            }
+
             background.setBounds(getPaddingLeft(), getPaddingTop(), getMeasuredWidth() - getPaddingRight(), getMeasuredBackgroundHeight() - getPaddingBottom());
             if (isTransitionRunning() && delegate != null) {
                 final float top = delegate.getTopOffset(bulletin.tag) - getY();
                 final float bottom = ((View) getParent()).getMeasuredHeight() - getBottomOffset() - getY();
-                final boolean clip = delegate.clipWithGradient(bulletin.tag);
+                final boolean clip = !fromBlurRender && delegate.clipWithGradient(bulletin.tag);
                 canvas.save();
-                canvas.clipRect(0, top, getMeasuredWidth(), bottom);
-                if (clip) {
-                    canvas.saveLayerAlpha(0, 0, getWidth(), getHeight(), 0xFF, Canvas.ALL_SAVE_FLAG);
+                if (!fromBlurRender) {
+                    canvas.clipRect(0, top, getMeasuredWidth(), bottom);
+                }
+                final boolean hasSavedAlpha = clip || alpha != 255;
+                if (hasSavedAlpha) {
+                    canvas.saveLayerAlpha(0, 0, getWidth(), getHeight(), alpha, Canvas.ALL_SAVE_FLAG);
                 }
                 background.draw(canvas);
                 super.dispatchDraw(canvas);
@@ -1090,6 +1141,8 @@ public class Bulletin {
                         canvas.drawRect(0, bottom - dp(8), getWidth(), bottom, clipPaint);
                     }
                     canvas.restore();
+                }
+                if (hasSavedAlpha) {
                     canvas.restore();
                 }
                 canvas.restore();

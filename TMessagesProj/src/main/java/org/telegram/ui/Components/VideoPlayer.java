@@ -84,6 +84,8 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.chromecast.ChromecastMedia;
+import org.telegram.messenger.chromecast.ChromecastMediaVariations;
 import org.telegram.messenger.secretmedia.ExtendedDefaultDataSourceFactory;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Stories.recorder.StoryEntry;
@@ -95,7 +97,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 
 @SuppressLint("NewApi")
@@ -1558,5 +1559,39 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
 
     public void setIsStory() {
         isStory = true;
+    }
+
+
+
+    public ChromecastMediaVariations getCurrentChromecastMedia (String defaultId, String title, String subtitle) {
+        if (videoQualities == null) {
+            if (videoUri == null) {
+                return null;
+            }
+
+            final String path = "/mtproto_" + defaultId;
+            final ChromecastMedia media = ChromecastMedia.Builder.fromUri(videoUri, path, ChromecastMedia.VIDEO_MP4)
+                    .setTitle(title)
+                    .setSubtitle(subtitle)
+                    .build();
+
+            return ChromecastMediaVariations.of(media);
+        }
+
+        final ChromecastMediaVariations.Builder builder = new ChromecastMediaVariations.Builder();
+        for (Quality quality : videoQualities) {
+            for (VideoUri vUri: quality.uris) {
+                final String path = "/mtproto_" + vUri.docId;
+                final ChromecastMedia media = ChromecastMedia.Builder.fromUri(vUri.uri, path, ChromecastMedia.VIDEO_MP4)
+                    .setTitle(title)
+                    .setSubtitle(subtitle)
+                    .setSize(vUri.width, vUri.height)
+                    .build();
+
+                builder.add(media);
+            }
+        }
+
+        return builder.build();
     }
 }

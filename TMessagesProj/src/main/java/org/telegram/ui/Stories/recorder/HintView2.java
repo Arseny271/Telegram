@@ -221,7 +221,7 @@ public class HintView2 extends View {
         return this;
     }
 
-    public HintView2 setTextSize(int sizeDp) {
+    public HintView2 setTextSize(float sizeDp) {
         textDrawable.setTextSize(dp(sizeDp));
         textPaint.setTextSize(dp(sizeDp));
         return this;

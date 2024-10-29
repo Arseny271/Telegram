@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.os.Bundle;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.util.TypedValue;
@@ -49,7 +50,7 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.DialogCell;
-import org.telegram.ui.ManageLinksActivity;
+import org.telegram.ui.QrActivity;
 
 import java.util.ArrayList;
 
@@ -59,6 +60,7 @@ public class LinkActionView extends LinearLayout {
     String link;
     BaseFragment fragment;
     ImageView optionsView;
+    ImageView qrCodeOptionView;
     private final TextView copyView;
     private final TextView shareView;
     private final TextView removeView;
@@ -88,7 +90,7 @@ public class LinkActionView extends LinearLayout {
         setOrientation(VERTICAL);
         frameLayout = new FrameLayout(context);
         linkView = new TextView(context);
-        linkView.setPadding(AndroidUtilities.dp(18), AndroidUtilities.dp(13), AndroidUtilities.dp(40), AndroidUtilities.dp(13));
+        linkView.setPadding(AndroidUtilities.dp(18), AndroidUtilities.dp(13), AndroidUtilities.dp(32 + 40), AndroidUtilities.dp(13));
         linkView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         linkView.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         linkView.setSingleLine(true);
@@ -100,6 +102,13 @@ public class LinkActionView extends LinearLayout {
         optionsView.setContentDescription(LocaleController.getString(R.string.AccDescrMoreOptions));
         optionsView.setScaleType(ImageView.ScaleType.CENTER);
         frameLayout.addView(optionsView, LayoutHelper.createFrame(40, 48, Gravity.RIGHT | Gravity.CENTER_VERTICAL));
+
+        qrCodeOptionView = new ImageView(context);
+        qrCodeOptionView.setImageDrawable(ContextCompat.getDrawable(context, R.drawable.msg_qr_mini));
+        qrCodeOptionView.setContentDescription(LocaleController.getString(R.string.GetQRCode));
+        qrCodeOptionView.setScaleType(ImageView.ScaleType.CENTER);
+        frameLayout.addView(qrCodeOptionView, LayoutHelper.createFrame(40, 48, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0, 32, 0));
+
         addView(frameLayout, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, containerPadding, 0, containerPadding, 0));
 
         LinearLayout linearLayout = new LinearLayout(context);
@@ -225,7 +234,7 @@ public class LinkActionView extends LinearLayout {
             ActionBarPopupWindow.ActionBarPopupWindowLayout layout = new ActionBarPopupWindow.ActionBarPopupWindowLayout(context);
 
             ActionBarMenuSubItem subItem;
-            if (!this.permanent && canEdit) {
+            if (canShowEditOption()) {
                 subItem = new ActionBarMenuSubItem(context, true, false);
                 subItem.setTextAndIcon(LocaleController.getString(R.string.Edit), R.drawable.msg_edit);
                 layout.addView(subItem, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
@@ -237,14 +246,7 @@ public class LinkActionView extends LinearLayout {
                 });
             }
 
-            subItem = new ActionBarMenuSubItem(context, true, false);
-            subItem.setTextAndIcon(LocaleController.getString(R.string.GetQRCode), R.drawable.msg_qrcode);
-            layout.addView(subItem, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
-            subItem.setOnClickListener(view12 -> {
-                showQrCode();
-            });
-
-            if (!hideRevokeOption) {
+            if (canShowRevokeOption()) {
                 subItem = new ActionBarMenuSubItem(context, false, true);
                 subItem.setTextAndIcon(LocaleController.getString(R.string.RevokeLink), R.drawable.msg_delete);
                 subItem.setColors(Theme.getColor(Theme.key_text_RedRegular), Theme.getColor(Theme.key_text_RedRegular));
@@ -343,6 +345,27 @@ public class LinkActionView extends LinearLayout {
 
         });
 
+        qrCodeOptionView.setOnClickListener(view -> {
+            if (link == null) {
+                return;
+            }
+
+            Bundle args = new Bundle();
+            args.putLong("chat_id", chatId);
+            args.putLong("user_id", 0);
+            args.putString("invite_link", link);
+            fragment.presentFragment(new QrActivity(args));
+
+            if (bottomSheet != null) {
+                bottomSheet.dismiss();
+            }
+        });
+
+        qrCodeOptionView.setOnLongClickListener(view -> {
+            showQrCode();
+            return true;
+        });
+
         frameLayout.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -350,6 +373,22 @@ public class LinkActionView extends LinearLayout {
             }
         });
         updateColors();
+    }
+
+    private boolean canShowEditOption() {
+        return !this.permanent && canEdit;
+    }
+
+    private boolean canShowRevokeOption() {
+        return !hideRevokeOption;
+    }
+
+    private void checkOptionsButtonVisibility() {
+        final boolean optionsVisibility = canShowEditOption() && canShowRevokeOption() && !revoked;
+        optionsView.setVisibility(optionsVisibility ? View.VISIBLE: View.GONE);
+        qrCodeOptionView.setVisibility(!revoked ? View.VISIBLE: View.GONE);
+        qrCodeOptionView.setLayoutParams(LayoutHelper.createFrame(optionsVisibility ? 40: 48, 48, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0, optionsVisibility ? 32 : 0, 0));
+        linkView.setPadding(AndroidUtilities.dp(18), AndroidUtilities.dp(13), AndroidUtilities.dp(revoked ? 18 : (optionsVisibility ? 72 : 40)), AndroidUtilities.dp(13));
     }
 
     public void showBulletin(int resId, CharSequence str) {
@@ -412,6 +451,7 @@ public class LinkActionView extends LinearLayout {
         frameLayout.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(8), Theme.getColor(Theme.key_graySection), ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_listSelector), (int) (255 * 0.3f))));
         linkView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         optionsView.setColorFilter(Theme.getColor(Theme.key_dialogTextGray3));
+        qrCodeOptionView.setColorFilter(Theme.getColor(Theme.key_dialogTextGray3));
         //optionsView.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), 1));
         avatarsContainer.countTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText));
         avatarsContainer.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), 0, ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText), (int) (255 * 0.3f))));
@@ -436,32 +476,27 @@ public class LinkActionView extends LinearLayout {
     public void setRevoke(boolean revoked) {
         this.revoked = revoked;
         if (revoked) {
-            optionsView.setVisibility(View.GONE);
             shareView.setVisibility(View.GONE);
             copyView.setVisibility(View.GONE);
             removeView.setVisibility(View.VISIBLE);
         } else {
-            optionsView.setVisibility(View.VISIBLE);
             shareView.setVisibility(View.VISIBLE);
             copyView.setVisibility(View.VISIBLE);
             removeView.setVisibility(View.GONE);
         }
-    }
-
-    public void showOptions(boolean b) {
-        optionsView.setVisibility(b ? View.VISIBLE : View.GONE);
+        checkOptionsButtonVisibility();
     }
 
     public void hideRevokeOption(boolean b) {
         if (hideRevokeOption != b) {
             hideRevokeOption = b;
-            optionsView.setVisibility(View.VISIBLE);
-            optionsView.setImageDrawable(ContextCompat.getDrawable(optionsView.getContext(), R.drawable.ic_ab_other));
+            checkOptionsButtonVisibility();
         }
     }
 
     public void hideOptions() {
         optionsView.setVisibility(View.GONE);
+        qrCodeOptionView.setVisibility(View.GONE);
         linkView.setGravity(Gravity.CENTER);
         removeView.setVisibility(View.GONE);
         avatarsContainer.setVisibility(View.GONE);
@@ -612,9 +647,11 @@ public class LinkActionView extends LinearLayout {
 
     public void setPermanent(boolean permanent) {
         this.permanent = permanent;
+        checkOptionsButtonVisibility();
     }
 
     public void setCanEdit(boolean canEdit) {
         this.canEdit = canEdit;
+        checkOptionsButtonVisibility();
     }
 }

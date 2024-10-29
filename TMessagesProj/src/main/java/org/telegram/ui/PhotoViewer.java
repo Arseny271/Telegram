@@ -142,6 +142,7 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.analytics.AnalyticsListener;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
+import com.google.android.gms.cast.framework.CastButtonFactory;
 import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
@@ -155,6 +156,7 @@ import org.telegram.messenger.BotWebViewVibrationEffect;
 import org.telegram.messenger.BringAppForegroundService;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.DownloadController;
 import org.telegram.messenger.Emoji;
@@ -184,6 +186,9 @@ import org.telegram.messenger.VideoEditedInfo;
 import org.telegram.messenger.WebFile;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.messenger.camera.Size;
+import org.telegram.messenger.chromecast.ChromecastController;
+import org.telegram.messenger.chromecast.ChromecastMedia;
+import org.telegram.messenger.chromecast.ChromecastMediaVariations;
 import org.telegram.messenger.video.VideoPlayerRewinder;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
@@ -214,6 +219,7 @@ import org.telegram.ui.Components.BlurringShader;
 import org.telegram.ui.Components.Bulletin;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.CaptionPhotoViewer;
+import org.telegram.ui.Components.CastMediaRouteButton;
 import org.telegram.ui.Components.ChatAttachAlert;
 import org.telegram.ui.Components.CheckBox;
 import org.telegram.ui.Components.ClippingImageView;
@@ -815,6 +821,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private ActionBarMenuItem sendItem;
     private ActionBarMenuItem editItem;
     private ActionBarMenuItem pipItem;
+    private ActionBarMenuItem castItem;
+    private CastMediaRouteButton castItemButton;
     private ActionBarMenuItem masksItem;
     private LinearLayout itemsLayout;
     private ChooseQualityLayout.QualityIcon qualityIcon;
@@ -2007,6 +2015,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private final static int gallery_menu_translate = 21;
     private final static int gallery_menu_hide_translation = 22;
     private final static int gallery_menu_reply = 23;
+    private final static int gallery_menu_chromecast = 24;
 
     private final static int ads_sponsor_info = 101;
     private final static int ads_about = 102;
@@ -4876,6 +4885,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         }
                         dialog.setTextColor(getThemedColor(Theme.key_voipgroup_actionBarItems));
                     }
+                } else if (id == gallery_menu_chromecast) {
+                    castItemButton.performClick();
                 } else if (id == gallery_menu_showall) {
                     if (currentDialogId != 0) {
                         disableShowCheck = true;
@@ -5480,6 +5491,13 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         pipItem.setContentDescription(getString("AccDescrPipMode", R.string.AccDescrPipMode));
         editItem = menu.addItem(gallery_menu_paint, R.drawable.msg_header_draw);
         editItem.setContentDescription(getString("AccDescrPhotoEditor", R.string.AccDescrPhotoEditor));
+
+        castItem = menu.addItem(gallery_menu_chromecast, 0);
+        castItemButton = new CastMediaRouteButton(activityContext);
+        castItemButton.setResourcesProvider(resourcesProvider);
+        CastButtonFactory.setUpMediaRouteButton(activityContext, castItemButton);
+        castItem.addView(castItemButton, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+
         sendItem = menu.addItem(gallery_menu_send, R.drawable.msg_header_share);
         sendItem.setContentDescription(getString("Forward", R.string.Forward));
 
@@ -7524,7 +7542,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             @Override
             protected void onSend(LongSparseArray<TLRPC.Dialog> dids, int count, TLRPC.TL_forumTopic topic) {
                 AndroidUtilities.runOnUIThread(() -> {
-                    BulletinFactory.createForwardedBulletin(parentActivity, photoContainerView, dids.size(), dids.size() == 1 ? dids.valueAt(0).id : 0, count, 0xf9222222, 0xffffffff).show();
+                    BulletinFactory.createForwardedBulletin(parentActivity, null, photoContainerView, dids.size(), dids.size() == 1 ? dids.valueAt(0).id : 0, count, 0xf9222222, 0xffffffff, Bulletin.DURATION_SHORT).show();
                 }, 250);
             }
 
@@ -7552,6 +7570,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             }
         }, AdjustPanLayoutHelper.keyboardDuration);
         alert.show();
+    }
+
+    public void showChromecastBulletin (String uri) {
+        if (activityContext != null && containerView != null && isVisible()) {
+            BulletinFactory.createChromecastBulletin(activityContext, containerView, uri).show();
+        }
     }
 
     private void updateActionBarTitlePadding() {
@@ -9616,6 +9640,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             videoPlayer.setPlaybackSpeed(currentVideoSpeed);
         }
 
+        // ChromecastController.getInstance().prepareToCast(getCurrentChromecastMedia());
         inPreview = preview;
     }
 
@@ -13080,6 +13105,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             captionEdit.setTimerVisible(allowTimeItem, true);
         }
         checkFullscreenButton();
+        ChromecastController.getInstance().setCurrentMediaAndCastIfNeeded(getCurrentChromecastMedia());
     }
 
     private boolean canSendMediaToParentChatActivity() {
@@ -17613,6 +17639,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             checkProgress(0, false, true);
         }
         checkFullscreenButton();
+
+        ChromecastController.getInstance().setCurrentMediaAndCastIfNeeded(getCurrentChromecastMedia());
     }
 
     private boolean shouldMessageObjectAutoPlayed(MessageObject messageObject) {
@@ -20793,6 +20821,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         }
     }
 
+    public MessageObject getCurrentMessageObject() {
+        return currentMessageObject;
+    }
+
     private void applyTransformToMatrix(Matrix matrix) {
         float currentTranslationY;
         float currentTranslationX;
@@ -21161,5 +21193,54 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 Browser.openUrl(LaunchActivity.instance != null ? LaunchActivity.instance : activityContext, Uri.parse(currentMessageObject.sponsoredUrl), true, false, false, null, null, false, MessagesController.getInstance(currentAccount).sponsoredLinksInappAllow);
             }
         });
+    }
+
+    private ChromecastMediaVariations getCurrentChromecastMedia () {
+        if (currentMessageObject == null) {
+            return null;
+        }
+
+        String title = null;
+        final TLRPC.Document document = currentMessageObject.getDocument();
+        String subtitle = currentMessageObject.getDocumentName();
+        if (TextUtils.isEmpty(subtitle)) {
+            subtitle = currentMessageObject.getFileName();
+        }
+
+        final long dialogId = currentMessageObject.getDialogId();
+        if (DialogObject.isUserDialog(dialogId)) {
+            final TLRPC.User user = MessagesController.getInstance(UserConfig.selectedAccount).getUser(dialogId);
+            if (user != null) {
+                title = ContactsController.formatName(user.first_name, user.last_name);
+            }
+        } else {
+            TLRPC.Chat chat = MessagesController.getInstance(UserConfig.selectedAccount).getChat(-dialogId);
+            if (chat != null) {
+                title = chat.title;
+            }
+        }
+
+        if (currentMessageObject.isPhoto()) {
+            // сделать по другому ??
+
+            final File file = FileLoader.getInstance(currentMessageObject.currentAccount).getPathToMessage(currentMessageObject.messageOwner);
+            if (file == null || !file.exists()) {
+                return null;
+            }
+
+            final Uri uri = Uri.parse("file://" + file.getAbsolutePath());
+            final ChromecastMedia media = ChromecastMedia.Builder.fromUri(uri, "/photo_" + currentMessageObject.getId(), ChromecastMedia.IMAGE_JPEG)
+                .setTitle(title)
+                .setSubtitle(subtitle)
+                .build();
+
+            return ChromecastMediaVariations.of(media);
+        }
+
+        if (videoPlayer != null) {
+            return videoPlayer.getCurrentChromecastMedia((document != null ? document.id : currentMessageObject.getId()) + "", title, subtitle);
+        }
+
+        return null;
     }
 }
