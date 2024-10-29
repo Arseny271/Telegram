@@ -7897,6 +7897,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) bottomOverlayChatText.getLayoutParams();
                 layoutParams.width = allWidth;
                 super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+                if (startBotHint != null) {
+                    startBotHint.setTranslationY(-getMeasuredHeight() - AndroidUtilities.dp(7));
+                }
             }
 
             private Rect blurBounds = new Rect();
