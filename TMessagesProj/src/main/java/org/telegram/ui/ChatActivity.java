@@ -24720,7 +24720,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 //            }
             checkGroupCallJoin(lastCallCheckFromServer);
 
-            if (chatActivityEnterView.hasRecordVideo() && !chatActivityEnterView.isSendButtonVisible()) {
+            if (chatActivityEnterView.hasRecordVideo() && !chatActivityEnterView.isSendButtonVisible() && (startBotHint == null || !startBotHint.shown())) {
                 boolean isChannel = false;
                 if (currentChat != null) {
                     isChannel = ChatObject.isChannel(currentChat) && !currentChat.megagroup;
