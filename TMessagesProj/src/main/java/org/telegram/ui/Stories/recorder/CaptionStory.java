@@ -60,6 +60,10 @@ public class CaptionStory extends CaptionContainerView {
     private ItemOptions periodPopup;
     private boolean periodVisible = true;
 
+    private ImageView spoilerButton;
+    private boolean spoilerVisible = false;
+    private boolean spoilerEnabled = false;
+
     public static final int[] periods = new int[] { 6 * 3600, 12 * 3600, 86400, 2 * 86400 };
     private int periodIndex = 0;
 
@@ -125,6 +129,24 @@ public class CaptionStory extends CaptionContainerView {
             }
             periodPopup.setDimAlpha(0).show();
         });
+
+        spoilerButton = new ImageView(context);
+        spoilerButton.setVisibility(GONE);
+        spoilerButton.setImageResource(R.drawable.msg_spoiler);
+        spoilerButton.setBackground(Theme.createSelectorDrawable(Theme.ACTION_BAR_WHITE_SELECTOR_COLOR, RIPPLE_MASK_CIRCLE_20DP, dp(18)));
+        spoilerButton.setScaleType(ImageView.ScaleType.CENTER);
+        addView(spoilerButton, LayoutHelper.createFrame(44, 44, Gravity.RIGHT | Gravity.BOTTOM, 0, 0, 11 + 44 - 4, 10));
+        spoilerButton.setOnClickListener(v -> {
+            spoilerEnabled = !spoilerEnabled;
+            spoilerButton.setImageResource(spoilerEnabled ? R.drawable.msg_spoiler_off: R.drawable.msg_spoiler);
+            if (onSpoilerUpdate != null) {
+                onSpoilerUpdate.run(spoilerEnabled);
+            }
+        });
+    }
+
+    public boolean isSpoilerEnabled() {
+        return spoilerEnabled;
     }
 
     private void checkFlipButton() {
@@ -351,10 +373,17 @@ public class CaptionStory extends CaptionContainerView {
                 canvas.restore();
             }
 
-            if (periodButton.getVisibility() == View.INVISIBLE || collapsedT.get() > 0) {
+            if (periodVisible && (periodButton.getVisibility() == View.INVISIBLE || collapsedT.get() > 0)) {
                 canvas.save();
                 canvas.translate(periodButton.getX() + dp(180) * (1f - cancel), periodButton.getY());
                 periodButton.draw(canvas);
+                canvas.restore();
+            }
+
+            if (spoilerVisible && (spoilerButton.getVisibility() == View.INVISIBLE || collapsedT.get() > 0)) {
+                canvas.save();
+                canvas.translate(spoilerButton.getX() + dp(180) * (1f - cancel), spoilerButton.getY());
+                spoilerButton.draw(canvas);
                 canvas.restore();
             }
 
@@ -472,6 +501,11 @@ public class CaptionStory extends CaptionContainerView {
         periodButton.setVisibility(periodVisible && !keyboardShown ? View.VISIBLE : View.GONE);
     }
 
+    public void setSpoilerVisible(boolean visible) {
+        spoilerVisible = visible;
+        spoilerButton.setVisibility(spoilerVisible && !keyboardShown ? View.VISIBLE : View.GONE);
+    }
+
     public void setPeriod(int period, boolean animated) {
         int index = 2;
         for (int i = 0; i < periods.length; ++i) {
@@ -499,6 +533,11 @@ public class CaptionStory extends CaptionContainerView {
         this.onPeriodUpdate = listener;
     }
 
+    private Utilities.Callback<Boolean> onSpoilerUpdate;
+    public void setOnSpoilerUpdate(Utilities.Callback<Boolean> listener) {
+        this.onSpoilerUpdate = listener;
+    }
+
     private Utilities.Callback<Integer> onPremiumHintShow;
     public void setOnPremiumHint(Utilities.Callback<Integer> listener) {
         this.onPremiumHintShow = listener;
@@ -508,6 +547,7 @@ public class CaptionStory extends CaptionContainerView {
     protected void beforeUpdateShownKeyboard(boolean show) {
         if (!show) {
             periodButton.setVisibility(periodVisible ? View.VISIBLE : View.GONE);
+            spoilerButton.setVisibility(spoilerVisible ? View.VISIBLE : View.GONE);
             roundButton.setVisibility(View.VISIBLE);
         }
     }
@@ -515,15 +555,18 @@ public class CaptionStory extends CaptionContainerView {
     @Override
     protected void onUpdateShowKeyboard(float keyboardT) {
         periodButton.setAlpha(1f - keyboardT);
+        spoilerButton.setAlpha(1f - keyboardT);
         roundButton.setAlpha(1f - keyboardT);
     }
 
     @Override
     protected void afterUpdateShownKeyboard(boolean show) {
         periodButton.setVisibility(!show && periodVisible ? View.VISIBLE : View.GONE);
+        spoilerButton.setVisibility(!show && spoilerVisible ? View.VISIBLE : View.GONE);
         roundButton.setVisibility(!show ? View.VISIBLE : View.GONE);
         if (show) {
             periodButton.setVisibility(View.GONE);
+            spoilerButton.setVisibility(View.GONE);
         }
     }
 
@@ -587,7 +630,8 @@ public class CaptionStory extends CaptionContainerView {
     private final Runnable doneCancel = () -> {
         setCollapsed(false, Integer.MIN_VALUE);
         roundButton.setVisibility(VISIBLE);
-        periodButton.setVisibility(VISIBLE);
+        periodButton.setVisibility(periodVisible ? VISIBLE : GONE);
+        spoilerButton.setVisibility(spoilerVisible ? VISIBLE : GONE);
     };
 
     private boolean roundButtonTouchEvent(MotionEvent ev) {
@@ -641,7 +685,8 @@ public class CaptionStory extends CaptionContainerView {
                     cancelling = true;
                     recording = false;
                     roundButton.setVisibility(INVISIBLE);
-                    periodButton.setVisibility(INVISIBLE);
+                    periodButton.setVisibility(periodVisible ? INVISIBLE : GONE);
+                    spoilerButton.setVisibility(spoilerVisible ? INVISIBLE : GONE);
                     recordPaint.playDeleteAnimation();
 
                     if (currentRecorder != null) {

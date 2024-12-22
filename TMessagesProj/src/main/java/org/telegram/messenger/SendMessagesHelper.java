@@ -69,6 +69,7 @@ import org.telegram.ui.Components.AnimatedFileDrawable;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.Stars.StarsController;
 import org.telegram.ui.Stars.StarsIntroActivity;
+import org.telegram.ui.Stories.recorder.StoryEntry;
 import org.telegram.ui.bots.BotWebViewSheet;
 import org.telegram.ui.Components.Bulletin;
 import org.telegram.ui.Components.LayoutHelper;
@@ -5348,6 +5349,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 }
                 putToDelayedMessages(location, message);
                 if (!message.videoEditedInfo.alreadyScheduledConverting) {
+                    message.obj.videoEditedInfo = message.videoEditedInfo;
                     MediaController.getInstance().scheduleVideoConvert(message.obj);
                 }
                 putToUploadingMessages(message.obj);
@@ -5533,6 +5535,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             message.extraHashMap.put(location + "_t", message.photoSize);
                         }
                         if (!message.videoEditedInfo.alreadyScheduledConverting) {
+                            messageObject.videoEditedInfo = message.videoEditedInfo;
                             MediaController.getInstance().scheduleVideoConvert(messageObject);
                         }
                         message.obj = messageObject;
@@ -7807,12 +7810,99 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
     }
 
     @UiThread
+    public static void prepareSendingStoryAsMessage(
+        AccountInstance accountInstance,
+        StoryEntry story,
+        File pathToSave,
+        long dialogId,
+        MessageObject replyToMsg,
+        MessageObject replyToTopMsg,
+        ChatActivity.ReplyQuote quote,
+        ArrayList<TLRPC.MessageEntity> entities,
+        InputContentInfoCompat inputContent,
+        int ttl,
+        MessageObject editingMessageObject,
+        int mode,
+        CharSequence caption,
+        String quickReplyShortcut,
+        int quickReplyShortcutId,
+        long effectId
+    ) {
+        final boolean wouldBeVideo = story.wouldBeVideo();
+        if (wouldBeVideo) {
+            story.getVideoEditedInfo(info -> {
+                info.estimatedSize = Math.max(info.estimatedSize, 1);
+                info.isStory = false;
+                if (info.thumb == null && story.uploadThumbFile != null) {
+                    info.thumb = BitmapFactory.decodeFile(story.uploadThumbFile.getAbsolutePath());
+                }
+
+                prepareSendingVideo(
+                    accountInstance,
+                    pathToSave.getAbsolutePath(),
+                    info,
+                    dialogId,
+                    replyToMsg,
+                    replyToTopMsg,
+                    null,
+                    quote,
+                    entities,
+                    ttl,
+                    editingMessageObject,
+                    !story.silent,
+                    story.scheduleDate,
+                    story.forceDocument,
+                    story.hasSpoiler,
+                    caption,
+                    quickReplyShortcut,
+                    quickReplyShortcutId,
+                    effectId
+                );
+            });
+        } else {
+            Utilities.themeQueue.postRunnable(() -> {
+                story.buildPhoto(pathToSave);
+                AndroidUtilities.runOnUIThread(() -> prepareSendingPhoto(
+                    accountInstance,
+                    pathToSave.getAbsolutePath(),
+                    null,
+                    null,
+                    dialogId,
+                    replyToMsg,
+                    replyToTopMsg,
+                    null,
+                    quote,
+                    entities,
+                    null,
+                    inputContent,
+                    ttl,
+                    editingMessageObject,
+                    null,
+                    !story.silent,
+                    story.scheduleDate,
+                    mode,
+                    story.forceDocument,
+                    caption,
+                    quickReplyShortcut,
+                    quickReplyShortcutId,
+                    effectId,
+                    story.hasSpoiler
+                ));
+            });
+        }
+    }
+
+    @UiThread
     public static void prepareSendingPhoto(AccountInstance accountInstance, String imageFilePath, Uri imageUri, long dialogId, MessageObject replyToMsg, MessageObject replyToTopMsg, ChatActivity.ReplyQuote quote, CharSequence caption, ArrayList<TLRPC.MessageEntity> entities, ArrayList<TLRPC.InputDocument> stickers, InputContentInfoCompat inputContent, int ttl, MessageObject editingMessageObject, boolean notify, int scheduleDate, int mode, String quickReplyShortcut, int quickReplyShortcutId) {
         prepareSendingPhoto(accountInstance, imageFilePath, null, imageUri, dialogId, replyToMsg, replyToTopMsg, null, null, entities, stickers, inputContent, ttl, editingMessageObject, null, notify, scheduleDate, mode, false, caption, quickReplyShortcut, quickReplyShortcutId, 0);
     }
 
     @UiThread
     public static void prepareSendingPhoto(AccountInstance accountInstance, String imageFilePath, String thumbFilePath, Uri imageUri, long dialogId, MessageObject replyToMsg, MessageObject replyToTopMsg, TL_stories.StoryItem storyItem, ChatActivity.ReplyQuote quote, ArrayList<TLRPC.MessageEntity> entities, ArrayList<TLRPC.InputDocument> stickers, InputContentInfoCompat inputContent, int ttl, MessageObject editingMessageObject, VideoEditedInfo videoEditedInfo, boolean notify, int scheduleDate, int mode, boolean forceDocument, CharSequence caption, String quickReplyShortcut, int quickReplyShortcutId, long effectId) {
+        prepareSendingPhoto(accountInstance, imageFilePath, thumbFilePath, imageUri, dialogId, replyToMsg, replyToTopMsg, storyItem, quote, entities, stickers, inputContent, ttl, editingMessageObject, videoEditedInfo, notify, scheduleDate, mode, forceDocument, caption, quickReplyShortcut, quickReplyShortcutId, effectId, false);
+    }
+
+    public static void prepareSendingPhoto(AccountInstance accountInstance, String imageFilePath, String thumbFilePath, Uri imageUri, long dialogId, MessageObject replyToMsg, MessageObject replyToTopMsg, TL_stories.StoryItem storyItem, ChatActivity.ReplyQuote quote, ArrayList<TLRPC.MessageEntity> entities, ArrayList<TLRPC.InputDocument> stickers, InputContentInfoCompat inputContent, int ttl, MessageObject editingMessageObject, VideoEditedInfo videoEditedInfo, boolean notify, int scheduleDate, int mode, boolean forceDocument, CharSequence caption, String quickReplyShortcut, int quickReplyShortcutId, long effectId, boolean hasMediaSpoilers) {
         SendingMediaInfo info = new SendingMediaInfo();
         info.path = imageFilePath;
         info.thumbPath = thumbFilePath;
@@ -7826,6 +7916,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             info.masks = new ArrayList<>(stickers);
         }
         info.videoEditedInfo = videoEditedInfo;
+        info.hasMediaSpoilers = hasMediaSpoilers;
         ArrayList<SendingMediaInfo> infos = new ArrayList<>();
         infos.add(info);
         prepareSendingMedia(accountInstance, infos, dialogId, replyToMsg, replyToTopMsg, null, quote, forceDocument, false, editingMessageObject, notify, scheduleDate, mode, false, inputContent, quickReplyShortcut, quickReplyShortcutId, effectId, false);
@@ -8807,7 +8898,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                     }
                                     int w, h;
                                     int rotation = videoEditedInfo.rotationValue;
-                                    if (videoEditedInfo.cropState != null) {
+                                    if (videoEditedInfo.cropState != null && videoEditedInfo.cropState.useMatrix == null) {
                                         w = videoEditedInfo.cropState.transformWidth;
                                         h = videoEditedInfo.cropState.transformHeight;
                                     } else {
@@ -9472,6 +9563,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     if (thumb == null) {
                         thumb = createVideoThumbnail(videoPath, MediaStore.Video.Thumbnails.MINI_KIND);
                     }
+                    if (thumb == null && videoEditedInfo != null) {
+                        thumb = videoEditedInfo.thumb;
+                    }
                     int side = isEncrypted || ttl != 0 ? 90 : 320;
                     TLRPC.PhotoSize size = ImageLoader.scaleAndSaveImage(thumb, side, side, side > 90 ? 80 : 55, isEncrypted);
                     if (thumb != null && size != null) {
@@ -9515,21 +9609,23 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     if (videoEditedInfo != null && videoEditedInfo.notReadyYet) {
                         attributeVideo.w = videoEditedInfo.resultWidth;
                         attributeVideo.h = videoEditedInfo.resultHeight;
-                        attributeVideo.duration = videoEditedInfo.estimatedDuration / 1000.0;
+                        attributeVideo.duration = videoEditedInfo.durationUnit.toMicros(videoEditedInfo.estimatedDuration) / 1000000.0;
                         document.size = videoEditedInfo.estimatedSize;
                     } else if (videoEditedInfo != null && videoEditedInfo.needConvert()) {
                         if (videoEditedInfo.muted) {
                             document.attributes.add(new TLRPC.TL_documentAttributeAnimated());
                             fillVideoAttribute(videoPath, attributeVideo, videoEditedInfo);
-                            videoEditedInfo.originalWidth = attributeVideo.w;
-                            videoEditedInfo.originalHeight = attributeVideo.h;
+                            if (attributeVideo.w > 0 && attributeVideo.h > 0) {
+                                videoEditedInfo.originalWidth = attributeVideo.w;
+                                videoEditedInfo.originalHeight = attributeVideo.h;
+                            }
                         } else {
-                            attributeVideo.duration = videoEditedInfo.estimatedDuration / 1000.0;
+                            attributeVideo.duration = videoEditedInfo.durationUnit.toMicros(videoEditedInfo.estimatedDuration) / 1000000.0;
                         }
 
                         int w, h;
                         int rotation = videoEditedInfo.rotationValue;
-                        if (videoEditedInfo.cropState != null) {
+                        if (videoEditedInfo.cropState != null && videoEditedInfo.cropState.useMatrix == null) {
                             w = videoEditedInfo.cropState.transformWidth;
                             h = videoEditedInfo.cropState.transformHeight;
                             rotation += videoEditedInfo.cropState.transformRotation;
@@ -9560,6 +9656,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     }
                     if (thumb == null) {
                         thumb = createVideoThumbnail(videoPath, MediaStore.Video.Thumbnails.MINI_KIND);
+                    }
+                    if (thumb == null && videoEditedInfo != null) {
+                        thumb = videoEditedInfo.thumb;
                     }
                     int side = isEncrypted || ttl != 0 ? 90 : 320;
                     TLRPC.PhotoSize size = ImageLoader.scaleAndSaveImage(thumb, side, side, side > 90 ? 80 : 55, isEncrypted);

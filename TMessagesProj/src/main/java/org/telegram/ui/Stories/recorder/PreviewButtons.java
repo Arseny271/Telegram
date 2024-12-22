@@ -47,7 +47,7 @@ public class PreviewButtons extends FrameLayout {
     public static final int BUTTON_ADJUST = 3;
     public static final int BUTTON_SHARE = 4;
 
-    private View shadowView;
+    public final View shadowView;
 
     private ArrayList<ButtonView> buttons = new ArrayList<>();
     public ShareButtonView shareButton;
@@ -143,6 +143,11 @@ public class PreviewButtons extends FrameLayout {
         this.onClickListener = onClickListener;
     }
 
+    private Utilities.Callback<Integer> onLongClickListener;
+    public void setOnLongClickListener(Utilities.Callback<Integer> onLongClickListener) {
+        this.onLongClickListener = onLongClickListener;
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(
@@ -195,7 +200,7 @@ public class PreviewButtons extends FrameLayout {
         }
     }
 
-    private void updateAppearT() {
+    protected void updateAppearT() {
         shadowView.setAlpha(appearT);
         shadowView.setTranslationY((1f - appearT) * dp(16));
         for (int i = 1; i < getChildCount(); ++i) {
@@ -268,6 +273,13 @@ public class PreviewButtons extends FrameLayout {
                 if (appearing && onClickListener != null) {
                     onClickListener.run(BUTTON_SHARE);
                 }
+            });
+
+            setOnLongClickListener(e -> {
+                if (appearing && onLongClickListener != null) {
+                    onLongClickListener.run(BUTTON_SHARE);
+                }
+                return true;
             });
         }
 

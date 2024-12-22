@@ -67,6 +67,8 @@ public class RecordControl extends View implements FlashViews.Invertable {
         void onVideoRecordLocked();
         boolean canRecordAudio();
         void onCheckClick();
+        long getMaxDuration();
+        long getMaxDurationVisual();
     }
 
     public void startAsVideo(boolean isVideo) {
@@ -117,7 +119,6 @@ public class RecordControl extends View implements FlashViews.Invertable {
     private boolean dual;
     private final AnimatedFloat dualT = new AnimatedFloat(this, 0, 330, CubicBezierInterpolator.EASE_OUT_QUINT);
 
-    private static final long MAX_DURATION = 60 * 1000L;
     private long recordingStart;
     private long lastDuration;
 
@@ -434,7 +435,7 @@ public class RecordControl extends View implements FlashViews.Invertable {
 
         long duration = System.currentTimeMillis() - recordingStart;
         float recordEndT = recording ? 0 : 1f - recordingLongT;
-        float sweepAngle = duration / (float) MAX_DURATION * 360;
+        float sweepAngle = duration / (float) delegate.getMaxDurationVisual() * 360;
 
         float recordingLoading = this.recordingLoadingT.set(this.recordingLoading);
 
@@ -466,7 +467,7 @@ public class RecordControl extends View implements FlashViews.Invertable {
             if (duration / 1000L != lastDuration / 1000L) {
                 delegate.onVideoDuration(duration / 1000L);
             }
-            if (duration >= MAX_DURATION) {
+            if (duration >= delegate.getMaxDuration()) {
                 post(() -> {
                     recording = false;
                     longpressRecording = false;

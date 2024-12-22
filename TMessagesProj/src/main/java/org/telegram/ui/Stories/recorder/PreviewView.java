@@ -26,6 +26,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.Pair;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -305,7 +306,7 @@ public class PreviewView extends FrameLayout {
                 } else {
                     duration = entry.audioDuration;
                 }
-                entry.audioRight = entry.audioDuration == 0 ? 1 : Math.min(1, Math.min(duration, TimelineView.MAX_SELECT_DURATION) / (float) entry.audioDuration);
+                entry.audioRight = entry.audioDuration == 0 ? 1 : Math.min(1, Math.min(duration, timelineView.getMaxSelectDuration()) / (float) entry.audioDuration);
             }
         }
         setupAudio(entry, animated);

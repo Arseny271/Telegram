@@ -530,6 +530,11 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
     }
 
     public interface ChatAttachViewDelegate {
+
+        default boolean allowStoryRecorderCamera() { return false; }
+
+        default void onStoryRecorderCameraDone(StoryEntry entry) {}
+
         default boolean selectItemOnClicking() {
             return false;
         }

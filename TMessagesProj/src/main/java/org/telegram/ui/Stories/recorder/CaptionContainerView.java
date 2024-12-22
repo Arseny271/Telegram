@@ -181,7 +181,7 @@ public class CaptionContainerView extends FrameLayout {
                     emojiView.shouldLightenBackground = false;
                     emojiView.fixBottomTabContainerTranslation = false;
                     emojiView.setShouldDrawBackground(false);
-                    if (CaptionContainerView.this instanceof CaptionPhotoViewer) {
+                    if (CaptionContainerView.this instanceof CaptionPhotoViewer || CaptionContainerView.this instanceof CaptionStory) {
                         emojiView.setPadding(0, 0, 0, AndroidUtilities.navigationBarHeight);
                         emojiView.emojiCacheType = AnimatedEmojiDrawable.CACHE_TYPE_ALERT_PREVIEW;
                     }

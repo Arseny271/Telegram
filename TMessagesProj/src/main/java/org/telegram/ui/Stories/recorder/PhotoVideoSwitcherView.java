@@ -38,11 +38,12 @@ public class PhotoVideoSwitcherView extends View implements FlashViews.Invertabl
     private long mLastTouchTime;
     private boolean mIsScrolling, mIsTouch;
     private ValueAnimator animator;
+    private int backgroundColor = 0x32ffffff;
 
     public PhotoVideoSwitcherView(Context context) {
         super(context);
 
-        selectorPaint.setColor(0x32ffffff);
+        selectorPaint.setColor(backgroundColor);
         textPaint.setColor(0xffffffff);
 
         textPaint.setTypeface(AndroidUtilities.bold());
@@ -70,6 +71,10 @@ public class PhotoVideoSwitcherView extends View implements FlashViews.Invertabl
         scrollWidth = dp(32) + photoTextWidth / 2 + videoTextWidth / 2;
 
         mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+    }
+
+    public void setSelectorColor(int color) {
+        selectorPaint.setColor(backgroundColor = color);
     }
 
     private float mode;
@@ -251,7 +256,7 @@ public class PhotoVideoSwitcherView extends View implements FlashViews.Invertabl
     }
 
     public void setInvert(float invert) {
-        selectorPaint.setColor(ColorUtils.blendARGB(0x32ffffff, 0x20000000, invert));
+        selectorPaint.setColor(ColorUtils.blendARGB(backgroundColor, 0x20000000, invert));
         textPaint.setColor(ColorUtils.blendARGB(0xffffffff, 0xff000000, invert));
     }
 }

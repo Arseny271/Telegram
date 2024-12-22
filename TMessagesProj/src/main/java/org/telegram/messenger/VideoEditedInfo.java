@@ -39,6 +39,7 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class VideoEditedInfo {
@@ -64,6 +65,7 @@ public class VideoEditedInfo {
     public boolean muted;
     public float volume = 1f;
     public long originalDuration;
+    public TimeUnit durationUnit = TimeUnit.MILLISECONDS;
     public TLRPC.InputFile file;
     public TLRPC.InputEncryptedFile encryptedFile;
     public byte[] key;

@@ -50,6 +50,7 @@ import org.telegram.ui.Components.BlurringShader;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.Rect;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -478,8 +479,25 @@ public class CollageLayoutView2 extends FrameLayout implements ItemOptions.Scrim
         return (float) done / total;
     }
 
+    public RectF rectCorrection;
+    private final RectF rectTmp = new RectF();
+
     private final Path clipPath = new Path();
-    private void drawPart(Canvas canvas, RectF rect, Part part) {
+    private void drawPart(Canvas canvas, RectF rect_, Part part) {
+        rectTmp.set(rect_);
+        if (rectCorrection != null) {
+            final float cx = rectCorrection.centerX();
+            final float cy = rectCorrection.centerY();
+            final float sx = rectCorrection.width() / getMeasuredWidth();
+            final float sy = rectCorrection.height() / getMeasuredHeight();
+            //rectTmp.offset(-cx, -cy);
+            rectTmp.left *= sx;
+            rectTmp.top *= sy;
+            rectTmp.right *= sx;
+            rectTmp.bottom *= sy;
+            //rectTmp.offset(cx, cy);
+        }
+        final RectF rect = rectTmp;
         if (AndroidUtilities.makingGlobalBlurBitmap && part == longPressedPart) {
             return;
         }
@@ -530,7 +548,7 @@ public class CollageLayoutView2 extends FrameLayout implements ItemOptions.Scrim
         }
     }
 
-    private void drawView(Canvas canvas, View view, RectF rect, float overlayAlpha) {
+    public void drawView(Canvas canvas, View view, RectF rect, float overlayAlpha) {
         if (view == null) return;
         final float scale = Math.max(rect.width() / view.getWidth(), rect.height() / view.getHeight());
         canvas.save();
@@ -655,7 +673,7 @@ public class CollageLayoutView2 extends FrameLayout implements ItemOptions.Scrim
         }
         this.cameraView = cameraView;
         if (cameraView != null) {
-            addView(cameraView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.FILL));
+            addView(cameraView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.CENTER));
         }
 
         if (this.cameraView != null) {

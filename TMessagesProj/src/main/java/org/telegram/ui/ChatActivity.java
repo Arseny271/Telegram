@@ -112,6 +112,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.graphics.drawable.DrawableCompat;
+import androidx.core.view.inputmethod.InputContentInfoCompat;
 import androidx.dynamicanimation.animation.FloatValueHolder;
 import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
@@ -11858,6 +11859,43 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
             };
             chatAttachAlert.setDelegate(new ChatAttachAlert.ChatAttachViewDelegate() {
+                @Override
+                public boolean allowStoryRecorderCamera() {
+                    return true;
+                }
+
+                @Override
+                public void onStoryRecorderCameraDone(StoryEntry story) {
+                    final CharSequence[] caption = new CharSequence[]{story.caption};
+                    final ArrayList<TLRPC.MessageEntity> entities =
+                        MediaDataController.getInstance(currentAccount).getEntities(caption, true);
+                    final File file = story.wouldBeVideo() ?
+                            AndroidUtilities.generateVideoPath(isSecretChat()):
+                            AndroidUtilities.generatePicturePath(isSecretChat(), "jpg");
+                    if (file == null) {
+                        return;
+                    }
+
+                    SendMessagesHelper.prepareSendingStoryAsMessage(
+                        AccountInstance.getInstance(currentAccount),
+                        story,
+                        file,
+                        dialog_id,
+                        replyingMessageObject,
+                        getThreadMessage(),
+                        replyingQuote,
+                        entities,
+                        null,
+                        0,
+                        editingMessageObject,
+                        chatMode,
+                        story.caption,
+                        quickReplyShortcut,
+                        getQuickReplyId(),
+                        0
+                    );
+                }
+
                 @Override
                 public void didPressedButton(int button, boolean arg, boolean notify, int scheduleDate, long effectId, boolean invertMedia, boolean forceDocument) {
                     if (getParentActivity() == null || chatAttachAlert == null) {

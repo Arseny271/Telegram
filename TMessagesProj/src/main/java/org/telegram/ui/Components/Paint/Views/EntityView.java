@@ -54,6 +54,7 @@ public class EntityView extends FrameLayout {
         boolean allowInteraction(EntityView entityView);
         int[] getCenterLocation(EntityView entityView);
         void getTransformedTouch(float x, float y, float[] output);
+        default float getTrashViewOffset() { return 0f; }
         float getCropRotation();
 
         default void onEntityDraggedTop(boolean value) {}
@@ -231,7 +232,7 @@ public class EntityView extends FrameLayout {
             updateTrash(
                 (delegate == null || delegate.isEntityDeletable()) &&
                     !multitouch &&
-                    MathUtils.distance(x, y,  ((View) getParent()).getWidth() / 2f, ((View) getParent()).getHeight() - dp(76)) < dp(32)
+                    MathUtils.distance(x, y,  ((View) getParent()).getWidth() / 2f, ((View) getParent()).getHeight() - dp(76) + (delegate != null ? delegate.getTrashViewOffset() : 0)) < dp(32)
             );
 
             bounce.setPressed(false);

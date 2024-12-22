@@ -172,7 +172,7 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
     private float panTranslationY, scale, inputTransformX, inputTransformY, transformX, transformY, imageWidth, imageHeight;
     private boolean ignoreLayout;
     private float baseScale;
-    private Size paintingSize;
+    public Size paintingSize;
     public boolean drawForThemeToggle, clipVideoMessageForBitmap;
 
     private EntityView currentEntityView;
@@ -2356,7 +2356,7 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
 //        selectionContainerView.layout(x, y, x + selectionContainerView.getMeasuredWidth(), y + selectionContainerView.getMeasuredHeight());
     }
 
-    private Size getPaintingSize() {
+    protected Size getPaintingSize() {
         if (paintingSize != null) {
             return paintingSize;
         }
@@ -2628,12 +2628,16 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
     }
 
     public Bitmap getBitmap(ArrayList<VideoEditedInfo.MediaEntity> entities, int resultWidth, int resultHeight, boolean drawPaint, boolean drawEntities, boolean drawMessage, boolean drawBlur, StoryEntry entry) {
+        return getBitmap(entities, resultWidth, resultHeight, drawPaint, drawEntities, drawMessage, drawBlur, false, entry);
+    }
+
+    public Bitmap getBitmap(ArrayList<VideoEditedInfo.MediaEntity> entities, int resultWidth, int resultHeight, boolean drawPaint, boolean drawEntities, boolean drawMessage, boolean drawBlur, boolean drawInteractiveEntities, StoryEntry entry) {
         Bitmap bitmap;
         if (drawPaint) {
             bitmap = renderView.getResultBitmap(false, drawBlur);
         } else if (drawMessage) {
             bitmap = Bitmap.createBitmap(Math.max(1, entitiesView.getMeasuredWidth()), Math.max(1, entitiesView.getMeasuredHeight()), Bitmap.Config.ARGB_8888);
-        } else if (drawEntities) {
+        } else if (drawEntities || drawInteractiveEntities) {
             Bitmap ref = renderView.getResultBitmap(false, false);
             if (ref != null) {
                 bitmap = Bitmap.createBitmap(ref.getWidth(), ref.getHeight(), Bitmap.Config.ARGB_8888);
@@ -2657,6 +2661,7 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
                 EntityView entity = (EntityView) v;
                 Point position = entity.getPosition();
                 boolean drawThisEntity = true;
+                boolean isInteractive = false;
                 VideoEditedInfo.MediaEntity mediaEntity = new VideoEditedInfo.MediaEntity();
                 if (entities != null) {
                     if (entity instanceof TextPaintView) {
@@ -2816,7 +2821,8 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
                             }
                             mediaEntity.entities.add(tlentity);
                         }
-                        drawThisEntity = false;
+                        drawThisEntity = drawInteractiveEntities;
+                        isInteractive = true;
                     } else if (entity instanceof LinkView) {
                         LinkView linkView = (LinkView) entity;
                         mediaEntity.type = VideoEditedInfo.MediaEntity.TYPE_LINK;
@@ -2842,7 +2848,6 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
                         ((TL_stories.TL_mediaAreaUrl) mediaEntity.mediaArea).url = linkView.link.webpage != null && !TextUtils.isEmpty(linkView.link.webpage.url) ? linkView.link.webpage.url : linkView.link.url;
                         mediaEntity.mediaArea.coordinates = new TL_stories.TL_mediaAreaCoordinates();
                     } else if (entity instanceof ReactionWidgetEntityView) {
-                        skipDrawToBitmap = true;
                         ReactionWidgetEntityView reactionView = (ReactionWidgetEntityView) entity;
                         mediaEntity.type = VideoEditedInfo.MediaEntity.TYPE_REACTION;
                         mediaEntity.mediaArea = new TL_stories.TL_mediaAreaSuggestedReaction();
@@ -2850,6 +2855,8 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
                         mediaEntity.mediaArea.dark = reactionView.isDark();
                         mediaEntity.mediaArea.flipped = reactionView.isMirrored();
                         mediaEntity.mediaArea.coordinates = new TL_stories.TL_mediaAreaCoordinates();
+                        skipDrawToBitmap = !drawInteractiveEntities;
+                        isInteractive = true;
                     } else if (entity instanceof RoundView) {
                         skipDrawToBitmap = true;
                         RoundView roundView = (RoundView) entity;
@@ -2986,7 +2993,7 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
                         mediaEntity.mediaArea.coordinates.radius = (scaleX * radius / (float) entitiesView.getMeasuredWidth()) * 100;
                     }
                 }
-                if (drawThisEntity && (drawEntities || drawMessage && mediaEntity.type == VideoEditedInfo.MediaEntity.TYPE_MESSAGE) && bitmap != null) {
+                if (drawThisEntity && (drawEntities || drawInteractiveEntities || drawMessage && mediaEntity.type == VideoEditedInfo.MediaEntity.TYPE_MESSAGE) && bitmap != null) {
                     canvas = new Canvas(bitmap);
                     final float s = bitmap.getWidth() / (float) entitiesView.getMeasuredWidth();
                     for (int k = 0; k < 2; k++) {
@@ -2994,6 +3001,10 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
                         if (currentCanvas == null || (k == 0 && skipDrawToBitmap)) {
                             continue;
                         }
+                        if (!(drawEntities || (isInteractive && drawInteractiveEntities))) {
+                            continue;
+                        }
+
                         currentCanvas.save();
                         currentCanvas.scale(s, s);
                         currentCanvas.translate(mediaEntity.x * entitiesView.getMeasuredWidth(), mediaEntity.y * entitiesView.getMeasuredHeight());

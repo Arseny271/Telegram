@@ -52,6 +52,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class StoryEntry {
 
@@ -123,6 +124,66 @@ public class StoryEntry {
     public int resultWidth = 720;
     public int resultHeight = 1280;
 
+    public void fixResultSizeAndUpdateMatrix(int viewportWidth, int viewportHeight) {
+        int side = (int) Math.max(Math.min(width, height), Math.max(width, height) / 16f * 9f);
+        if (side <= (720 + 1080) / 2) {
+            fixResultSizeAndUpdateMatrix(720, 1280, viewportWidth, viewportHeight);
+        } else {
+            fixResultSizeAndUpdateMatrix(1080, 1920, viewportWidth, viewportHeight);
+        }
+    }
+
+    public void fixResultSizeAndUpdateMatrix(int width, int height, int viewportWidth, int viewportHeight) {
+        final float s = calculateScale(viewportWidth, viewportHeight, width, height);
+        setResultSizeAndUpdateMatrix(Math.round(viewportWidth / s), Math.round(viewportHeight / s));
+    }
+
+    public void limitResultSizeAndUpdateMatrix(int width, int height) {
+        final float s = calculateScale(resultWidth, resultHeight, width, height);
+        if (s > 1f) {
+            setResultSizeAndUpdateMatrix(Math.round(resultWidth / s), Math.round(resultHeight / s));
+        }
+    }
+
+    public static int roundToNearest(int value, int x) {
+        return ((value + x - 1) / x) * x;
+    }
+
+    public void setResultSizeAndUpdateMatrix(int width, int height) {
+        width = roundToNearest(width, 8);
+        height = roundToNearest(height, 8);
+
+        if (matrix.isIdentity()) {
+            this.resultWidth = width;
+            this.resultHeight = height;
+            setupMatrix();
+            return;
+        }
+
+        final int oldResultWidth = resultWidth;
+        final int oldResultHeight = resultHeight;
+
+        final int originalWidth = (orientation == 90 || orientation == 270 ? this.height : this.width);
+        final int originalHeight = (orientation == 90 || orientation == 270 ? this.width : this.height);
+
+        final float s2 = calculateScale(oldResultWidth, oldResultHeight, originalWidth, originalHeight);
+        final float s1 = calculateScale(width, height, originalWidth, originalHeight);
+        final float s = s1 / s2;
+
+        matrix.postTranslate(-oldResultWidth / 2f, -oldResultHeight / 2f);
+        matrix.postScale(s, s);
+        matrix.postTranslate(width / 2f, height / 2f);
+
+        this.resultWidth = width;
+        this.resultHeight = height;
+    }
+
+    public static float calculateScale(float width, float height, float imageWidth, float imageHeight) {
+        float scaleX = width / imageWidth;
+        float scaleY = height / imageHeight;
+        return Math.max(scaleX, scaleY);
+    }
+
     public int width, height;
     // matrix describes transformations from width x height to resultWidth x resultHeight
     public final Matrix matrix = new Matrix();
@@ -160,6 +221,8 @@ public class StoryEntry {
     public ArrayList<Long> shareUserIds;
     public boolean silent;
     public int scheduleDate;
+    public boolean hasSpoiler;
+    public boolean forceDocument;
 
     public Bitmap blurredVideoThumb;
     public File uploadThumbFile;
@@ -394,7 +457,7 @@ public class StoryEntry {
         thumbBitmap = Bitmap.createScaledBitmap(finalBitmap, 40, 22, true);
         try {
             FileOutputStream stream = new FileOutputStream(dest);
-            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream);
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, forceDocument ? 100 : 95, stream);
             stream.close();
         } catch (Exception e) {
             FileLog.e(e);
@@ -899,7 +962,7 @@ public class StoryEntry {
         return false;
     }
 
-    public static StoryEntry asCollage(CollageLayout layout, ArrayList<StoryEntry> entries) {
+    public static StoryEntry asCollage(CollageLayout layout, ArrayList<StoryEntry> entries, long maxDuration) {
         StoryEntry entry = new StoryEntry();
         entry.collage = layout;
         entry.collageContent = entries;
@@ -907,7 +970,9 @@ public class StoryEntry {
             if (e.isVideo) {
                 entry.isVideo = true;
                 e.videoLeft = 0;
-                e.videoRight = Math.min(1.0f, 59_000.0f / e.duration);
+                if (maxDuration < Long.MAX_VALUE) {
+                    e.videoRight = Math.min(1.0f, ((float) maxDuration) / e.duration);
+                }
             }
         }
         if (entry.isVideo) {
@@ -990,8 +1055,9 @@ public class StoryEntry {
         } else if ((float) height / (float) width > 1.29f) {
             scale = Math.max(scale, (float) resultHeight / height);
         }
+        matrix.postTranslate(-width / 2f, -height / 2f);
         matrix.postScale(scale, scale);
-        matrix.postTranslate((resultWidth - width * scale) / 2f, (resultHeight - height * scale) / 2f);
+        matrix.postTranslate(resultWidth / 2f, resultHeight / 2f);
     }
 
     public void setupGradient(Runnable done) {
@@ -1092,10 +1158,7 @@ public class StoryEntry {
             return;
         }
         if (!isVideo && (resultWidth > 720 || resultHeight > 1280)) {
-            float s = 720f / resultWidth;
-            matrix.postScale(s, s, 0, 0);
-            resultWidth = 720;
-            resultHeight = 1280;
+            limitResultSizeAndUpdateMatrix(720, 1280);
         }
         final String videoPath = file == null ? null : file.getAbsolutePath();
         final int[][] params = new int[Math.max(1, isCollage() ? collageContent.size() : 0)][AnimatedFileDrawable.PARAM_NUM_COUNT];
@@ -1135,6 +1198,7 @@ public class StoryEntry {
                 info.originalDuration = (duration = params[0][AnimatedFileDrawable.PARAM_NUM_DURATION]) * 1000L;
                 info.startTime = (long) (left * duration) * 1000L;
                 info.endTime = (long) (right * duration) * 1000L;
+                info.durationUnit = TimeUnit.MICROSECONDS;
                 info.estimatedDuration = info.endTime - info.startTime;
                 info.volume = videoVolume;
                 info.muted = muted;
@@ -1511,6 +1575,8 @@ public class StoryEntry {
         newEntry.period = period;
         newEntry.shareUserIds = shareUserIds;
         newEntry.silent = silent;
+        newEntry.hasSpoiler = hasSpoiler;
+        newEntry.forceDocument = forceDocument;
         newEntry.scheduleDate = scheduleDate;
         newEntry.blurredVideoThumb = blurredVideoThumb;
         newEntry.uploadThumbFile = uploadThumbFile;

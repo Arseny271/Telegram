@@ -401,7 +401,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
         return value;
     }
 
-    public boolean takePicture(final File path, final boolean ignoreOrientation, final Object sessionObject, final Utilities.Callback<Integer> callback) {
+    public boolean takePicture(final File path, final boolean ignoreOrientation, final Object sessionObject, final Utilities.Callback<Integer> callback, boolean keepPreview) {
         if (sessionObject == null) {
             return false;
         }
@@ -412,6 +412,14 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             Camera camera = info.camera;
             try {
                 camera.takePicture(null, null, (data, camera1) -> {
+                    if (keepPreview) {
+                        try {
+                            camera.startPreview();
+                        } catch (Throwable t) {
+                            FileLog.e(t);
+                        }
+                    }
+
                     Bitmap bitmap = null;
                     int orientation = 0;
                     int size = (int) (AndroidUtilities.getPhotoSize() / AndroidUtilities.density);
@@ -908,6 +916,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
 
     public static Size chooseOptimalSize(List<Size> choices, int width, int height, Size aspectRatio, boolean notBigger) {
         List<Size> bigEnoughWithAspectRatio = new ArrayList<>(choices.size());
+        List<Size> smallEnoughWithAspectRatio = new ArrayList<>(choices.size());
         List<Size> bigEnough = new ArrayList<>(choices.size());
         int w = aspectRatio.getWidth();
         int h = aspectRatio.getHeight();
@@ -916,16 +925,22 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             if (notBigger && (option.getHeight() > height || option.getWidth() > width)) {
                 continue;
             }
-            if (option.getHeight() == option.getWidth() * h / w && option.getWidth() >= width && option.getHeight() >= height) {
-                bigEnoughWithAspectRatio.add(option);
+            if (option.getHeight() == option.getWidth() * h / w) {
+                if (option.getWidth() >= width && option.getHeight() >= height) {
+                    bigEnoughWithAspectRatio.add(option);
+                } else {
+                    smallEnoughWithAspectRatio.add(option);
+                }
             } else if (option.getHeight() * option.getWidth() <= width * height * 4) {
                 bigEnough.add(option);
             }
         }
         if (bigEnoughWithAspectRatio.size() > 0) {
             return Collections.min(bigEnoughWithAspectRatio, new CompareSizesByArea());
+        } else if (smallEnoughWithAspectRatio.size() > 0) {
+            return Collections.max(smallEnoughWithAspectRatio, new CompareSizesByArea());
         } else if (bigEnough.size() > 0) {
-            return Collections.min(bigEnough, new CompareSizesByArea());
+            return Collections.max(bigEnough, new CompareSizesByArea());
         } else {
             return Collections.max(choices, new CompareSizesByArea());
         }

@@ -3,6 +3,7 @@ package org.telegram.ui.Stories.recorder;
 import static org.telegram.messenger.AndroidUtilities.dp;
 import static org.telegram.messenger.AndroidUtilities.dpf2;
 import static org.telegram.messenger.AndroidUtilities.touchSlop;
+import static org.telegram.messenger.LocaleController.formatUserStatus;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.Manifest;
@@ -24,7 +25,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Insets;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Outline;
@@ -57,7 +57,6 @@ import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.ImageSpan;
 import android.text.style.URLSpan;
-import android.util.Log;
 import android.util.Pair;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -109,6 +108,8 @@ import org.telegram.messenger.camera.CameraController;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
+import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.SimpleTextView;
@@ -140,6 +141,7 @@ import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
 import org.telegram.ui.Components.Premium.PremiumFeatureBottomSheet;
 import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RLottieImageView;
+import org.telegram.ui.Components.Size;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
 import org.telegram.ui.Components.TextStyleSpan;
 import org.telegram.ui.Components.ThanosEffect;
@@ -258,7 +260,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         boolean hasShadow;
         Paint backgroundPaint;
         Drawable iconDrawable;
-        int iconSize;
+        int iconSizeW;
+        int iconSizeH;
         View view;
 
         protected void show(boolean sent) {}
@@ -359,7 +362,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             src.backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             src.backgroundPaint.setColor(Theme.getColor(Theme.key_chats_actionBackground));
             src.iconDrawable = floatingButton.getContext().getResources().getDrawable(R.drawable.story_camera).mutate();
-            src.iconSize = AndroidUtilities.dp(56);
+            src.iconSizeW = src.iconSizeH = AndroidUtilities.dp(56);
             src.rounding = Math.max(src.screenRect.width(), src.screenRect.height()) / 2f;
             return src;
         }
@@ -480,6 +483,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 
         this.botId = botId;
         this.botLang = lang_code;
+        applyOptions(StoryRecorderOptions.getDefault(sourceView));
 
         isReposting = false;
         prepareClosing = false;
@@ -536,10 +540,39 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         open(sourceView, true);
     }
 
+    private boolean isChatAttachMode;
+    private StoryRecorderOptions options = StoryRecorderOptions.getDefault(null);
+
     public void open(SourceView sourceView, boolean animated) {
+        open(StoryRecorderOptions.getDefault(sourceView), animated);
+    }
+
+    private void applyOptions(@NonNull StoryRecorderOptions options) {
+        this.options = options;
+        this.isChatAttachMode = options.isChatAttachMode;
+
+        modeSwitcherView.setSelectorColor(isChatAttachMode ? 0x40000000 : 0x32ffffff);
+        previewHighlight.setVisibility(isChatAttachMode ? View.GONE : View.VISIBLE);
+        backButton.setImageResource(options.backButtonIconRes);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            previewContainer.setClipToOutline(!isChatAttachMode);
+        }
+        currentRatio = isChatAttachMode ? Ratio.RATIO_FULL : Ratio.RATIO_9_16;
+        ratioListView.setSelected(currentRatio);
+        changeRatioButton.setDrawable(new RatioLayoutButton.RatioLayoutDrawable(currentRatio));
+        if (cameraView != null) {
+            cameraView.recordHevc = allowHevcRecords();
+        }
+        setActionBarButtonVisible(changeRatioButton, options.allowRatioChange, false);
+    }
+
+    public void open(@NonNull StoryRecorderOptions options, boolean animated) {
         if (isShown) {
             return;
         }
+
+        applyOptions(options);
+        final SourceView sourceView = options.sourceView;
 
         isReposting = false;
         prepareClosing = false;
@@ -596,10 +629,16 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         botEdit = null;
     }
 
+    public boolean allowHevcRecords() {
+        return !collageLayoutView.hasLayout() && (options == null || !options.disallowRecordHevc);
+    }
+
     public void openEdit(SourceView sourceView, StoryEntry entry, long time, boolean animated) {
         if (isShown) {
             return;
         }
+
+        applyOptions(StoryRecorderOptions.getDefault(sourceView));
 
         isReposting = false;
         prepareClosing = false;
@@ -661,6 +700,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             return;
         }
 
+        applyOptions(StoryRecorderOptions.getDefault(sourceView));
+
         isReposting = false;
         prepareClosing = false;
         forceBackgroundVisible = false;
@@ -721,6 +762,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         if (isShown) {
             return;
         }
+
+        applyOptions(StoryRecorderOptions.getDefault(sourceView));
 
         isReposting = true;
         prepareClosing = false;
@@ -1010,9 +1053,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         onClosePrepareListener = listener;
     }
 
-    private int previewW, previewH;
-    private int underControls;
-    private boolean underStatusBar;
+    private int previewW;
+    private int previewH;
     private boolean scrollingY, scrollingX;
 
     private int insetLeft, insetTop, insetRight, insetBottom;
@@ -1042,6 +1084,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         }
     }
 
+    private final StoryRecorderLayout layout = new StoryRecorderLayout();
+
     public class WindowView extends SizeNotifierFrameLayout {
 
         private GestureDetectorFixDoubleTap gestureDetector;
@@ -1057,15 +1101,15 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 
         @Override
         public int getBottomPadding() {
-            return getHeight() - containerView.getBottom() + underControls;
+            return getHeight() - containerView.getBottom() + layout.paddingBottom + (layout != null ? layout.bottomNavHeight : 0);
         }
 
         public int getBottomPadding2() {
-            return getHeight() - containerView.getBottom();
+            return getHeight() - containerView.getBottom() + layout.paddingBottom;
         }
 
         public int getPaddingUnderContainer() {
-            return getHeight() - insetBottom - containerView.getBottom();
+            return getHeight() - insetBottom - containerView.getBottom() + layout.paddingBottom;
         }
 
         @Override
@@ -1131,10 +1175,10 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                     if (fromSourceView.iconDrawable != null) {
                         rect.set(fromSourceView.iconDrawable.getBounds());
                         fromSourceView.iconDrawable.setBounds(
-                            (int) (bcx - fromSourceView.iconSize / 2),
-                            (int) (bcy - fromSourceView.iconSize / 2),
-                            (int) (bcx + fromSourceView.iconSize / 2),
-                            (int) (bcy + fromSourceView.iconSize / 2)
+                            (int) (bcx - fromSourceView.iconSizeW / 2),
+                            (int) (bcy - fromSourceView.iconSizeH / 2),
+                            (int) (bcx + fromSourceView.iconSizeW / 2),
+                            (int) (bcy + fromSourceView.iconSizeH / 2)
                         );
                         int wasAlpha = fromSourceView.iconDrawable.getAlpha();
                         fromSourceView.iconDrawable.setAlpha((int) (wasAlpha * alpha));
@@ -1164,6 +1208,16 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                     return super.dispatchTouchEvent(ev);
                 } else {
                     collageListView.setVisible(false, true);
+                    updateActionBarButtons(true);
+                }
+            }
+            if (ratioListView != null && ratioListView.isVisible()) {
+                final float y = containerView.getY() + actionBarContainer.getY() + ratioListView.getY();
+                if (ev.getY() >= y && ev.getY() <= y + ratioListView.getHeight() || touchInCollageList) {
+                    touchInCollageList = ev.getAction() != MotionEvent.ACTION_UP && ev.getAction() != MotionEvent.ACTION_CANCEL;
+                    return super.dispatchTouchEvent(ev);
+                } else {
+                    ratioListView.setVisible(false, true);
                     updateActionBarButtons(true);
                 }
             }
@@ -1427,26 +1481,19 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 
             final int W = MeasureSpec.getSize(widthMeasureSpec);
             final int H = MeasureSpec.getSize(heightMeasureSpec);
+
+            layout.measure(W, H, insetLeft, insetTop, insetRight, insetBottom, options, currentRatio);
+
             final int w = W - insetLeft - insetRight;
 
             final int statusbar = insetTop;
             final int navbar = insetBottom;
 
-            final int hFromW = (int) Math.ceil(w / 9f * 16f);
-            underControls = dp(48);
-            if (hFromW + underControls <= H - navbar) {
-                previewW = w;
-                previewH = hFromW;
-                underStatusBar = previewH + underControls > H - navbar - statusbar;
-            } else {
-                underStatusBar = false;
-                previewH = H - underControls - navbar - statusbar;
-                previewW = (int) Math.ceil(previewH * 9f / 16f);
-            }
-            underControls = Utilities.clamp(H - previewH - (underStatusBar ? 0 : statusbar), dp(68), dp(48));
+            previewW = layout.previewWidth;
+            previewH = layout.previewHeight;
 
             int flags = getSystemUiVisibility();
-            if (underStatusBar) {
+            if (layout.useFullScreen) {
                 flags |= View.SYSTEM_UI_FLAG_FULLSCREEN;
             } else {
                 flags &= ~View.SYSTEM_UI_FLAG_FULLSCREEN;
@@ -1454,8 +1501,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             setSystemUiVisibility(flags);
 
             containerView.measure(
-                MeasureSpec.makeMeasureSpec(previewW, MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec(previewH + underControls, MeasureSpec.EXACTLY)
+                MeasureSpec.makeMeasureSpec(layout.containerWidth, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(layout.containerHeight, MeasureSpec.EXACTLY)
             );
             flashViews.backgroundView.measure(
                 MeasureSpec.makeMeasureSpec(W, MeasureSpec.EXACTLY),
@@ -1491,7 +1538,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 if (emojiView != null) {
                     emojiView.measure(
                         MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY),
-                        MeasureSpec.makeMeasureSpec(emojiView.getLayoutParams().height, MeasureSpec.EXACTLY)
+                        MeasureSpec.makeMeasureSpec(emojiView.getLayoutParams().height + emojiView.getPaddingBottom(), MeasureSpec.EXACTLY)
                     );
                 }
             }
@@ -1521,7 +1568,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 } else if (child instanceof Bulletin.ParentLayout) {
                     child.measure(
                         MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY),
-                        MeasureSpec.makeMeasureSpec(Math.min(dp(340), H - (underStatusBar ? 0 : statusbar)), MeasureSpec.EXACTLY)
+                        MeasureSpec.makeMeasureSpec(Math.min(dp(340), H - (statusbar - layout.paddingTop)), MeasureSpec.EXACTLY)
                     );
                 }
             }
@@ -1538,25 +1585,11 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             final int H = bottom - top;
 
             final int statusbar = insetTop;
-            final int underControls = navbarContainer.getMeasuredHeight();
-
-            final int T = underStatusBar ? 0 : statusbar;
-            int l = insetLeft + (W - insetRight - previewW) / 2,
-                r = insetLeft + (W - insetRight + previewW) / 2, t, b;
-            if (underStatusBar) {
-                t = T;
-                b = T + previewH + underControls;
-            } else {
-                t = T + ((H - T - insetBottom) - previewH - underControls) / 2;
-                if (openType == 1 && fromRect.top + previewH + underControls < H - insetBottom) {
-                    t = (int) fromRect.top;
-                } else if (t - T < dp(40)) {
-                    t = T;
-                }
-                b = t + previewH + underControls;
-            }
-
-            containerView.layout(l, t, r, b);
+            containerView.layout(
+                layout.containerLeft,
+                layout.containerTop,
+                layout.containerRight,
+                layout.containerBottom);
             flashViews.backgroundView.layout(0, 0, W, H);
             if (thanosEffect != null) {
                 thanosEffect.layout(0, 0, W, H);
@@ -1575,7 +1608,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             if (captionEdit != null) {
                 EmojiView emojiView = captionEdit.editText.getEmojiView();
                 if (emojiView != null) {
-                    emojiView.layout(insetLeft, H - insetBottom - emojiView.getMeasuredHeight(), W - insetRight, H - insetBottom);
+                    emojiView.layout(insetLeft, bottom - emojiView.getMeasuredHeight(), W - insetRight, bottom);
                 }
             }
 
@@ -1597,7 +1630,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 if (child instanceof DownloadButton.PreparingVideoToast) {
                     child.layout(0, 0, W, H);
                 } else if (child instanceof Bulletin.ParentLayout) {
-                    child.layout(0, t, child.getMeasuredWidth(), t + child.getMeasuredHeight());
+                    child.layout(0, layout.containerTop, child.getMeasuredWidth(), layout.containerTop + child.getMeasuredHeight());
                 }
             }
         }
@@ -1659,7 +1692,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 
         public void updateBackground() {
             if (openType == 0) {
-                setBackground(Theme.createRoundRectDrawable(dp(12), 0xff000000));
+                final int r = isChatAttachMode ? 0 : 12;
+                setBackground(Theme.createRoundRectDrawable(dp(r), 0xff000000));
             } else {
                 setBackground(null);
             }
@@ -1703,38 +1737,37 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 
         @Override
         protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-            final int t = underStatusBar ? insetTop : 0;
+            final int t = layout.paddingTop;
+            final int l = (getMeasuredWidth() - previewW) / 2;
+            final int r = l + previewW;
 
             final int w = right - left;
             final int h = bottom - top;
 
-            previewContainer.layout(0, 0, previewW, previewH);
-            previewContainer.setPivotX(previewW * .5f);
-            actionBarContainer.layout(0, t, previewW, t + actionBarContainer.getMeasuredHeight());
-            controlContainer.layout(0, previewH - controlContainer.getMeasuredHeight(), previewW, previewH);
-            navbarContainer.layout(0, previewH, previewW, previewH + navbarContainer.getMeasuredHeight());
-            captionContainer.layout(0, 0, previewW, previewH);
+            final int pt = layout.previewTop; // (layout.previewMaxHeight - previewH) / 2;
+            previewContainer.layout(l, pt, r, pt + previewH);
+            previewContainer.setPivotX(previewContainer.getMeasuredWidth() * .5f);
+            actionBarContainer.layout(l, t, r, t + actionBarContainer.getMeasuredHeight());
+            controlContainer.layout(l, layout.bottomNavTop - controlContainer.getMeasuredHeight(), r, layout.bottomNavTop);
+            navbarContainer.layout(l, layout.bottomNavTop, r, layout.bottomNavBottom);
             if (captionEditOverlay != null) {
                 captionEditOverlay.layout(0, 0, w, h);
             }
             flashViews.foregroundView.layout(0, 0, w, h);
 
             if (captionEdit.mentionContainer != null) {
-                captionEdit.mentionContainer.layout(0, 0, previewW, previewH);
+                if (isChatAttachMode) {
+                    captionEdit.mentionContainer.layout(l, -insetBottom, r, previewH - insetBottom);
+                } else {
+                    captionEdit.mentionContainer.layout(l, 0, r, previewH);
+                }
                 captionEdit.updateMentionsLayoutPosition();
-            }
-
-            if (photoFilterView != null) {
-                photoFilterView.layout(0, 0, photoFilterView.getMeasuredWidth(), photoFilterView.getMeasuredHeight());
-            }
-            if (paintView != null) {
-                paintView.layout(0, 0, paintView.getMeasuredWidth(), paintView.getMeasuredHeight());
             }
 
             for (int i = 0; i < getChildCount(); ++i) {
                 View child = getChildAt(i);
-                if (child instanceof ItemOptions.DimView) {
-                    child.layout(0, 0, w, h);
+                if (child == paintView || child == photoFilterView || child == captionContainer || child instanceof ItemOptions.DimView) {
+                    child.layout(0, t, w, t + child.getMeasuredHeight());
                 }
             }
 
@@ -1746,13 +1779,13 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
             final int W = MeasureSpec.getSize(widthMeasureSpec);
             final int H = MeasureSpec.getSize(heightMeasureSpec);
-
+            final int internalH = H - layout.paddingTop - layout.paddingBottom;
             measureChildExactly(previewContainer, previewW, previewH);
             applyFilterMatrix();
             measureChildExactly(actionBarContainer, previewW, dp(56 + 56 + 38));
             measureChildExactly(controlContainer, previewW, dp(220));
-            measureChildExactly(navbarContainer, previewW, underControls);
-            measureChildExactly(captionContainer, previewW, previewH);
+            measureChildExactly(navbarContainer, previewW, layout.bottomNavHeight);
+            measureChildExactly(captionContainer, previewW, internalH - layout.bottomNavHeight);
             measureChildExactly(flashViews.foregroundView, W, H);
             if (captionEditOverlay != null) {
                 measureChildExactly(captionEditOverlay, W, H);
@@ -1763,16 +1796,16 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             }
 
             if (photoFilterView != null) {
-                measureChildExactly(photoFilterView, W, H);
+                measureChildExactly(photoFilterView, W, internalH);
             }
             if (paintView != null) {
-                measureChildExactly(paintView, W, H);
+                measureChildExactly(paintView, W, internalH);
             }
 
             for (int i = 0; i < getChildCount(); ++i) {
                 View child = getChildAt(i);
                 if (child instanceof ItemOptions.DimView) {
-                    measureChildExactly(child, W, H);
+                    measureChildExactly(child, W, internalH);
                 }
             }
 
@@ -1785,21 +1818,55 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 
         private final Paint topGradientPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private LinearGradient topGradient;
+        private final Paint navbarPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         @Override
         protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
-            boolean r = super.drawChild(canvas, child, drawingTime);
+            final boolean r;
+            if (child == previewContainer && previewSizeAnimated) {
+                final int pl = (layout.previewMaxWidth - previewWidthCurrent) / 2;
+                final int pt = previewTopCurrent; //(layout.previewMaxHeight - previewHeightCurrent) / 2;
+                final int pr = pl + previewWidthCurrent;
+                final int pb = pt + previewHeightCurrent;
+                AndroidUtilities.rectTmp.set(pl, pt, pr, pb);
+                canvas.save();
+                canvas.clipRect(AndroidUtilities.rectTmp);
+                if (collageLayoutView.hasLayout()) {
+                    collageLayoutView.rectCorrection = AndroidUtilities.rectTmp;
+                    canvas.translate(AndroidUtilities.rectTmp.left, AndroidUtilities.rectTmp.top);
+                    collageLayoutView.draw(canvas);
+                    collageLayoutView.rectCorrection = null;
+                } else {
+                    collageLayoutView.drawView(canvas, cameraView, AndroidUtilities.rectTmp, 0f);
+                }
+                canvas.restore();
+                r = true;
+            } else {
+                r = super.drawChild(canvas, child, drawingTime);
+            }
             if (child == previewContainer) {
-                final float top = underStatusBar ? AndroidUtilities.statusBarHeight : 0;
+                final float top = layout.paddingTop;
                 if (topGradient == null) {
                     topGradient = new LinearGradient(0, top, 0, top + dp(72), new int[] {0x40000000, 0x00000000}, new float[] { top / (top + dp(72)), 1 }, Shader.TileMode.CLAMP );
                     topGradientPaint.setShader(topGradient);
                 }
                 topGradientPaint.setAlpha(0xFF);
                 AndroidUtilities.rectTmp.set(0, 0, getWidth(), dp(72 + 12) + top);
-                canvas.drawRoundRect(AndroidUtilities.rectTmp, dp(12), dp(12), topGradientPaint);
+                final int rad = isChatAttachMode ? 0 : 12;
+                canvas.drawRoundRect(AndroidUtilities.rectTmp, dp(rad), dp(rad), topGradientPaint);
             }
             return r;
+        }
+
+        @Override
+        protected void dispatchDraw(@NonNull Canvas canvas) {
+            super.dispatchDraw(canvas);
+            if (isChatAttachMode) {
+                int o = navbarContainer.getMeasuredHeight() - previewButtons.getBottom();
+                navbarPaint.setColor(((int) (previewButtons.shadowView.getAlpha() * 0x66)) << 24);
+                float offset = 0; // previewButtons.shadowView.getTranslationY();
+                canvas.drawRect(0, offset + getMeasuredHeight() - insetBottom - o, getMeasuredWidth(), offset + getMeasuredHeight(), navbarPaint);
+            }
         }
     }
 
@@ -1844,6 +1911,9 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
     private ToggleButton2 flashButton;
     private ToggleButton dualButton;
     private CollageLayoutButton collageButton;
+    private RatioLayoutButton changeRatioButton;
+    private RatioLayoutButton.RatioLayoutListView ratioListView;
+    private Ratio currentRatio = Ratio.RATIO_9_16;
     private ToggleButton2 collageRemoveButton;
     private CollageLayoutButton.CollageLayoutListView collageListView;
     private VideoTimerView videoTimerView;
@@ -2153,6 +2223,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 controlContainer.animate().alpha(0f).setDuration(180).setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
 
                 trash.setVisibility(View.VISIBLE);
+                trash.setTranslationY(isChatAttachMode && currentEditMode == EDIT_MODE_NONE ? -insetBottom - AndroidUtilities.dp(48) : 0);
                 trash.setAlpha(0f);
                 trash.clearAnimation();
                 trash.animate().alpha(1f).setDuration(180).setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
@@ -2290,12 +2361,14 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 if (MessagesController.getInstance(currentAccount).premiumFeaturesBlocked()) {
                     return false;
                 }
+
+                final boolean isPremium = UserConfig.getInstance(currentAccount).isPremium();
                 Bulletin visibleBulletin = Bulletin.getVisibleBulletin();
                 if (visibleBulletin != null && visibleBulletin.tag == 2) {
                     return false;
                 }
-                final int symbols = MessagesController.getInstance(currentAccount).storyCaptionLengthLimitPremium;
-                final int times = Math.round((float) symbols / MessagesController.getInstance(currentAccount).storyCaptionLengthLimitDefault);
+                final int symbols = getCaptionPremiumLimit();
+                final int times = Math.round((float) symbols / getCaptionDefaultLimit());
                 SpannableStringBuilder text = AndroidUtilities.replaceTags(LocaleController.formatPluralString("CaptionPremiumSubtitle", times, "" + symbols));
                 int startIndex = text.toString().indexOf("__");
                 if (startIndex >= 0) {
@@ -2317,7 +2390,14 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                         }, startIndex, endIndex, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     }
                 }
-                Bulletin bulletin = BulletinFactory.of(captionContainer, resourcesProvider).createSimpleBulletin(R.raw.caption_limit, getString(R.string.CaptionPremiumTitle), text);
+                final Bulletin bulletin;
+                if (isPremium) {
+                    bulletin = BulletinFactory.of(captionContainer, resourcesProvider)
+                        .createSimpleBulletin(R.raw.caption_limit, getString(R.string.CaptionPremiumTitle));
+                } else {
+                    bulletin = BulletinFactory.of(captionContainer, resourcesProvider)
+                        .createSimpleBulletin(R.raw.caption_limit, getString(R.string.CaptionPremiumTitle), text);
+                }
                 bulletin.tag = 2;
                 bulletin.setDuration(5000);
                 bulletin.show(false);
@@ -2327,6 +2407,22 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             @Override
             protected void onCaptionLimitUpdate(boolean overLimit) {
                 previewButtons.setShareEnabled(!videoError && !overLimit && (!MessagesController.getInstance(currentAccount).getStoriesController().hasStoryLimit() || (outputEntry != null && outputEntry.isEdit)));
+            }
+
+            @Override
+            protected int getCaptionDefaultLimit() {
+                if (options != null && options.isChatAttachMode) {
+                    return MessagesController.getInstance(currentAccount).captionLengthLimitDefault;
+                }
+                return super.getCaptionDefaultLimit();
+            }
+
+            @Override
+            protected int getCaptionPremiumLimit() {
+                if (options != null && options.isChatAttachMode) {
+                    return MessagesController.getInstance(currentAccount).captionLengthLimitPremium;
+                }
+                return super.getCaptionPremiumLimit();
             }
 
             @Override
@@ -2469,6 +2565,11 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 //                privacySelector.setStoryPeriod(period);
             }
         });
+        captionEdit.setOnSpoilerUpdate(hasSpoiler -> {
+            if (outputEntry != null) {
+                outputEntry.hasSpoiler = hasSpoiler;
+            }
+        });
         if (selectedDialogId != 0) {
             captionEdit.setDialogId(selectedDialogId);
         }
@@ -2497,6 +2598,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         containerView.addView(captionEditOverlay);
 
         timelineView = new TimelineView(context, containerView, previewContainer, resourcesProvider, blurManager);
+        timelineView.setDurationDelegate(durationDelegate);
         timelineView.setOnTimelineClick(() -> {
             if (currentPage != PAGE_PREVIEW) return;
             switchToEditMode(EDIT_MODE_TIMELINE, true);
@@ -2516,6 +2618,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         collageLayoutView.setPreviewView(previewView);
 
         coverTimelineView = new TimelineView(context, containerView, previewContainer, resourcesProvider, blurManager);
+        coverTimelineView.setDurationDelegate(durationDelegate);
         coverTimelineView.setCover();
         coverTimelineView.setVisibility(View.GONE);
         coverTimelineView.setAlpha(0f);
@@ -2524,7 +2627,6 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         backButton = new FlashViews.ImageViewInvertable(context);
         backButton.setContentDescription(getString(R.string.AccDescrGoBack));
         backButton.setScaleType(ImageView.ScaleType.CENTER);
-        backButton.setImageResource(R.drawable.msg_photo_back);
         backButton.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.MULTIPLY));
         backButton.setBackground(Theme.createSelectorDrawable(0x20ffffff));
         backButton.setOnClickListener(e -> {
@@ -2707,7 +2809,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 collageButton.setIcon(new CollageLayoutButton.CollageLayoutDrawable(lastCollageLayout), true);
                 collageButton.setSelected(true);
                 if (cameraView != null) {
-                    cameraView.recordHevc = !collageLayoutView.hasLayout();
+                    cameraView.recordHevc = allowHevcRecords();
                 }
             }
             collageListView.setVisible(!collageListView.isVisible(), true);
@@ -2730,7 +2832,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             collageLayoutView.clear(true);
             collageListView.setSelected(null);
             if (cameraView != null) {
-                cameraView.recordHevc = !collageLayoutView.hasLayout();
+                cameraView.recordHevc = allowHevcRecords();
             }
             collageListView.setVisible(false, true);
             updateActionBarButtons(true);
@@ -2745,13 +2847,52 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             collageLayoutView.setLayout(lastCollageLayout = layout, true);
             collageListView.setSelected(layout);
             if (cameraView != null) {
-                cameraView.recordHevc = !collageLayoutView.hasLayout();
+                cameraView.recordHevc = allowHevcRecords();
             }
             collageButton.setDrawable(new CollageLayoutButton.CollageLayoutDrawable(layout));
             setActionBarButtonVisible(collageRemoveButton, collageListView.isVisible(), true);
             recordControl.setCollageProgress(collageLayoutView.hasLayout() ? collageLayoutView.getFilledProgress() : 0.0f, true);
         });
         actionBarContainer.addView(collageListView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 56, Gravity.TOP | Gravity.RIGHT));
+
+        changeRatioButton = new RatioLayoutButton(context);
+        changeRatioButton.setBackground(Theme.createSelectorDrawable(0x20ffffff));
+        changeRatioButton.setOnClickListener(v -> {
+            if (currentPage != PAGE_CAMERA || animatedRecording) return;
+            if (cameraView != null && cameraView.isDual()) {
+                cameraView.toggleDual();
+            }
+            /*if (!ratioListView.isVisible() && !collageLayoutView.hasLayout()) {
+                collageLayoutView.setLayout(lastCollageLayout, true);
+                collageListView.setSelected(lastCollageLayout);
+                collageButton.setIcon(new CollageLayoutButton.CollageLayoutDrawable(lastCollageLayout), true);
+                collageButton.setSelected(true);
+                if (cameraView != null) {
+                    cameraView.recordHevc = !collageLayoutView.hasLayout();
+                }
+            }*/
+            ratioListView.setVisible(!ratioListView.isVisible(), true);
+            updateActionBarButtons(true);
+        });
+        changeRatioButton.setDrawable(new RatioLayoutButton.RatioLayoutDrawable(currentRatio));
+        flashViews.add(changeRatioButton);
+        actionBarContainer.addView(changeRatioButton, LayoutHelper.createFrame(56, 56, Gravity.TOP | Gravity.RIGHT));
+
+        ratioListView = new RatioLayoutButton.RatioLayoutListView(context, flashViews);
+        ratioListView.setSelected(currentRatio);
+        ratioListView.setOnLayoutClick(ratio -> {
+            currentRatio = ratio;
+            ratioListView.setSelected(ratio);
+            ratioListView.setVisible(false, true);
+            updateActionBarButtons(true);
+            changeRatioButton.setDrawable(new RatioLayoutButton.RatioLayoutDrawable(currentRatio));
+            windowView.requestLayout();
+            final int w = layout.getPreviewWidthForRatio(ratio);
+            final int h = layout.getPreviewHeightForRatio(ratio);
+            final int t = layout.getPreviewTop(h);
+            animatePreviewSize(w, h, t);
+        });
+        actionBarContainer.addView(ratioListView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 56, Gravity.TOP | Gravity.RIGHT));
 
         dualHint = new HintView2(activity, HintView2.DIRECTION_TOP)
             .setJoint(1, -20)
@@ -2823,7 +2964,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             }
 
             isVideo = newIsVideo;
-            showVideoTimer(isVideo && !collageListView.isVisible(), true);
+            showVideoTimer(isVideo && !collageListView.isVisible() && !ratioListView.isVisible(), true);
             modeSwitcherView.switchMode(isVideo);
             recordControl.startAsVideo(isVideo);
         });
@@ -2871,8 +3012,25 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         });
         navbarContainer.addView(coverButton, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.FILL, 10, 10, 10, 10));
 
-        previewButtons = new PreviewButtons(context);
+        previewButtons = new PreviewButtons(context) {
+            @Override
+            protected void updateAppearT() {
+                super.updateAppearT();
+                if (isChatAttachMode) {
+                    containerView.invalidate();
+                }
+            }
+        };
         previewButtons.setVisibility(View.GONE);
+        previewButtons.setOnLongClickListener((Integer btn) -> {
+            if (outputEntry == null || captionEdit.isRecording()) {
+                return;
+            }
+            captionEdit.clearFocus();
+            if (btn == PreviewButtons.BUTTON_SHARE) {
+                showSendOptions(previewButtons.shareButton);
+            }
+        });
         previewButtons.setOnClickListener((Integer btn) -> {
             if (outputEntry == null || captionEdit.isRecording()) {
                 return;
@@ -2915,6 +3073,110 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         updateActionBarButtonsOffsets();
     }
 
+    private ActionBarPopupWindow sendPopupWindow;
+    private ActionBarPopupWindow.ActionBarPopupWindowLayout sendPopupLayout;
+
+    private void showSendOptions(View view) {
+        if (!options.isChatAttachMode) {
+            return;
+        }
+
+        sendPopupLayout = new ActionBarPopupWindow.ActionBarPopupWindowLayout(containerView.getContext());
+        sendPopupLayout.setAnimationEnabled(false);
+        /*sendPopupLayout.setOnTouchListener((v, event) -> {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                if (sendPopupWindow != null && sendPopupWindow.isShowing()) {
+                    v.getHitRect(hitRect);
+                    if (!hitRect.contains((int) event.getX(), (int) event.getY())) {
+                        sendPopupWindow.dismiss();
+                    }
+                }
+            }
+            return false;
+        });*/
+        sendPopupLayout.setDispatchKeyEventListener(keyEvent -> {
+            if (keyEvent.getKeyCode() == KeyEvent.KEYCODE_BACK && keyEvent.getRepeatCount() == 0 && sendPopupWindow != null && sendPopupWindow.isShowing()) {
+                sendPopupWindow.dismiss();
+            }
+        });
+        sendPopupLayout.setShownFromBottom(false);
+        sendPopupLayout.setBackgroundColor(0xf9222222);
+
+        for (int a = 0; a < 3; a++) {
+            final boolean isSelf = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId() == options.sendDialogId;
+            if (a == 1 && isSelf) {
+                continue;
+            }
+
+            ActionBarMenuSubItem cell = new ActionBarMenuSubItem(view.getContext(), a == 0, a == 2, resourcesProvider);
+            if (a == 0) {
+                if (isSelf) {
+                    cell.setTextAndIcon(getString(R.string.SetReminder), R.drawable.msg_calendar2);
+                } else {
+                    cell.setTextAndIcon(getString(R.string.ScheduleMessage), R.drawable.msg_calendar2);
+                }
+            } else if (a == 1) {
+                cell.setTextAndIcon(getString(R.string.SendWithoutSound), R.drawable.input_notify_off);
+            } else {
+                cell.setTextAndIcon(getString(R.string.SendAsFile), R.drawable.msg_sendfile);
+            }
+            cell.setMinimumWidth(dp(196));
+            cell.setColors(0xffffffff, 0xffffffff);
+            sendPopupLayout.addView(cell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
+            int finalA = a;
+            cell.setOnClickListener(v -> {
+                if (sendPopupWindow != null && sendPopupWindow.isShowing()) {
+                    sendPopupWindow.dismiss();
+                }
+                if (finalA == 0) {
+                    showScheduleDatePickerDialog();
+                } else if (finalA == 1) {
+                    sendPressed(false, 0);
+                } else if (finalA == 2) {
+                    sendPressed(true, 0, true);
+                }
+            });
+        }
+
+        if (sendPopupLayout.getChildCount() == 0) {
+            return;
+        }
+        sendPopupLayout.setupRadialSelectors(0x24ffffff);
+
+        sendPopupWindow = new ActionBarPopupWindow(sendPopupLayout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT);
+        sendPopupWindow.setAnimationEnabled(false);
+        sendPopupWindow.setAnimationStyle(R.style.PopupContextAnimation2);
+        sendPopupWindow.setOutsideTouchable(true);
+        sendPopupWindow.setClippingEnabled(true);
+        sendPopupWindow.setInputMethodMode(ActionBarPopupWindow.INPUT_METHOD_NOT_NEEDED);
+        sendPopupWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED);
+        sendPopupWindow.getContentView().setFocusableInTouchMode(true);
+
+        sendPopupLayout.measure(View.MeasureSpec.makeMeasureSpec(dp(1000), View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(dp(1000), View.MeasureSpec.AT_MOST));
+        sendPopupWindow.setFocusable(true);
+
+        int[] location = new int[2];
+        view.getLocationInWindow(location);
+        sendPopupWindow.showAtLocation(view, Gravity.LEFT | Gravity.TOP, location[0] + view.getMeasuredWidth() - sendPopupLayout.getMeasuredWidth() + dp(14), location[1] - sendPopupLayout.getMeasuredHeight() - dp(18));
+        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+    }
+
+    private void showScheduleDatePickerDialog() {
+        final AlertsCreator.ScheduleDatePickerColors colors = new AlertsCreator.ScheduleDatePickerColors(0xffffffff, 0xff252525, 0xffffffff, 0x1effffff, 0xffffffff, 0xf9222222, 0x24ffffff);
+        AlertsCreator.createScheduleDatePickerDialog(containerView.getContext(), options.sendDialogId, this::sendPressed, colors);
+    }
+
+    private void sendPressed(boolean notify, int scheduleDate) {
+        sendPressed(notify, scheduleDate, false);
+    }
+
+    private void sendPressed(boolean notify, int scheduleDate, boolean forceDocument) {
+        outputEntry.silent = !notify;
+        outputEntry.scheduleDate = scheduleDate;
+        outputEntry.forceDocument = forceDocument;
+        processDone();
+    }
+
     private void processDone() {
         if (privacySheet != null) {
             privacySheet.dismiss();
@@ -2939,7 +3201,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 return;
             }
         }
-        outputEntry.captionEntitiesAllowed = MessagesController.getInstance(currentAccount).storyEntitiesAllowed();
+        outputEntry.captionEntitiesAllowed = options.isChatAttachMode || MessagesController.getInstance(currentAccount).storyEntitiesAllowed();
         if (captionEdit != null && !outputEntry.captionEntitiesAllowed) {
             CharSequence text = captionEdit.getText();
             if (text instanceof Spannable && (
@@ -2951,6 +3213,12 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 return;
             }
         }
+
+        if (options != null && options.sendStoryCallback != null) {
+            applyFilter(() -> upload(true));
+            return;
+        }
+
         if (outputEntry.isEdit || outputEntry.botId != 0) {
             outputEntry.editedPrivacy = false;
             applyFilter(null);
@@ -3114,6 +3382,14 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         ArrayList<TLRPC.MessageEntity> pastEntities = MessagesController.getInstance(currentAccount).storyEntitiesAllowed() ? MediaDataController.getInstance(currentAccount).getEntities(pastCaption, true) : new ArrayList<>();
         outputEntry.editedCaption = !TextUtils.equals(outputEntry.caption, caption[0]) || !MediaDataController.entitiesEqual(captionEntities, pastEntities);
         outputEntry.caption = new SpannableString(captionEdit.getText());
+        if (options != null && options.sendStoryCallback != null) {
+            options.sendStoryCallback.run(outputEntry);
+            outputEntry = null;
+            wasSend = true;
+            close(true);
+            return;
+        }
+
         MessagesController.getInstance(currentAccount).getStoriesController().uploadStory(outputEntry, asStory);
         if (outputEntry.isDraft && !outputEntry.isEdit) {
             MessagesController.getInstance(currentAccount).getStoriesController().getDraftsController().delete(outputEntry);
@@ -3260,7 +3536,15 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             canvas.restore();
         }
 
-        Bitmap thumbBitmap = Bitmap.createScaledBitmap(bitmap, 40, 22, true);
+        final Bitmap thumbBitmap;
+        if (!forDraft && options.isChatAttachMode) {
+            final float s = StoryEntry.calculateScale(storyEntry.resultWidth, storyEntry.resultHeight, 90, 90);
+            final int bw = Math.round(storyEntry.resultWidth / s);
+            final int bh = Math.round(storyEntry.resultHeight / s);
+            thumbBitmap = Bitmap.createScaledBitmap(bitmap, bw, bh, true);
+        } else {
+            thumbBitmap = Bitmap.createScaledBitmap(bitmap, 40, 22, true);
+        }
 
         file = StoryEntry.makeCacheFile(currentAccount, false);
         try {
@@ -3307,7 +3591,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 break;
         }
         flashButton.setIcon(flashButtonResId = resId, animated && flashButtonResId != resId);
-        setActionBarButtonVisible(flashButton, currentPage == PAGE_CAMERA && !collageListView.isVisible() && flashButtonMode != null && !inCheck(), animated);
+        setActionBarButtonVisible(flashButton, currentPage == PAGE_CAMERA && !collageListView.isVisible() && !ratioListView.isVisible() && flashButtonMode != null && !inCheck(), animated);
     }
 
     private final RecordControl.Delegate recordControlDelegate = new RecordControl.Delegate() {
@@ -3348,7 +3632,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             if (entries.size() == 1) {
                 outputEntry = entries.get(0);
             } else {
-                outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent());
+                outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent(), durationDelegate.getMaxSelectDuration());
             }
             isVideo = outputEntry != null && outputEntry.isVideo;
             if (modeSwitcherView != null) {
@@ -3358,12 +3642,24 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             navigateTo(PAGE_PREVIEW, true);
         }
 
+        @Override
+        public long getMaxDuration() {
+            return options.isChatAttachMode ? Long.MAX_VALUE : 60000L;
+        }
+
+        @Override
+        public long getMaxDurationVisual() {
+            return 60000L;
+        }
+
         private void takePicture(Utilities.Callback<Runnable> done) {
             boolean savedFromTextureView = false;
             if (!useDisplayFlashlight()) {
                 cameraView.startTakePictureAnimation(true);
             }
-            if (cameraView.isDual() && TextUtils.equals(cameraView.getCameraSession().getCurrentFlashMode(), Camera.Parameters.FLASH_MODE_OFF) || collageLayoutView.hasLayout()) {
+
+            final boolean isFlashOff = TextUtils.equals(cameraView.getCameraSession().getCurrentFlashMode(), Camera.Parameters.FLASH_MODE_OFF);
+            if ((cameraView.isDual() || collageLayoutView.hasLayout()) && isFlashOff) {
                 if (!collageLayoutView.hasLayout()) {
                     cameraView.pauseAsTakingPicture();
                 }
@@ -3409,10 +3705,12 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                         entry.botId = botId;
                         entry.botLang = botLang;
                     }
+                    fixResultSizeAndUpdateMatrix(entry);
                     if (collageLayoutView.hasLayout()) {
                         outputFile = null;
                         if (collageLayoutView.push(entry)) {
-                            outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent());
+                            outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent(), durationDelegate.getMaxSelectDuration());
+                            fixResultSizeAndUpdateMatrix(outputEntry);
                             StoryPrivacySelector.applySaved(currentAccount, outputEntry);
                             fromGallery = false;
 
@@ -3439,16 +3737,18 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                             navigateTo(PAGE_PREVIEW, true);
                         }
                     }
-                });
+                }, collageLayoutView.hasLayout());
             } else {
                 takingPhoto = false;
                 final StoryEntry entry = StoryEntry.fromPhotoShoot(outputFile, 0);
                 entry.botId = botId;
                 entry.botLang = botLang;
+                fixResultSizeAndUpdateMatrix(entry);
                 if (collageLayoutView.hasLayout()) {
                     outputFile = null;
                     if (collageLayoutView.push(entry)) {
-                        outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent());
+                        outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent(), durationDelegate.getMaxSelectDuration());
+                        fixResultSizeAndUpdateMatrix(outputEntry);
                         StoryPrivacySelector.applySaved(currentAccount, outputEntry);
                         fromGallery = false;
                         if (done != null) {
@@ -3555,6 +3855,10 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 StoryEntry entry = StoryEntry.fromVideoShoot(outputFile, thumbPath, duration);
                 entry.botId = botId;
                 entry.botLang = botLang;
+                fixResultSizeAndUpdateMatrix(entry);
+                if (isChatAttachMode) {
+                    entry.right = 1f;
+                }
                 animateRecording(false, true);
                 setAwakeLock(false);
                 videoTimerView.setRecording(false, true);
@@ -3565,7 +3869,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                     outputFile = null;
                     entry.videoVolume = 1.0f;
                     if (collageLayoutView.push(entry)) {
-                        outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent());
+                        outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent(), durationDelegate.getMaxSelectDuration());
+                        fixResultSizeAndUpdateMatrix(outputEntry);
                         StoryPrivacySelector.applySaved(currentAccount, outputEntry);
                         fromGallery = false;
                         int width = cameraView.getVideoWidth(), height = cameraView.getVideoHeight();
@@ -3598,6 +3903,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 setAwakeLock(true);
 
                 collageListView.setVisible(false, true);
+                ratioListView.setVisible(false, true);
                 videoTimerView.setRecording(true, true);
                 showVideoTimer(true, true);
             }, cameraView, true);
@@ -3605,6 +3911,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             if (!isVideo) {
                 isVideo = true;
                 collageListView.setVisible(false, true);
+                ratioListView.setVisible(false, true);
                 showVideoTimer(isVideo, true);
                 modeSwitcherView.switchMode(isVideo);
                 recordControl.startAsVideo(isVideo);
@@ -3732,6 +4039,9 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         animatedRecordingWasInCheck = inCheck();
         if (recording && collageListView != null && collageListView.isVisible()) {
             collageListView.setVisible(false, animated);
+        }
+        if (recording && ratioListView != null && ratioListView.isVisible()) {
+            ratioListView.setVisible(false, animated);
         }
         updateActionBarButtons(animated);
         if (animated) {
@@ -3977,6 +4287,10 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         final int oldPage = currentPage;
         currentPage = page;
 
+        if (page == PAGE_PREVIEW) {
+            fixResultSizeAndUpdateMatrix(outputEntry);
+        }
+
         if (pageAnimator != null) {
             pageAnimator.cancel();
         }
@@ -3985,14 +4299,15 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         if (previewButtons != null) {
             previewButtons.appear(page == PAGE_PREVIEW, animated);
         }
-        showVideoTimer(page == PAGE_CAMERA && isVideo && !collageListView.isVisible() && !inCheck(), animated);
+        showVideoTimer(page == PAGE_CAMERA && isVideo && !collageListView.isVisible() && !ratioListView.isVisible() && !inCheck(), animated);
         if (page != PAGE_PREVIEW) {
             videoTimeView.show(false, animated);
         }
-        setActionBarButtonVisible(backButton, !collageListView.isVisible(), animated);
-        setActionBarButtonVisible(flashButton, page == PAGE_CAMERA && !collageListView.isVisible() && flashButtonMode != null && !inCheck(), animated);
-        setActionBarButtonVisible(dualButton, page == PAGE_CAMERA && cameraView != null && cameraView.dualAvailable() && !collageListView.isVisible() && !collageLayoutView.hasLayout(), true);
-        setActionBarButtonVisible(collageButton, page == PAGE_CAMERA && !collageListView.isVisible(), animated);
+        setActionBarButtonVisible(backButton, !collageListView.isVisible() && !ratioListView.isVisible(), animated);
+        setActionBarButtonVisible(flashButton, page == PAGE_CAMERA && !collageListView.isVisible() && !ratioListView.isVisible() && flashButtonMode != null && !inCheck(), animated);
+        setActionBarButtonVisible(dualButton, page == PAGE_CAMERA && cameraView != null && cameraView.dualAvailable() && !collageListView.isVisible() && !ratioListView.isVisible() && !collageLayoutView.hasLayout(), true);
+        setActionBarButtonVisible(collageButton, page == PAGE_CAMERA && !collageListView.isVisible() && !ratioListView.isVisible(), animated);
+        setActionBarButtonVisible(changeRatioButton, options.allowRatioChange && page == PAGE_CAMERA && !collageListView.isVisible() && !ratioListView.isVisible(), animated);
         updateActionBarButtons(animated);
         if (animated) {
             pageAnimator = new AnimatorSet();
@@ -4232,13 +4547,16 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                     storyEntry.botId = botId;
                     storyEntry.botLang = botLang;
                     storyEntry.setupMatrix();
+                    if (isChatAttachMode) {
+                        storyEntry.right = 1f;
+                    }
                     fromGallery = true;
 
                     if (collageLayoutView.hasLayout()) {
                         outputFile = null;
                         storyEntry.videoVolume = 1.0f;
                         if (collageLayoutView.push(storyEntry)) {
-                            outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent());
+                            outputEntry = StoryEntry.asCollage(collageLayoutView.getLayout(), collageLayoutView.getContent(), durationDelegate.getMaxSelectDuration());
 //                            StoryPrivacySelector.applySaved(currentAccount, outputEntry);
 //                            navigateTo(PAGE_PREVIEW, true);
                         }
@@ -4259,7 +4577,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                     }
                     storyEntry.botId = botId;
                     storyEntry.botLang = botLang;
-                    storyEntry.setupMatrix();
+                    fixResultSizeAndUpdateMatrix(storyEntry, true);
                     isVideo = storyEntry.isVideo;
                     storyEntry.blurredVideoThumb = blurredBitmap;
                     fromGallery = false;
@@ -4284,6 +4602,16 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             galleryListView.layoutManager.onRestoreInstanceState(lastGalleryScrollPosition);
         }
         windowView.addView(galleryListView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.FILL));
+    }
+
+    private void fixResultSizeAndUpdateMatrix(StoryEntry entry) {
+        fixResultSizeAndUpdateMatrix(entry, false);
+    }
+
+    private void fixResultSizeAndUpdateMatrix(StoryEntry entry, boolean force) {
+        if (isChatAttachMode || force) {
+            entry.fixResultSizeAndUpdateMatrix(previewW, previewH);
+        }
     }
 
     private boolean isGalleryOpen() {
@@ -4460,7 +4788,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 
 //            privacySelector.setStoryPeriod(outputEntry == null || !UserConfig.getInstance(currentAccount).isPremium() ? 86400 : outputEntry.period);
             captionEdit.setPeriod(outputEntry == null ? 86400 : outputEntry.period, false);
-            captionEdit.setPeriodVisible(!MessagesController.getInstance(currentAccount).premiumFeaturesBlocked() && (outputEntry == null || !outputEntry.isEdit));
+            captionEdit.setPeriodVisible(!isChatAttachMode && !MessagesController.getInstance(currentAccount).premiumFeaturesBlocked() && (outputEntry == null || !outputEntry.isEdit));
+            captionEdit.setSpoilerVisible(isChatAttachMode);
             captionEdit.setHasRoundVideo(outputEntry != null && outputEntry.round != null);
             setReply();
             timelineView.setOpen(outputEntry == null || !outputEntry.isCollage() || !outputEntry.hasVideo(), false);
@@ -4481,7 +4810,11 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             videoError = false;
             final boolean isBot = outputEntry != null && outputEntry.botId != 0;
             final boolean isEdit = outputEntry != null && outputEntry.isEdit;
-            previewButtons.setShareText(getString(isEdit ? R.string.Done : isBot ? R.string.UploadBotPreview : R.string.Next), !isBot);
+            if (options != null && options.buttonDoneTextOverride != null) {
+                previewButtons.setShareText(options.buttonDoneTextOverride.toString(), options.buttonDoneTextArrow);
+            } else {
+                previewButtons.setShareText(getString(isEdit ? R.string.Done : isBot ? R.string.UploadBotPreview : R.string.Next), !isBot);
+            }
             coverTimelineView.setVisibility(View.GONE);
             coverButton.setVisibility(View.GONE);
 //            privacySelector.set(outputEntry, false);
@@ -4527,7 +4860,9 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             timelineView.setVisibility(View.VISIBLE);
             titleTextView.setVisibility(View.VISIBLE);
             titleTextView.setTranslationX(0);
-            if (outputEntry != null && outputEntry.botId != 0) {
+            if (options != null && options.titlePreviewOverride != null) {
+                titleTextView.setText(options.titlePreviewOverride.toString());
+            } else if (outputEntry != null && outputEntry.botId != 0) {
                 titleTextView.setText("");
             } else if (outputEntry != null && outputEntry.isEdit) {
                 titleTextView.setText(getString(R.string.RecorderEditStory));
@@ -4622,6 +4957,24 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         }
         collageLayoutView.setPreview(toPage == PAGE_PREVIEW && collageLayoutView.hasLayout());
     }
+
+    private final TimelineView.DurationDelegate durationDelegate = new TimelineView.DurationDelegate() {
+        @Override
+        public long getMaxScrollDuration() {
+            if (options.isChatAttachMode) {
+                return Long.MAX_VALUE;
+            }
+            return -1;
+        }
+
+        @Override
+        public long getMaxSelectDuration() {
+            if (options.isChatAttachMode) {
+                return Long.MAX_VALUE;
+            }
+            return 59 * 1000L;
+        }
+    };
 
     private void onNavigateEnd(int fromPage, int toPage) {
         if (fromPage == PAGE_CAMERA) {
@@ -4737,6 +5090,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         boolean delay = photoFilterView == null && editMode == EDIT_MODE_FILTER;
         if (editMode == EDIT_MODE_FILTER) {
             createFilterPhotoView();
+            showFilterPhotoControllers(true);
 //            animatePhotoFilterTexture(true, animated);
             previewTouchable = photoFilterView;
             View toolsView = photoFilterView != null ? photoFilterView.getToolsView() : null;
@@ -4748,6 +5102,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             }
         } else if (oldEditMode == EDIT_MODE_FILTER && photoFilterView != null) {
             previewTouchable = null;
+            showFilterPhotoControllers(false);
 //            animatePhotoFilterTexture(false, animated);
             animators.add(ObjectAnimator.ofFloat(photoFilterView.getToolsView(), View.TRANSLATION_Y, dp(186 + 40)));
             animators.add(ObjectAnimator.ofFloat(photoFilterView.getToolsView(), View.ALPHA, 0));
@@ -4781,23 +5136,40 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         animators.add(ObjectAnimator.ofFloat(titleTextView, View.ALPHA, (currentPage == PAGE_PREVIEW || currentPage == PAGE_COVER) && editMode == EDIT_MODE_NONE ? 1f : 0f));
 
         int rightMargin = 0;
+        int topMargin = 0;
         int bottomMargin = 0;
+        int offset = dp(48) - layout.underViewsHeight;
         if (editMode == EDIT_MODE_FILTER) {
-            previewContainer.setPivotY(previewContainer.getMeasuredHeight() * .2f);
-            bottomMargin = dp(164);
+            topMargin = ActionBar.getCurrentActionBarHeight() + layout.paddingTop;
+            bottomMargin = dp(180)
+                + layout.paddingBottom
+                + offset;
         } else if (editMode == EDIT_MODE_PAINT) {
-            previewContainer.setPivotY(previewContainer.getMeasuredHeight() * .6f);
-            bottomMargin = dp(40);
+            topMargin = ActionBar.getCurrentActionBarHeight() + layout.paddingTop;
+            bottomMargin = dp(56)
+                + layout.paddingBottom
+                + offset;
+
         } else if (editMode == EDIT_MODE_TIMELINE) {
-            previewContainer.setPivotY(0);
-            bottomMargin = timelineView.getContentHeight() + dp(8);
+            topMargin = layout.paddingTop;
+            bottomMargin = timelineView.getContentHeight()
+                + layout.paddingBottom
+                + offset
+                + dp(8);
+
 //            rightMargin = dp(46);
         }
 
         float scale = 1f;
-        if (bottomMargin > 0) {
-            final int bottomPivot = previewContainer.getHeight() - (int) previewContainer.getPivotY();
-            scale = (float) (bottomPivot - bottomMargin) / bottomPivot;
+        if (bottomMargin > 0 || topMargin > 0) {
+            final int tm = Math.max(0, topMargin - previewContainer.getTop());
+            final int bm = Math.max(0,
+                bottomMargin - (layout.previewMaxHeight - previewContainer.getBottom()));
+            final float pch = previewContainer.getHeight();
+            scale = (pch - bm - tm) / pch;
+
+            float piv = (tm > 0 || bm > 0) ? tm / ((float) bm + tm) : 0.5f;
+            previewContainer.setPivotY(previewContainer.getMeasuredHeight() * piv);
         }
         if (rightMargin > 0) {
             final int rightPivot = previewContainer.getWidth() - (int) previewContainer.getPivotX();
@@ -4939,6 +5311,14 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             previewView
         ) {
             @Override
+            protected Size getPaintingSize() {
+                if (paintingSize == null) {
+                    paintingSize = new Size(size.first, size.second);
+                }
+                return super.getPaintingSize();
+            }
+
+            @Override
             public void onEntityDraggedTop(boolean value) {
                 previewHighlight.show(true, value, actionBarContainer);
             }
@@ -4986,9 +5366,15 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 showTrash(isEntityDeletable(), false);
             }
 
+            @Override
+            public float getTrashViewOffset() {
+                return trash.getTranslationY();
+            }
+
             public void showTrash(boolean show, boolean delete) {
                 if (show) {
                     trash.setVisibility(View.VISIBLE);
+                    trash.setTranslationY(isChatAttachMode && currentEditMode == EDIT_MODE_NONE ? -insetBottom - AndroidUtilities.dp(48) : 0);
                     trash.setAlpha(0f);
                     trash.clearAnimation();
                     trash.animate().alpha(1f).setDuration(180).setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
@@ -5021,6 +5407,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             public void onEntityDragTrash(boolean enter) {
                 trash.onDragInfo(enter, false);
             }
+
+
 
             @Override
             protected void editSelectedTextEntity() {
@@ -5398,7 +5786,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             final boolean wouldBeVideo = outputEntry.wouldBeVideo();
 
             mediaEntities.clear();
-            Bitmap bitmap = paintView.getBitmap(mediaEntities, resultWidth, resultHeight, true, false, false, !isVideo, outputEntry);
+            Bitmap bitmap = paintView.getBitmap(mediaEntities, resultWidth, resultHeight, true, false, false, !isVideo, options.isChatAttachMode, outputEntry);
             if (mediaEntities.isEmpty()) {
                 mediaEntities = null;
             }
@@ -5787,7 +6175,12 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             return;
         }
 
-        photoFilterView = new PhotoFilterView(activity, previewView.getTextureView(), photoBitmap, previewView.getOrientation(), outputEntry == null ? null : outputEntry.filterState, null, 0, false, false, blurManager, resourcesProvider);
+        photoFilterView = new PhotoFilterView(activity, previewView.getTextureView(), photoBitmap, previewView.getOrientation(), outputEntry == null ? null : outputEntry.filterState, null, 0, false, false, blurManager, resourcesProvider) {
+            @Override
+            public boolean dispatchTouchEvent(MotionEvent ev) {
+                return currentEditMode == EDIT_MODE_FILTER && super.dispatchTouchEvent(ev);
+            }
+        };
         containerView.addView(photoFilterView);
         if (photoFilterEnhanceView != null) {
             photoFilterEnhanceView.setFilterView(photoFilterView);
@@ -5822,6 +6215,25 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         photoFilterView.getToolsView().setAlpha(0f);
         photoFilterView.getToolsView().setTranslationY(AndroidUtilities.dp(186));
         photoFilterView.init();
+    }
+
+    private void addOrRemoveViewFromParent(ViewGroup parent, View v, boolean isVisible) {
+        if (v == null) {
+            return;
+        }
+        boolean oldVisible = v.getParent() != null;
+        if (isVisible != oldVisible) {
+            if (isVisible) {
+                parent.addView(v);
+            } else {
+                parent.removeView(v);
+            }
+        }
+    }
+
+    private void showFilterPhotoControllers(boolean isVisible) {
+        addOrRemoveViewFromParent(previewContainer, photoFilterViewCurvesControl, isVisible);
+        addOrRemoveViewFromParent(previewContainer ,photoFilterViewBlurControl, isVisible);
     }
 
     public void invalidateBlur() {
@@ -5897,6 +6309,11 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         }
         cameraView = new DualCameraView(getContext(), getCameraFace(), false) {
             @Override
+            public boolean allowFixMeasureRatio() {
+                return true;
+            }
+
+            @Override
             public void onEntityDraggedTop(boolean value) {
                 previewHighlight.show(true, value, actionBarContainer);
             }
@@ -5944,7 +6361,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         if (recordControl != null) {
             recordControl.setAmplitude(0, false);
         }
-        cameraView.recordHevc = !collageLayoutView.hasLayout();
+        cameraView.recordHevc = allowHevcRecords();
         cameraView.setThumbDrawable(getCameraThumb());
         cameraView.initTexture();
         cameraView.setDelegate(() -> {
@@ -6855,14 +7272,15 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
     }
 
     private void updateActionBarButtons(boolean animated) {
-        showVideoTimer(currentPage == PAGE_CAMERA && isVideo && !collageListView.isVisible() && !inCheck(), animated);
+        showVideoTimer(currentPage == PAGE_CAMERA && isVideo && !collageListView.isVisible() && !ratioListView.isVisible() && !inCheck(), animated);
         collageButton.setSelected(collageLayoutView.hasLayout());
-        setActionBarButtonVisible(backButton, collageListView == null || !collageListView.isVisible(), animated);
-        setActionBarButtonVisible(flashButton, !animatedRecording && currentPage == PAGE_CAMERA && flashButtonMode != null && !collageListView.isVisible() && !inCheck(), animated);
-        setActionBarButtonVisible(dualButton, !animatedRecording && currentPage == PAGE_CAMERA && cameraView != null && cameraView.dualAvailable() && !collageListView.isVisible() && !collageLayoutView.hasLayout(), animated);
-        setActionBarButtonVisible(collageButton, currentPage == PAGE_CAMERA && !collageListView.isVisible(), animated);
+        setActionBarButtonVisible(backButton, (collageListView == null || !collageListView.isVisible()) && !ratioListView.isVisible(), animated);
+        setActionBarButtonVisible(flashButton, !animatedRecording && currentPage == PAGE_CAMERA && flashButtonMode != null && !collageListView.isVisible() && !ratioListView.isVisible() && !inCheck(), animated);
+        setActionBarButtonVisible(dualButton, !animatedRecording && currentPage == PAGE_CAMERA && cameraView != null && cameraView.dualAvailable() && !collageListView.isVisible() && !ratioListView.isVisible() && !collageLayoutView.hasLayout(), animated);
+        setActionBarButtonVisible(collageButton, currentPage == PAGE_CAMERA && !collageListView.isVisible() && !ratioListView.isVisible(), animated);
         setActionBarButtonVisible(collageRemoveButton, collageListView.isVisible(), animated);
         final float collageProgress = collageLayoutView.hasLayout() ? collageLayoutView.getFilledProgress() : 0.0f;
+        setActionBarButtonVisible(changeRatioButton, !animatedRecording && options.allowRatioChange && collageProgress == 0f && currentPage == PAGE_CAMERA && !collageListView.isVisible() && !ratioListView.isVisible(), animated);
         recordControl.setCollageProgress(collageProgress, animated);
         removeCollageHint.show(collageListView.isVisible());
         animateRecording(animatedRecording, animated);
@@ -6873,11 +7291,75 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         collageRemoveButton.setTranslationX(-right); right += dp(46) * collageRemoveButton.getAlpha();
         dualButton.setTranslationX(-right);          right += dp(46) * dualButton.getAlpha();
         collageButton.setTranslationX(-right);       right += dp(46) * collageButton.getAlpha();
+        changeRatioButton.setTranslationX(-right);   right += dp(46) * changeRatioButton.getAlpha();
         flashButton.setTranslationX(-right);         right += dp(46) * flashButton.getAlpha();
 
         float left = 0;
         backButton.setTranslationX(left); left += dp(46) * backButton.getAlpha();
 
+        final float timerMaxRight = (containerView.getMeasuredWidth() - dp(72)) / 2f;
+        videoTimerView.setTranslationX(Math.min(0, timerMaxRight - right));
+
         collageListView.setBounds(left + dp(8), right + dp(8));
+        ratioListView.setBounds(left + dp(8), right + dp(8));
+    }
+
+
+
+    /* * */
+
+    private ValueAnimator previewSizeAnimator;
+    private boolean previewSizeAnimated;
+    private int previewWidthFrom;
+    private int previewHeightFrom;
+    private int previewTopFrom;
+    private int previewWidthCurrent;
+    private int previewHeightCurrent;
+    private int previewTopCurrent;
+    private int previewWidthTo;
+    private int previewHeightTo;
+    private int previewTopTo;
+
+    public void animatePreviewSize(int width, int height, int top) {
+        cancelPreviewSizeAnimation();
+
+        previewWidthFrom = previewSizeAnimated ? previewWidthCurrent : previewW;
+        previewHeightFrom = previewSizeAnimated ? previewHeightCurrent : previewH;
+        previewTopFrom = previewSizeAnimated ? previewTopCurrent : layout.previewTop;
+        previewWidthTo = width;
+        previewHeightTo = height;
+        previewTopTo = top;
+
+        previewSizeAnimated = true;
+        previewSizeAnimator = ValueAnimator.ofFloat(0, 1f);
+        previewSizeAnimator.addUpdateListener(animation -> {
+            float progress = (float) animation.getAnimatedValue();
+            previewWidthCurrent = AndroidUtilities.lerp(previewWidthFrom, previewWidthTo, progress);
+            previewHeightCurrent = AndroidUtilities.lerp(previewHeightFrom, previewHeightTo, progress);
+            previewTopCurrent = AndroidUtilities.lerp(previewTopFrom, previewTopTo, progress);
+            collageLayoutView.invalidate();
+            containerView.invalidate();
+        });
+        previewSizeAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                previewSizeAnimator = null;
+                previewSizeAnimated = false;
+                collageLayoutView.invalidate();
+                containerView.invalidate();
+                // cameraView.resetCamera();
+            }
+        });
+        previewSizeAnimator.setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT);
+        previewSizeAnimator.setDuration(360);
+        previewSizeAnimator.start();
+    }
+
+    private void cancelPreviewSizeAnimation() {
+        previewSizeAnimated = false;
+        if (previewSizeAnimator != null) {
+            previewSizeAnimator.cancel();
+            previewSizeAnimator = null;
+        }
     }
 }

@@ -42,7 +42,6 @@ import android.provider.Settings;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
-import android.util.Log;
 import android.util.Pair;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -104,13 +103,15 @@ import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.PhotoViewer;
 import org.telegram.ui.Stars.StarsIntroActivity;
 import org.telegram.ui.Stories.recorder.AlbumButton;
+import org.telegram.ui.Stories.recorder.StoryRecorder;
+import org.telegram.ui.Stories.recorder.StoryRecorderOptions;
+import org.telegram.ui.Stories.recorder.StoryRecorderSourceCameraCell;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -1289,7 +1290,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
                     MediaController.PhotoEntry photoEntry = new MediaController.PhotoEntry(0, lastImageId--, 0, cameraFile.getAbsolutePath(), orientation == -1 ? 0 : orientation, false, width, height, 0);
                     photoEntry.canDeleteAfter = true;
                     openPhotoViewer(photoEntry, sameTakePictureOrientation, false);
-                });
+                }, false);
                 cameraView.startTakePictureAnimation(true);
             }
 
@@ -2291,9 +2292,41 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
 
     boolean cameraExpanded;
     private void openCamera(boolean animated) {
-        if (cameraView == null || cameraInitAnimation != null || parentAlert.isDismissed()) {
+        if (cameraView == null || cameraInitAnimation != null || parentAlert.isDismissed() || parentAlert.baseFragment == null) {
             return;
         }
+
+        final long dialogId;
+        if (parentAlert.baseFragment instanceof ChatActivity) {
+            dialogId = ((ChatActivity) parentAlert.baseFragment).getDialogId();
+        } else {
+            dialogId = parentAlert.dialogId;
+        }
+
+        if (parentAlert.delegate.allowStoryRecorderCamera()) {
+            final StoryRecorder recorder = StoryRecorder.getInstance(
+                parentAlert.baseFragment.getParentActivity(),
+                parentAlert.baseFragment.getCurrentAccount()
+            );
+
+            recorder.open(new StoryRecorderOptions.Builder()
+                .setTitlePreview(parentAlert.baseFragment.getParentActivity().getTitle())
+                .setButtonDoneText(getString(R.string.Send), false)
+                .setBackButtonIcon(R.drawable.ic_layer_close)
+                .setSourceView(StoryRecorderSourceCameraCell.fromCameraCell(cameraCell, cameraView))
+                .isChatAttachMode(true)
+                .disallowRecordHevc()
+                .setDialogId(dialogId)
+                .callback(story -> {
+                    recorder.replaceSourceView(null);
+                    parentAlert.dismiss();
+                    parentAlert.delegate.onStoryRecorderCameraDone(story);
+                })
+                .build(),
+            true);
+            return;
+        }
+
         cameraView.initTexture();
         if (shouldLoadAllMedia()) {
             tooltipTextView.setVisibility(VISIBLE);

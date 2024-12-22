@@ -77,6 +77,7 @@ import org.telegram.ui.Components.AnimatedFloat;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.InstantCameraView;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Stories.recorder.StoryEntry;
 
 import java.io.File;
 import java.io.IOException;
@@ -410,6 +411,10 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
         innerPaint.setColor(0x7fffffff);
     }
 
+    public boolean allowFixMeasureRatio() {
+        return false;
+    }
+
     private boolean textureInited = false;
     public void initTexture() {
         if (textureInited) {
@@ -480,8 +485,8 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = MeasureSpec.getSize(widthMeasureSpec),
             height = MeasureSpec.getSize(heightMeasureSpec);
+        int frameWidth = 0, frameHeight = 0;
         if (previewSize[0] != null && cameraSession[0] != null) {
-            int frameWidth, frameHeight;
             if ((lastWidth != width || lastHeight != height) && measurementsCount > 1) {
                 cameraSession[0].updateRotation();
             }
@@ -497,17 +502,28 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
             blurredStubView.getLayoutParams().width = textureView.getLayoutParams().width = (int) (s * frameWidth);
             blurredStubView.getLayoutParams().height = textureView.getLayoutParams().height = (int) (s * frameHeight);
         }
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+
+        if (frameWidth > 0 && frameHeight > 0 && allowFixMeasureRatio()) {
+            final float scale = StoryEntry.calculateScale(width, height, frameWidth, frameHeight);
+            final int w = Math.round(frameWidth * scale);
+            final int h = Math.round(frameHeight * scale);
+            super.onMeasure(
+                MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY)
+            );
+        } else {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
+
         checkPreviewMatrix();
         lastWidth = width;
         lastHeight = height;
 
         pixelW = getMeasuredWidth();
         pixelH = getMeasuredHeight();
-        if (pixelDualW <= 0) {
-            pixelDualW = getMeasuredWidth();
-            pixelDualH = getMeasuredHeight();
-        }
+        pixelS = Math.min(1f, width / pixelW);
+        pixelDualW = getMeasuredWidth();
+        pixelDualH = getMeasuredHeight();
     }
 
     public float getTextureHeight(float width, float height) {
@@ -1157,7 +1173,7 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
     private final int[][] cameraTexture = new int[2][1];
     private VideoRecorder videoEncoder;
 
-    private volatile float pixelW, pixelH;
+    private volatile float pixelW, pixelH, pixelS;
     private volatile float pixelDualW, pixelDualH;
     private volatile float lastShapeTo;
     private volatile float shapeValue;
@@ -1728,21 +1744,21 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
                     GLES20.glUniform1f(alphaHandle, 1);
                     if (a < 0) {
                         GLES20.glUniform1f(roundRadiusHandle, 0);
-                        GLES20.glUniform1f(scaleHandle, 1);
+                        GLES20.glUniform1f(scaleHandle, pixelS);
                         GLES20.glUniform1f(shapeFromHandle, 2);
                         GLES20.glUniform1f(shapeToHandle, 2);
                         GLES20.glUniform1f(shapeHandle, 0);
                         GLES20.glUniform1f(crossfadeHandle, 1);
                     } else if (!crossfading) {
                         GLES20.glUniform1f(roundRadiusHandle, dp(16));
-                        GLES20.glUniform1f(scaleHandle, dualScale);
+                        GLES20.glUniform1f(scaleHandle, dualScale * pixelS);
                         GLES20.glUniform1f(shapeFromHandle, (float) Math.floor(shapeValue));
                         GLES20.glUniform1f(shapeToHandle, (float) Math.ceil(shapeValue));
                         GLES20.glUniform1f(shapeHandle, shapeValue - (float) Math.floor(shapeValue));
                         GLES20.glUniform1f(crossfadeHandle, 0);
                     } else {
                         GLES20.glUniform1f(roundRadiusHandle, dp(16));
-                        GLES20.glUniform1f(scaleHandle, 1f - crossfade);
+                        GLES20.glUniform1f(scaleHandle, (1f - crossfade) * pixelS);
                         GLES20.glUniform1f(shapeFromHandle, (float) Math.floor(shapeValue));
                         GLES20.glUniform1f(shapeToHandle, (float) Math.ceil(shapeValue));
                         GLES20.glUniform1f(shapeHandle, shapeValue - (float) Math.floor(shapeValue));
@@ -2749,21 +2765,21 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
                     GLES20.glUniform1f(alphaHandle, 1);
                     if (a < 0) {
                         GLES20.glUniform1f(roundRadiusHandle, 0);
-                        GLES20.glUniform1f(scaleHandle, 1);
+                        GLES20.glUniform1f(scaleHandle, pixelS);
                         GLES20.glUniform1f(shapeFromHandle, 2);
                         GLES20.glUniform1f(shapeToHandle, 2);
                         GLES20.glUniform1f(shapeHandle, 0);
                         GLES20.glUniform1f(crossfadeHandle, 1);
                     } else if (!crossfading) {
                         GLES20.glUniform1f(roundRadiusHandle, dp(16));
-                        GLES20.glUniform1f(scaleHandle, 1f);
+                        GLES20.glUniform1f(scaleHandle, pixelS);
                         GLES20.glUniform1f(shapeFromHandle, (float) Math.floor(shapeValue));
                         GLES20.glUniform1f(shapeToHandle, (float) Math.ceil(shapeValue));
                         GLES20.glUniform1f(shapeHandle, shapeValue - (float) Math.floor(shapeValue));
                         GLES20.glUniform1f(crossfadeHandle, 0);
                     } else {
                         GLES20.glUniform1f(roundRadiusHandle, dp(16));
-                        GLES20.glUniform1f(scaleHandle, 1f - crossfade);
+                        GLES20.glUniform1f(scaleHandle, (1f - crossfade) * pixelS);
                         GLES20.glUniform1f(shapeFromHandle, (float) Math.floor(shapeValue));
                         GLES20.glUniform1f(shapeToHandle, (float) Math.ceil(shapeValue));
                         GLES20.glUniform1f(shapeHandle, shapeValue - (float) Math.floor(shapeValue));
