@@ -27,7 +27,7 @@ public class VideoTimerView extends View implements FlashViews.Invertable {
 
         recordPaint.setColor(0xFFF22828);
 
-        backgroundPaint.setColor(0x3f000000);
+        backgroundPaint.setColor(0x4C000000);
 
         textDrawable = new AnimatedTextView.AnimatedTextDrawable(false, true, true);
         textDrawable.setAnimationProperties(.3f, 0, 250, CubicBezierInterpolator.EASE_OUT_QUINT);

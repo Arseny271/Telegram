@@ -551,7 +551,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         this.options = options;
         this.isChatAttachMode = options.isChatAttachMode;
 
-        modeSwitcherView.setSelectorColor(isChatAttachMode ? 0x40000000 : 0x32ffffff);
+        modeSwitcherView.setSelectorColor(isChatAttachMode);
         previewHighlight.setVisibility(isChatAttachMode ? View.GONE : View.VISIBLE);
         backButton.setImageResource(options.backButtonIconRes);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -1483,6 +1483,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             final int H = MeasureSpec.getSize(heightMeasureSpec);
 
             layout.measure(W, H, insetLeft, insetTop, insetRight, insetBottom, options, currentRatio);
+            modeSwitcherView.setSelectorColor(isChatAttachMode && currentRatio == Ratio.RATIO_FULL);
 
             final int w = W - insetLeft - insetRight;
 

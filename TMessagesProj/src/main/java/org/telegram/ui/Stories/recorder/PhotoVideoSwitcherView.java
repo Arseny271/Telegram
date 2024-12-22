@@ -73,8 +73,13 @@ public class PhotoVideoSwitcherView extends View implements FlashViews.Invertabl
         mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
     }
 
+    public void setSelectorColor(boolean dark) {
+        setSelectorColor(dark ? 0x40000000 : 0x32ffffff);
+    }
+
     public void setSelectorColor(int color) {
         selectorPaint.setColor(backgroundColor = color);
+        invalidate();
     }
 
     private float mode;
@@ -108,10 +113,12 @@ public class PhotoVideoSwitcherView extends View implements FlashViews.Invertabl
 
     private RectF photoRect = new RectF(), videoRect = new RectF(), selectorRect = new RectF();
 
+    private final static int PADDING = 15;
+
     private float getScrollCx() {
         return getWidth() / 2f + AndroidUtilities.lerp(
-            (dp(4 + 12) + photoTextWidth / 2),
-            -(dp(4 + 12) + videoTextWidth / 2),
+            (dp(4 + PADDING) + photoTextWidth / 2),
+            -(dp(4 + PADDING) + videoTextWidth / 2),
             mode
         );
     }
@@ -168,19 +175,19 @@ public class PhotoVideoSwitcherView extends View implements FlashViews.Invertabl
         float x = getScrollCx();
 
         final int oy = -dp(1);
-        final int h = dp(26);
-        photoRect.set(x - dp(4 + 12 + 12) - photoTextWidth, cy - h / 2f + oy, x - dp(4), cy + h / 2f + oy);
-        videoRect.set(x + dp(4), cy - h / 2f + oy, x + dp(4 + 12 + 12) + videoTextWidth, cy + h / 2f + oy);
+        final int h = dp(30);
+        photoRect.set(x - dp(4 + PADDING + PADDING) - photoTextWidth, cy - h / 2f + oy, x - dp(4), cy + h / 2f + oy);
+        videoRect.set(x + dp(4), cy - h / 2f + oy, x + dp(4 + PADDING + PADDING) + videoTextWidth, cy + h / 2f + oy);
         AndroidUtilities.lerp(photoRect, videoRect, Utilities.clamp(mode, 1.025f, -.025f), selectorRect);
         canvas.drawRoundRect(selectorRect, h / 2f, h / 2f, selectorPaint);
 
         canvas.save();
-        canvas.translate(x - dp(4 + 12) - photoTextWidth - photoTextLeft, cy - photoTextHeight / 2f + oy);
+        canvas.translate(x - dp(4 + PADDING) - photoTextWidth - photoTextLeft, cy - photoTextHeight / 2f + oy);
         photoText.draw(canvas);
         canvas.restore();
 
         canvas.save();
-        canvas.translate(x + dp(4 + 12) - videoTextLeft, cy - videoTextHeight / 2f + oy);
+        canvas.translate(x + dp(4 + PADDING) - videoTextLeft, cy - videoTextHeight / 2f + oy);
         videoText.draw(canvas);
         canvas.restore();
     }
