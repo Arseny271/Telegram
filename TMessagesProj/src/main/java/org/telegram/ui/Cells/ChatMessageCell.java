@@ -561,6 +561,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         default void didPressSideButton(ChatMessageCell cell) {
         }
 
+        default void didQuickShareStart(ChatMessageCell cell, float x, float y) {
+        }
+
+        default void didQuickShareMove(ChatMessageCell cell, float x, float y) {
+        }
+
+        default void didQuickShareEnd(ChatMessageCell cell, float x, float y) {
+        }
+
         default void didPressOther(ChatMessageCell cell, float otherX, float otherY) {
         }
 
@@ -1377,11 +1386,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     private boolean drawTopic;
     private MessageTopicButton topicButton;
 
+    private boolean hideSideButtonByQuickShare;
     private int drawSideButton;
     private boolean sideButtonVisible;
     private int drawSideButton2;
     private boolean sideButtonPressed;
     private int pressedSideButton;
+    private boolean inQuickShareMode;
     private Path sideButtonPath1, sideButtonPath2;
     private float[] sideButtonPathCorners1, sideButtonPathCorners2;
     private static final int SIDE_BUTTON_SPONSORED_CLOSE = 4;
@@ -1802,6 +1813,28 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             end = buffer.getSpanEnd(link);
         }
         return new int[]{start, end};
+    }
+
+    private boolean checkQuickShareMotionEvent(MotionEvent event) {
+        if (!inQuickShareMode) {
+            return false;
+        }
+
+        final int action = event.getAction();
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            inQuickShareMode = false;
+            if (delegate != null) {
+                delegate.didQuickShareEnd(this, event.getX(), event.getY());
+            }
+
+            return true;
+        } else if (action == MotionEvent.ACTION_MOVE) {
+            if (delegate != null) {
+                delegate.didQuickShareMove(this, event.getX(), event.getY());
+            }
+        }
+
+        return true;
     }
 
     private boolean checkAdminMotionEvent(MotionEvent event) {
@@ -4048,6 +4081,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 disallowLongPress = true;
             }
         }
+
+        if (!result) {
+            result = checkQuickShareMotionEvent(event);
+        }
         if(!result) {
             result = checkAdminMotionEvent(event);
         }
@@ -4194,8 +4231,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
 
         if (!result) {
-            float x = event.getX();
-            float y = event.getY();
+            final float x = event.getX();
+            final float y = event.getY();
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 if (delegate == null || delegate.canPerformActions()) {
                     if (isAvatarVisible && avatarImage.isInsideImage(x, y + getTop())) {
@@ -10110,8 +10147,6 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
 
         linkPreviewPressed = false;
-        sideButtonPressed = false;
-        pressedSideButton = 0;
         imagePressed = false;
         timePressed = false;
         gamePreviewPressed = false;
@@ -10163,12 +10198,29 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     }
                     handled = delegate.didLongPressChannelAvatar(this, currentChat, id, lastTouchX, lastTouchY);
                 }
+            } else if (sideButtonPressed) {
+                if (pressedSideButton != SIDE_BUTTON_SPONSORED_CLOSE
+                        && pressedSideButton != SIDE_BUTTON_SPONSORED_MORE
+                        && pressedSideButton != 3 && pressedSideButton != 2
+                ) {
+                    delegate.didQuickShareStart(this, lastTouchX, lastTouchY);
+                    sideButtonPressed = false;
+                    pressedSideButton = 0;
+                    inQuickShareMode = true;
+                    handled = true;
+
+                    return false;
+                }
             }
 
             if (!handled) {
                 delegate.didLongPress(this, lastTouchX, lastTouchY);
             }
         }
+
+        sideButtonPressed = false;
+        pressedSideButton = 0;
+
         return true;
     }
 
@@ -18016,7 +18068,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         applyServiceShaderMatrix(getMeasuredWidth(), backgroundHeight, getX(), viewTop);
     }
 
-    private void applyServiceShaderMatrix(int measuredWidth, int backgroundHeight, float x, float viewTop) {
+    public void applyServiceShaderMatrix(int measuredWidth, int backgroundHeight, float x, float viewTop) {
         if (resourcesProvider != null) {
             resourcesProvider.applyServiceShaderMatrix(measuredWidth, backgroundHeight, x, viewTop);
         } else {
@@ -18368,7 +18420,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
     }
 
-    private void drawSideButton(Canvas canvas) {
+    public void setHideSideButtonByQuickShare (boolean hide) {
+        if (hideSideButtonByQuickShare != hide) {
+            hideSideButtonByQuickShare = hide;
+            boolean b = invalidatesParent;
+            invalidatesParent = true;
+            invalidate();
+            invalidatesParent = b;
+        }
+    }
+
+    public void drawSideButton(Canvas canvas) {
+        drawSideButton(canvas, false);
+    }
+
+    public void drawSideButton(Canvas canvas, boolean fromQuickShare) {
+        if (hideSideButtonByQuickShare && !fromQuickShare) {
+            return;
+        }
         if (drawSideButton != 0) {
             if (currentPosition != null && currentMessagesGroup != null && currentMessagesGroup.isDocuments && !currentPosition.last) {
                 return;
@@ -18515,6 +18584,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 }
             }
         }
+    }
+
+    public float getSideButtonStartX() {
+        return sideStartX;
+    }
+
+    public float getSideButtonStartY() {
+        return sideStartY;
     }
 
     public void setTimeAlpha(float value) {

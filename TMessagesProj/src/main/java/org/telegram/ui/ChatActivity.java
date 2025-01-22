@@ -238,6 +238,7 @@ import org.telegram.ui.Components.Premium.boosts.PremiumPreviewGiftLinkBottomShe
 import org.telegram.ui.Components.Reactions.ChatSelectionReactionMenuOverlay;
 import org.telegram.ui.Components.Reactions.ReactionsEffectOverlay;
 import org.telegram.ui.Components.Reactions.ReactionsLayoutInBubble;
+import org.telegram.ui.Components.quickforward.QuickShareSelectorOverlayLayout;
 import org.telegram.ui.Components.spoilers.SpoilerEffect;
 import org.telegram.ui.Components.voip.CellFlickerDrawable;
 import org.telegram.ui.Components.voip.VoIPHelper;
@@ -1013,6 +1014,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
     };
 
+    private QuickShareSelectorOverlayLayout quickShareSelectorOverlay;
     private ChatSelectionReactionMenuOverlay selectionReactionsOverlay;
     private SecretVoicePlayer secretVoicePlayer;
 
@@ -4251,6 +4253,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             public boolean onInterceptTouchEvent(MotionEvent e) {
                 textSelectionHelper.checkSelectionCancel(e);
                 if (isFastScrollAnimationRunning()) {
+                    return false;
+                }
+                if (quickShareSelectorOverlay != null && quickShareSelectorOverlay.isActive()) {
                     return false;
                 }
                 boolean result = super.onInterceptTouchEvent(e);
@@ -16261,7 +16266,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         @Override
         protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
-            if ((scrimView != null || messageEnterTransitionContainer.isRunning()) && (child == pagedownButton || child == searchUpButton || child == searchDownButton || child == mentiondownButton || child == floatingDateView || child == fireworksOverlay || child == reactionsMentiondownButton || child == gifHintTextView || child == emojiHintTextView || child == undoView || child == topUndoView)) {
+            if ((scrimView != null || messageEnterTransitionContainer.isRunning()) && (child == pagedownButton || child == searchUpButton || child == searchDownButton || child == mentiondownButton || child == floatingDateView || child == fireworksOverlay || child == reactionsMentiondownButton || child == quickShareSelectorOverlay || child == gifHintTextView || child == emojiHintTextView || child == undoView || child == topUndoView)) {
                 return false;
             }
             if (child == fragmentContextView && fragmentContextView.isCallStyle()) {
@@ -16799,6 +16804,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 if (fireworksOverlay != null) {
                     super.drawChild(canvas, fireworksOverlay, SystemClock.uptimeMillis());
                 }
+                if (quickShareSelectorOverlay != null) {
+                    super.drawChild(canvas, quickShareSelectorOverlay, SystemClock.uptimeMillis());
+                }
                 if (gifHintTextView != null) {
                     super.drawChild(canvas, gifHintTextView, SystemClock.uptimeMillis());
                 }
@@ -17232,7 +17240,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                         childTop = lp.topMargin;
                 }
 
-                if (child == blurredView || child == backgroundView) {
+                if (child == blurredView || child == backgroundView || child == quickShareSelectorOverlay) {
                     childTop = 0;
                 } else if (child instanceof HintView || child instanceof ChecksHintView) {
                     childTop = 0;
@@ -34041,7 +34049,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         if (chatMode == MODE_QUICK_REPLIES && (messages.isEmpty() || threadMessageId == 0)) {
             return false;
         }
-        return swipeBackEnabled && chatActivityEnterView.swipeToBackEnabled() && pullingDownOffset == 0;
+        return swipeBackEnabled && chatActivityEnterView.swipeToBackEnabled() && pullingDownOffset == 0
+            && (quickShareSelectorOverlay == null || !quickShareSelectorOverlay.isActive());
     }
 
     @Override
@@ -34049,7 +34058,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         if (chatMode == MODE_QUICK_REPLIES && (messages.isEmpty() || threadMessageId == 0)) {
             return false;
         }
-        return swipeBackEnabled && (forwardingPreviewView == null || !forwardingPreviewView.isShowing());
+        return swipeBackEnabled && (forwardingPreviewView == null || !forwardingPreviewView.isShowing())
+            && (quickShareSelectorOverlay == null || !quickShareSelectorOverlay.isActive());
     }
 
     public class ChatActivityAdapter extends RecyclerAnimationScrollHelper.AnimatableAdapter {
@@ -36023,6 +36033,81 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (anchorScroll && position >= 0 && cell.getCurrentMessagesGroup() == null) {
                 chatLayoutManager.scrollToPositionWithOffset(position, top);
             }
+        }
+
+        @Override
+        public void didQuickShareStart(ChatMessageCell cell, float x, float y) {
+            if (getParentActivity() == null) {
+                return;
+            }
+
+            if (quickShareSelectorOverlay == null) {
+                quickShareSelectorOverlay = new QuickShareSelectorOverlayLayout(getContext());
+                contentView.addView(quickShareSelectorOverlay, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP));
+            }
+
+            quickShareSelectorOverlay.open(cell);
+        }
+
+        @Override
+        public void didQuickShareMove(ChatMessageCell cell, float x, float y) {
+            if (quickShareSelectorOverlay != null) {
+                quickShareSelectorOverlay.onTouchMoveEvent(cell, x, y);
+            }
+        }
+
+        @Override
+        public void didQuickShareEnd(ChatMessageCell cell, float x, float y) {
+            if (quickShareSelectorOverlay == null) {
+                return;
+            }
+
+            quickShareSelectorOverlay.close(cell, sendMessageFromQuickShare(cell));
+        }
+
+        private Bulletin sendMessageFromQuickShare (ChatMessageCell cell) {
+            if (quickShareSelectorOverlay == null) {
+                return null;
+            }
+
+            final MessageObject messageObject = quickShareSelectorOverlay.getSelectedMessageObject(cell);
+            final long did = quickShareSelectorOverlay.getSelectedDialogId(cell);
+
+            if (messageObject == null || did == 0) {
+                return null;
+            }
+
+            if (AlertsCreator.checkSlowMode(getContext(), currentAccount, did, false)) {
+                return null;
+            }
+
+
+            ArrayList<MessageObject> arrayList = null;
+            if (messageObject.getGroupId() != 0) {
+                MessageObject.GroupedMessages groupedMessages = groupedMessagesMap.get(messageObject.getGroupId());
+                if (groupedMessages != null) {
+                    arrayList = groupedMessages.messages;
+                }
+            }
+            if (arrayList == null) {
+                arrayList = new ArrayList<>();
+                arrayList.add(messageObject);
+            }
+
+            int result = SendMessagesHelper.getInstance(currentAccount).sendMessage(arrayList, did, false, false, true, 0, null);
+            AlertsCreator.showSendMediaAlert(result, ChatActivity.this, null);
+            if (result != 0) {
+                return null;
+            }
+
+            final Bulletin bulletin = BulletinFactory.createForwardedBulletin(getContext(),
+                    ChatActivity.this, null, 1, did, 1,
+                    getThemedColor(Theme.key_undo_background),
+                    getThemedColor(Theme.key_undo_infoColor),
+                    Bulletin.DURATION_LONG
+            );
+
+            return bulletin.allowBlur().show(bulletin.getLayout() instanceof Bulletin.LottieLayoutWithReactions);
         }
 
         @Override
