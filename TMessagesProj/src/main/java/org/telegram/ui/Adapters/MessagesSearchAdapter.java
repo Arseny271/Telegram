@@ -247,9 +247,7 @@ public class MessagesSearchAdapter extends RecyclerListView.SelectionAdapter imp
                     date = messageObject.messageOwner.date;
                 }
             } else {
-                if (messageObject.isOutOwner()) {
-                    did = messageObject.getFromChatId();
-                }
+                did = messageObject.getFromChatId();
                 useMe = true;
             }
             cell.setDialog(did, messageObject, date, useMe, false);
