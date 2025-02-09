@@ -32961,6 +32961,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
         searchUserMessages(user, null);
         updatePinnedMessageView(true);
+        showMessagesSearchListView(true);
     }
     private void openSearchWithChat(TLRPC.Chat chat) {
         boolean delay = false;
@@ -33014,6 +33015,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
         searchUserMessages(null, chat);
         updatePinnedMessageView(true);
+        showMessagesSearchListView(true);
     }
 
     private void updateSearchListEmptyView() {
