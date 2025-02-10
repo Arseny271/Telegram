@@ -342,6 +342,15 @@ public class SizeNotifierFrameLayout extends FrameLayout {
         }
     }
 
+    public void drawBackgroundForce(Canvas canvas) {
+        final boolean b = skipBackgroundDrawing;
+        skipBackgroundDrawing = false;
+        if (backgroundView != null) {
+            backgroundView.draw(canvas);
+        }
+        skipBackgroundDrawing = b;
+    }
+
     public void setBackgroundImage(Drawable bitmap, boolean motion) {
         if (backgroundDrawable == bitmap) {
             return;

@@ -16399,6 +16399,12 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (child == actionBar && parentLayout != null) {
                 parentLayout.drawHeaderShadow(canvas, actionBar.getVisibility() == VISIBLE ? (int) actionBar.getTranslationY() + actionBar.getMeasuredHeight() + (actionBarSearchTags != null ? actionBarSearchTags.getCurrentHeight() : 0) + (hashtagSearchTabs != null ? hashtagSearchTabs.getCurrentHeight() : 0) + (inPreviewMode && Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0) : 0);
             }
+            if (child == backgroundView && pullingDownAnimateToActivity != null) {
+                SizeNotifierFrameLayout v = ((SizeNotifierFrameLayout) pullingDownAnimateToActivity.fragmentView);
+                canvas.saveLayerAlpha(0, 0, getMeasuredWidth(), getMeasuredHeight(), (int) (255 * pullingDownAnimateProgress), Canvas.ALL_SAVE_FLAG);
+                v.drawBackgroundForce(canvas);
+                canvas.restore();
+            }
             return result;
         }
 
@@ -39340,6 +39346,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private void setTransitionToChatProgress(float p) {
         pullingDownAnimateProgress = p;
         fragmentView.invalidate();
+        ((SizeNotifierFrameLayout) fragmentView).invalidateBackground();
         chatListView.invalidate();
     }
 
