@@ -669,6 +669,21 @@ public class StoriesController {
         return allStoriesMap.get(peerId);
     }
 
+    public TL_stories.StoryItem getMyStory(int storyId) {
+        final long dialogId = UserConfig.getInstance(currentAccount).getClientUserId();
+        TL_stories.PeerStories peerStories = getStories(dialogId);
+        if (peerStories != null) {
+            for (int i = 0; i < peerStories.stories.size(); ++i) {
+                if (peerStories.stories.get(i).id == storyId) {
+                    return peerStories.stories.get(i);
+                }
+            }
+        }
+        return null;
+    }
+
+
+
     public ArrayList<UploadingStory> getUploadingStories(long dialogId) {
         return uploadingStoriesByDialogId.get(dialogId);
     }

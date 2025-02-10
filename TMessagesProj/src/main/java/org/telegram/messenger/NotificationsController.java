@@ -68,12 +68,14 @@ import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_account;
+import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.BubbleActivity;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.spoilers.SpoilerEffect;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.PopupNotificationActivity;
+import org.telegram.ui.Stories.StoriesController;
 import org.telegram.ui.Stories.recorder.StoryEntry;
 
 import java.io.File;
@@ -5118,8 +5120,43 @@ public class NotificationsController extends BaseController {
 
                     if (!DialogObject.isEncryptedDialog(dialogId)) {
                         boolean setPhoto = false;
-                        if (preview[0] && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && !((ActivityManager) ApplicationLoader.applicationContext.getSystemService(Context.ACTIVITY_SERVICE)).isLowRamDevice()) {
-                            if (!waitingForPasscode && !messageObject.isSecretMedia() && (messageObject.type == MessageObject.TYPE_PHOTO || messageObject.isSticker())) {
+                        if (preview[0] && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P /*&& !((ActivityManager) ApplicationLoader.applicationContext.getSystemService(Context.ACTIVITY_SERVICE)).isLowRamDevice()*/) {
+                            if (!waitingForPasscode && messageObject.isStoryReactionPush) {
+                                final int storyId = -messageObject.getId();
+                                final StoriesController storiesController = MessagesController.getInstance(currentAccount).getStoriesController();
+                                final TL_stories.StoryItem storyItem = storiesController.getMyStory(storyId);
+                                final File storyPreview = getStoryPreviewFile(storyItem);
+
+                                Uri uri = null;
+                                if (storyPreview != null && storyPreview.exists()) {
+                                    try {
+                                        uri = FileProvider.getUriForFile(ApplicationLoader.applicationContext, ApplicationLoader.getApplicationId() + ".provider", storyPreview);
+                                    } catch (Exception e) {
+                                        FileLog.e(e);
+                                        uri = null;
+                                    }
+                                }
+
+                                NotificationCompat.MessagingStyle.Message msg = new NotificationCompat.MessagingStyle.Message(message, ((long) messageObject.messageOwner.date) * 1000L, person);
+                                if (uri != null) {
+                                    msg.setData("image/jpeg", uri);
+                                    messagingStyle.addMessage(msg);
+                                    Uri uriFinal = uri;
+                                    ApplicationLoader.applicationContext.grantUriPermission("com.android.systemui", uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                    AndroidUtilities.runOnUIThread(() -> {
+                                        try {
+                                            ApplicationLoader.applicationContext.revokeUriPermission(uriFinal, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                        } catch (Exception e) {
+                                            FileLog.e(e);
+                                        }
+                                    }, 20_000);
+
+                                    if (!TextUtils.isEmpty(message)) {
+                                        messagingStyle.addMessage(message, ((long) messageObject.messageOwner.date) * 1000, person);
+                                    }
+                                    setPhoto = true;
+                                }
+                            } else if (!waitingForPasscode && !messageObject.isSecretMedia() && (messageObject.type == MessageObject.TYPE_PHOTO || messageObject.isSticker())) {
                                 File attach = getFileLoader().getPathToMessage(messageObject.messageOwner);
                                 File blurredAttach;
                                 if (attach.exists() && messageObject.hasMediaSpoilers()) {
@@ -6122,5 +6159,32 @@ public class NotificationsController extends BaseController {
         if (minChangeTime != Long.MAX_VALUE) {
             notificationsQueue.postRunnable(checkStoryPushesRunnable, Math.max(0, delay));
         }
+    }
+
+    private File getStoryPreviewFile(TL_stories.StoryItem storyItem) {
+        if (storyItem == null) {
+            return null;
+        }
+
+        final String localPath = storyItem.attachPath;
+        if (localPath != null) {
+            return new File(localPath);
+        } else if (storyItem.media != null && storyItem.media.getDocument() != null) {
+            TLRPC.PhotoSize size1 = FileLoader.getClosestPhotoSizeWithSize(storyItem.media.getDocument().thumbs, Integer.MAX_VALUE);
+            File file = FileLoader.getInstance(currentAccount).getPathToAttach(size1, true);
+            if (!file.exists()) {
+                file = FileLoader.getInstance(currentAccount).getPathToAttach(size1, false);
+            }
+            return file;
+        } else if (storyItem.media != null && storyItem.media.photo != null) {
+            TLRPC.PhotoSize size1 = FileLoader.getClosestPhotoSizeWithSize(storyItem.media.photo.sizes, Integer.MAX_VALUE);
+            File file = FileLoader.getInstance(currentAccount).getPathToAttach(size1, true);
+            if (!file.exists()) {
+                file = FileLoader.getInstance(currentAccount).getPathToAttach(size1, false);
+            }
+            return file;
+        }
+
+        return null;
     }
 }
