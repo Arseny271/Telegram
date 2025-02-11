@@ -4476,6 +4476,10 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 chatActionBackgroundDarkenPaint.setColor(wasDarkenColor);
             }
 
+            private boolean allowSlideReplyFromChannel() {
+                return currentChat != null && ChatObject.isChannel(currentChat) && !ChatObject.canPost(currentChat) && !currentChat.megagroup;
+            }
+
             private void processTouchEvent(MotionEvent e) {
                 if (e != null) {
                     wasManualScroll = true;
@@ -4488,16 +4492,16 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                         }
                         slidingView = (ChatMessageCell) view;
                         MessageObject message = slidingView.getMessageObject();
+                        final boolean allowReplyFromChannel = allowSlideReplyFromChannel();
                         boolean allowReplyOnOpenTopic = canSendMessageToTopic(message);
                         if (
                                 chatMode != 0 && chatMode != MODE_QUICK_REPLIES && (chatMode != MODE_SAVED || threadMessageId != getUserConfig().getClientUserId()) ||
                                 threadMessageObjects != null && threadMessageObjects.contains(message) ||
                                 getMessageType(message) == 1 && (message.getDialogId() == mergeDialogId || message.needDrawBluredPreview()) ||
                                 currentEncryptedChat == null && message.getId() < 0 ||
-                                bottomOverlayChat != null && bottomOverlayChat.getVisibility() == View.VISIBLE && !(bottomOverlayChatWaitsReply && allowReplyOnOpenTopic || message.wasJustSent) ||
+                                bottomOverlayChat != null && bottomOverlayChat.getVisibility() == View.VISIBLE && !(bottomOverlayChatWaitsReply && allowReplyOnOpenTopic || allowReplyFromChannel || message.wasJustSent) ||
                                 currentChat != null && (ChatObject.isNotInChat(currentChat) && !isThreadChat() ||
-                                ChatObject.isChannel(currentChat) && !ChatObject.canPost(currentChat) && !currentChat.megagroup ||
-                                !ChatObject.canSendMessages(currentChat) ||
+                                !ChatObject.canSendMessages(currentChat) && !allowReplyFromChannel ||
                                 (ChatObject.isForum(currentChat) && !allowReplyOnOpenTopic)) ||
                                 textSelectionHelper.isInSelectionMode()
                         ) {
@@ -4546,7 +4550,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     }
                 } else if (slidingView != null && (e == null || e.getPointerId(0) == startedTrackingPointerId && (e.getAction() == MotionEvent.ACTION_CANCEL || e.getAction() == MotionEvent.ACTION_UP || e.getAction() == MotionEvent.ACTION_POINTER_UP))) {
                     if (e != null && e.getAction() != MotionEvent.ACTION_CANCEL && Math.abs(slidingView.getNonAnimationTranslationX(false)) >= AndroidUtilities.dp(50)) {
-                        showFieldPanelForReply(slidingView.getMessageObject());
+                        if (allowSlideReplyFromChannel()) {
+                            final ChatMessageCell.ChatMessageCellDelegate d = slidingView.getDelegate();
+                            if (d != null) {
+                                d.didPressSideButton(slidingView);
+                            }
+                        } else {
+                            showFieldPanelForReply(slidingView.getMessageObject());
+                        }
                     }
                     endTrackingX = slidingView.getSlidingOffsetX();
                     if (endTrackingX == 0) {
