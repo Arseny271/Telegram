@@ -4509,7 +4509,8 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
 
         listPosition = 0;
         if (storyViewer.storiesList != null && currentStory.storyItem != null) {
-            int id = currentStory.storyItem.id;
+            int id = (storyViewer.storiesList instanceof StoriesController.ForwardStoriesList) ?
+                currentStory.storyItem.messageId : currentStory.storyItem.id;
             for (int i = 0; i < storyViewer.storiesList.messageObjects.size(); ++i) {
                 MessageObject obj = storyViewer.storiesList.messageObjects.get(i);
                 if (obj != null && obj.getId() == id) {

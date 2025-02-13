@@ -99,7 +99,7 @@ public class StoriesViewPager extends ViewPager {
                 pageLayout.setTag(position);
                 if (days != null) {
                     pageLayout.day = days.get(storyViewer.reversed ? days.size() - 1 - position : position);
-                    if (storyViewer.storiesList instanceof StoriesController.SearchStoriesList) {
+                    if (storyViewer.storiesList instanceof StoriesController.SearchStoriesList || storyViewer.storiesList instanceof StoriesController.ForwardStoriesList) {
                         MessageObject msg = storyViewer.storiesList.findMessageObject(pageLayout.day.get(0));
                         pageLayout.dialogId = msg == null ? daysDialogId : msg.getDialogId();
                     } else {

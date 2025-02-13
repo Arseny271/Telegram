@@ -89,7 +89,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Objects;
 
-public class SelfStoryViewsPage extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
+public class SelfStoryViewsPage extends FrameLayout implements NotificationCenter.NotificationCenterDelegate, ViewsModelListener {
 
     private final View shadowView;
     private final View shadowView2;
@@ -247,7 +247,8 @@ public class SelfStoryViewsPage extends FrameLayout implements NotificationCente
             } else if (item.reaction instanceof TL_stories.TL_storyReaction) {
                 storyViewer.presentFragment(ProfileActivity.of(DialogObject.getPeerDialogId(item.reaction.peer_id)));
             } else if (item.reaction instanceof TL_stories.TL_storyReactionPublicRepost) {
-                storyViewer.fragment.createOverlayStoryViewer().open(getContext(), ((TL_stories.TL_storyReactionPublicRepost) item.reaction).story, StoriesListPlaceProvider.of(recyclerListView));
+                final StoriesController.ForwardStoriesList list = new StoriesController.ForwardStoriesList(currentModel);
+                storyViewer.fragment.createOverlayStoryViewer().open(getContext(), list.getStoryId(item.reaction), list, StoriesListPlaceProvider.of(recyclerListView));
             } else if (item.reaction instanceof TL_stories.TL_storyReactionPublicForward || item.view instanceof TL_stories.TL_storyViewPublicForward) {
                 TLRPC.Message message;
                 if (item.reaction instanceof TL_stories.TL_storyReactionPublicForward) {
@@ -685,7 +686,8 @@ public class SelfStoryViewsPage extends FrameLayout implements NotificationCente
         Bulletin.removeDelegate(this);
     }
 
-    public void onDataRecieved(ViewsModel model) {
+    @Override
+    public void onDataReceived(ViewsModel model) {
       //  NotificationCenter.getInstance(currentAccount).doOnIdle(() -> {
             int oldCount = listAdapter.getItemCount();
             if (TextUtils.isEmpty(state.searchQuery) && !state.contactsOnly) {
@@ -1108,7 +1110,7 @@ public class SelfStoryViewsPage extends FrameLayout implements NotificationCente
             return isChannel ? reactions.size() : views.size();
         }
 
-        ArrayList<SelfStoryViewsPage> listeners = new ArrayList<>();
+        ArrayList<ViewsModelListener> listeners = new ArrayList<>();
         FiltersState state = new FiltersState();
 
         public ViewsModel(int currentAccount, long dialogId, TL_stories.StoryItem storyItem, boolean isDefault) {
@@ -1216,7 +1218,7 @@ public class SelfStoryViewsPage extends FrameLayout implements NotificationCente
 
                     FileLog.d("SelfStoryViewsPage reactions " + storyItem.id + " response  totalItems " + reactions.size() + " has next " + hasNext);
                     for (int i = 0; i < listeners.size(); i++) {
-                        listeners.get(i).onDataRecieved(this);
+                        listeners.get(i).onDataReceived(this);
                     }
                     if (reactions.size() < 20 && hasNext) {
                         loadNext();
@@ -1313,7 +1315,7 @@ public class SelfStoryViewsPage extends FrameLayout implements NotificationCente
 
                     FileLog.d("SelfStoryViewsPage " + storyItem.id + " response  totalItems " + views.size() + " has next " + hasNext);
                     for (int i = 0; i < listeners.size(); i++) {
-                        listeners.get(i).onDataRecieved(this);
+                        listeners.get(i).onDataReceived(this);
                     }
                     if (views.size() < 20 && hasNext) {
                         loadNext();
@@ -1369,13 +1371,13 @@ public class SelfStoryViewsPage extends FrameLayout implements NotificationCente
             }
         }
 
-        public void addListener(SelfStoryViewsPage listener) {
+        public void addListener(ViewsModelListener listener) {
             if (!listeners.contains(listener)) {
                 listeners.add(listener);
             }
         }
 
-        public void removeListener(SelfStoryViewsPage listener) {
+        public void removeListener(ViewsModelListener listener) {
             listeners.remove(listener);
         }
 
@@ -1402,7 +1404,7 @@ public class SelfStoryViewsPage extends FrameLayout implements NotificationCente
             if (!isChannel && useLocalFilters) {
                 applyLocalFilter();
                 for (int i = 0; i < listeners.size(); i++) {
-                    listeners.get(i).onDataRecieved(this);
+                    listeners.get(i).onDataReceived(this);
                 }
             } else {
                 release();

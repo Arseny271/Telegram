@@ -2814,6 +2814,123 @@ public class StoriesController {
 
     }
 
+    public static class ForwardStoriesList extends StoriesList implements ViewsModelListener {
+        private final SelfStoryViewsPage.ViewsModel model;
+        private final ArrayList<ArrayList<Integer>> fakeDays = new ArrayList<>();
+        private boolean isFinished = false;
+
+        public ForwardStoriesList(SelfStoryViewsPage.ViewsModel model) {
+            super(model.currentAccount, 0, TYPE_ARCHIVE, null);
+            this.model = model;
+            this.destroyRunnable = () -> model.removeListener(this);
+
+            update(false);
+            model.addListener(this);
+        }
+
+        @Override
+        public void onDataReceived(SelfStoryViewsPage.ViewsModel model) {
+            AndroidUtilities.runOnUIThread(() -> update(true));
+        }
+
+        private void update(boolean notify) {
+            fakeDays.clear();
+            messageObjects.clear();
+
+            ArrayList<Integer> days = null;
+            long lastPeer = -1;
+
+            for (TL_stories.StoryReaction reaction : model.reactions) {
+                if (!(reaction instanceof TL_stories.TL_storyReactionPublicRepost)) {
+                    if (!isFinished && model.state.sortByReactions) {
+                        isFinished = true;
+                        break;
+                    }
+                    continue;
+                }
+
+                final long peer = DialogObject.getPeerDialogId(reaction.peer_id);
+
+                reaction.story.messageId = messageObjects.size();
+                reaction.story.dialogId = peer;
+
+                MessageObject msg = new MessageObject(currentAccount, reaction.story);
+                msg.generateThumbs(false);
+
+                if (peer != lastPeer || days == null) {
+                    days = new ArrayList<>();
+                    fakeDays.add(days);
+                    // lastPeer = peer;
+                }
+                days.add(reaction.story.messageId);
+                messageObjects.add(msg);
+            }
+
+            if (notify) {
+                notifyUpdate();
+            }
+        }
+
+        public final int getStoryId(TL_stories.StoryReaction reaction) {
+            return reaction.story.messageId;
+        }
+
+        @Override
+        public boolean load(boolean force, int count, List<Integer> ids) {
+            if (model.loading || !model.hasNext || isFinished) {
+                return false;
+            }
+            model.loadNext();
+            return true;
+        }
+
+        @Override
+        public boolean isOnlyCache() {
+            return false;
+        }
+        @Override
+        protected void invalidateCache() {}
+        @Override
+        protected void preloadCache() {}
+        @Override
+        protected void saveCache() {}
+        @Override
+        protected boolean markAsRead(int storyId) {
+            return false;
+        }
+
+        @Override
+        public int getCount() {
+            return model.hasNext && !isFinished ? model.totalCount : getLoadedCount();
+        }
+
+        @Override
+        public int getLoadedCount() {
+            return messageObjects.size();
+        }
+
+        @Override
+        public boolean isLoading() {
+            return model.loading;
+        }
+
+        @Override
+        protected ArrayList<ArrayList<Integer>> getDays() {
+            return fakeDays;
+        }
+
+        @Override
+        public MessageObject findMessageObject(int id) {
+            if (id < 0 || id >= messageObjects.size()) return null;
+            return messageObjects.get(id);
+        }
+
+        public void notifyUpdate() {
+            AndroidUtilities.cancelRunOnUIThread(super.notify);
+            AndroidUtilities.runOnUIThread(super.notify);
+        }
+    }
+
     public static class SearchStoriesList extends StoriesList {
 
         public final String query;
@@ -3094,7 +3211,7 @@ public class StoriesController {
         private boolean loading;
         private boolean invalidateAfterPreload;
         private boolean error;
-        private final Runnable destroyRunnable;
+        protected Runnable destroyRunnable;
 
         protected Utilities.CallbackReturn<Integer, Boolean> toLoad;
 
