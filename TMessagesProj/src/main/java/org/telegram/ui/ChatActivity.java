@@ -3338,6 +3338,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         timerHintView = null;
         videoPlayerContainer = null;
         voiceHintTextView = null;
+        startBotHint = null;
         blurredView = null;
         dummyMessageCell = null;
         cantDeleteMessagesCount = 0;
