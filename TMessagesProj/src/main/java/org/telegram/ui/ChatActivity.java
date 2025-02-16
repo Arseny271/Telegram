@@ -58,6 +58,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
+import android.os.Parcelable;
 import android.os.SystemClock;
 import android.os.Vibrator;
 import android.provider.ContactsContract;
@@ -8551,6 +8552,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             messagesSearchListContainer.setTag(1);
             searchExpandList.setText(LocaleController.getString(R.string.SearchAsChat), false);
             updateSearchListEmptyView();
+        }
+
+        if (savedChatScrollState != null) {
+            chatLayoutManager.onRestoreInstanceState(savedChatScrollState);
+            savedChatScrollState = null;
         }
 
         Timer.finish(t);
@@ -27918,6 +27924,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     }
 
     Bulletin.Delegate bulletinDelegate;
+
+    private Parcelable savedChatScrollState;
+
+    @Override
+    public void clearViews() {
+        super.clearViews();
+        savedChatScrollState = chatLayoutManager.onSaveInstanceState();
+    }
 
     @Override
     public void onResume() {
