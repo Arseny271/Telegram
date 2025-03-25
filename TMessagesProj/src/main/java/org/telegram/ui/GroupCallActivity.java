@@ -9,6 +9,7 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -94,6 +95,7 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.pip.PipSource;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.messenger.voip.Instance;
 import org.telegram.messenger.voip.VoIPService;
@@ -138,6 +140,7 @@ import org.telegram.ui.Components.JoinCallAlert;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.NumberPicker;
 import org.telegram.ui.Components.PermissionRequest;
+import org.telegram.messenger.pip.PipNativeApiController;
 import org.telegram.ui.Components.ProfileGalleryView;
 import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RLottieImageView;
@@ -390,6 +393,7 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
     GroupCallFullscreenAdapter fullscreenAdapter;
     ViewTreeObserver.OnPreDrawListener requestFullscreenListener;
     public CellFlickerDrawable cellFlickerDrawable = new CellFlickerDrawable();
+    private PipSource pipSource;
 
     public static boolean isLandscapeMode;
     public static boolean isTabletMode;
@@ -1789,7 +1793,7 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
         });
     }
 
-    private GroupCallActivity(Context context, AccountInstance account, ChatObject.Call groupCall, TLRPC.Chat chat, TLRPC.InputPeer schedulePeer, boolean scheduleHasFewPeers, String scheduledHash) {
+    private GroupCallActivity(Activity context, AccountInstance account, ChatObject.Call groupCall, TLRPC.Chat chat, TLRPC.InputPeer schedulePeer, boolean scheduleHasFewPeers, String scheduledHash) {
         super(context, false);
         setOpenNoDelay(true);
         this.accountInstance = account;
@@ -4615,10 +4619,10 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
         pipItem.setBackgroundDrawable(Theme.createSelectorDrawable(Theme.getColor(Theme.key_voipgroup_actionBarItemsSelector), 6));
         pipItem.setOnClickListener(v -> {
             if (isRtmpStream()) {
-                if (AndroidUtilities.checkInlinePermissions(parentActivity)) {
-                    RTMPStreamPipOverlay.show();
+                if (PipNativeApiController.checkAnyPipPermissions(parentActivity)) {
+                    RTMPStreamPipOverlay.show(parentActivity);
                     dismiss();
-                } else {
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     AlertsCreator.createDrawOverlayPermissionDialog(parentActivity, null).show();
                 }
                 return;
@@ -5491,6 +5495,14 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
         updateState(false, false);
         setColorProgress(0.0f);
         updateSubtitle();
+        /*if (isRtmpStream()) {
+            todo
+            if (PipNativeApiController.checkPermissions(context) == PipNativeApiController.PIP_GRANTED_PIP) {
+                pipSource = new PipSource.Builder(context, this)
+                    .setTagPrefix("group-call-activity")
+                    .build();
+            }
+        }*/
     }
 
     public LaunchActivity getParentActivity() {
@@ -5960,6 +5972,10 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
         }
         if (VoIPService.getSharedInstance() != null) {
             VoIPService.getSharedInstance().clearRemoteSinks();
+        }
+        if (pipSource != null) {
+            pipSource.destroy();
+            pipSource = null;
         }
     }
 
@@ -7178,6 +7194,10 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
     }
 
     public static void onLeaveClick(Context context, Runnable onLeave, boolean fromOverlayWindow) {
+        onLeaveClick(context, onLeave, fromOverlayWindow, false);
+    }
+
+    public static void onLeaveClick(Context context, Runnable onLeave, boolean fromOverlayWindow, boolean doNotAsk) {
         VoIPService service = VoIPService.getSharedInstance();
         if (service == null) {
             return;
@@ -7186,7 +7206,7 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
         ChatObject.Call call = service.groupCall;
 
         long selfId = service.getSelfId();
-        if (!ChatObject.canManageCalls(currentChat)) {
+        if (doNotAsk || !ChatObject.canManageCalls(currentChat)) {
             processOnLeave(call, false, selfId, onLeave);
             return;
         }
@@ -8952,7 +8972,7 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
     private void onUserLeaveHint() {
         if (isRtmpStream() && AndroidUtilities.checkInlinePermissions(parentActivity) && !RTMPStreamPipOverlay.isVisible()) {
             dismiss();
-            AndroidUtilities.runOnUIThread(RTMPStreamPipOverlay::show, 100);
+            AndroidUtilities.runOnUIThread(() -> RTMPStreamPipOverlay.show(parentActivity), 100);
         }
     }
 

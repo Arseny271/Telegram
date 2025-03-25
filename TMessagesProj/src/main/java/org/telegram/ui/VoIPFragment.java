@@ -73,6 +73,9 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.pip.PictureInPictureContentViewProvider;
+import org.telegram.messenger.pip.PipPermissions;
+import org.telegram.messenger.pip.PipSource;
 import org.telegram.messenger.voip.EncryptionKeyEmojifier;
 import org.telegram.messenger.voip.Instance;
 import org.telegram.messenger.voip.VideoCapturerDevice;
@@ -93,6 +96,7 @@ import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.HideViewAfterAnimation;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.messenger.pip.PipNativeApiController;
 import org.telegram.ui.Components.voip.AcceptDeclineView;
 import org.telegram.ui.Components.voip.EmojiRationalLayout;
 import org.telegram.ui.Components.voip.HideEmojiTextView;
@@ -125,7 +129,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-public class VoIPFragment implements VoIPService.StateListener, NotificationCenter.NotificationCenterDelegate {
+public class VoIPFragment implements VoIPService.StateListener, NotificationCenter.NotificationCenterDelegate, PictureInPictureContentViewProvider {
 
     private final static int STATE_GONE = 0;
     private final static int STATE_FULLSCREEN = 1;
@@ -179,6 +183,8 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
     private AcceptDeclineView acceptDeclineView;
     private boolean isNearEar;
+
+    private PipSource pipSource;
 
     View bottomShadow;
     View topShadow;
@@ -279,10 +285,6 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     /* === pinch to zoom === */
 
     public static void show(Activity activity, int account) {
-        show(activity, false, account);
-    }
-
-    public static void show(Activity activity, boolean overlay, int account) {
         if (instance != null && instance.windowView.getParent() == null) {
             if (instance != null) {
                 instance.callingUserTextureView.renderer.release();
@@ -386,13 +388,6 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
         WindowManager wm = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
         WindowManager.LayoutParams layoutParams = windowView.createWindowLayoutParams();
-        if (overlay) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                layoutParams.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
-            } else {
-                layoutParams.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
-            }
-        }
         wm.addView(windowView, layoutParams);
         View view = fragment.createView(activity);
         windowView.addView(view);
@@ -403,6 +398,13 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         } else {
             fragment.enterTransitionProgress = 1f;
             fragment.updateSystemBarColors();
+        }
+
+        if (PipNativeApiController.checkPermissions(activity) == PipNativeApiController.PIP_GRANTED_PIP) {
+            instance.pipSource = new PipSource.Builder(activity, instance)
+                .setTagPrefix("voip-fragment-pip")
+                .setContentView(instance.callingUserTextureView.renderer)
+                .build();
         }
     }
 
@@ -429,7 +431,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 return;
             }
             if (canSwitchToPip && !lockOnScreen) {
-                if (AndroidUtilities.checkInlinePermissions(activity)) {
+                if (PipNativeApiController.checkAnyPipPermissions(activity)) {
                     switchToPip();
                 } else {
                     requestInlinePermissions();
@@ -516,6 +518,10 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.emojiLoaded);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.closeInCallActivity);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.nearEarEvent);
+        if (pipSource != null) {
+            pipSource.destroy();
+            pipSource = null;
+        }
     }
 
     @Override
@@ -1380,7 +1386,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     }
 
     public void switchToPip() {
-        if (isFinished || !AndroidUtilities.checkInlinePermissions(activity) || instance == null) {
+        if (isFinished || instance == null) {
             return;
         }
         isFinished = true;
@@ -1951,7 +1957,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             cameraForceExpanded = false;
         }
 
-        boolean showCallingUserVideoMini = currentUserIsVideo && cameraForceExpanded;
+        boolean showCallingUserVideoMini = currentUserIsVideo && cameraForceExpanded && !AndroidUtilities.isInPictureInPictureMode(activity);
 
         showCallingUserAvatarMini(animated, wasVideo);
         statusLayoutOffset = callingUserPhotoViewMini.getTag() == null ? 0 : AndroidUtilities.dp(135) + AndroidUtilities.dp(12);
@@ -2913,9 +2919,10 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             screenOn = pm.isScreenOn();
         }
 
-        boolean hasPermissionsToPip = AndroidUtilities.checkInlinePermissions(activity);
+        final @PipPermissions int permissions = PipNativeApiController.checkPermissions(activity);
+        final boolean hasPermissionsToPip = permissions > 0;
 
-        if (canSwitchToPip && hasPermissionsToPip) {
+        if (canSwitchToPip && permissions == PipNativeApiController.PIP_GRANTED_OVERLAY) {
             int h = instance.windowView.getMeasuredHeight();
             VoIPPiPView.show(instance.activity, instance.currentAccount, instance.windowView.getMeasuredWidth(), h, VoIPPiPView.ANIMATION_ENTER_TYPE_SCALE);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH && instance.lastInsets != null) {
@@ -2989,5 +2996,29 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             return MediaDataController.getInstance(currentAccount).getEmojiAnimatedSticker(span.emoji);
         }
         return null;
+    }
+
+    @Override
+    public View detachContentFromWindow() {
+        windowView.setVisibility(View.GONE);
+        fragmentView.removeView(callingUserTextureView);
+        return callingUserTextureView;
+    }
+
+    @Override
+    public void onAttachContentToPip() {
+        updateViewState();
+    }
+
+    @Override
+    public void prepareDetachContentFromPip() {
+
+    }
+
+    @Override
+    public void attachContentToWindow() {
+        windowView.setVisibility(View.VISIBLE);
+        fragmentView.addView(callingUserTextureView, fragmentView.indexOfChild(voIpSnowView) + 1);
+        updateViewState();
     }
 }

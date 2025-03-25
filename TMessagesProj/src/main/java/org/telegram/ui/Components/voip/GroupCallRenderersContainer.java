@@ -53,6 +53,7 @@ import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.GroupCallFullscreenAdapter;
 import org.telegram.ui.Components.GroupCallPip;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.messenger.pip.PipNativeApiController;
 import org.telegram.ui.Components.TypefaceSpan;
 import org.telegram.ui.Components.UndoView;
 import org.telegram.ui.GroupCallActivity;
@@ -287,10 +288,10 @@ public class GroupCallRenderersContainer extends FrameLayout {
         pipView.setBackground(Theme.createSelectorDrawable(ColorUtils.setAlphaComponent(Color.WHITE, 55)));
         pipView.setOnClickListener(v -> {
             if (isRtmpStream()) {
-                if (AndroidUtilities.checkInlinePermissions(groupCallActivity.getParentActivity())) {
-                    RTMPStreamPipOverlay.show();
+                if (PipNativeApiController.checkAnyPipPermissions(groupCallActivity.getParentActivity())) {
+                    RTMPStreamPipOverlay.show(groupCallActivity.getParentActivity());
                     groupCallActivity.dismiss();
-                } else {
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     AlertsCreator.createDrawOverlayPermissionDialog(groupCallActivity.getParentActivity(), null).show();
                 }
                 return;

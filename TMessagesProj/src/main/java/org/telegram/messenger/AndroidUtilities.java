@@ -16,7 +16,9 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AppOpsManager;
 import android.app.KeyguardManager;
+import android.app.PictureInPictureParams;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
@@ -5377,6 +5379,34 @@ public class AndroidUtilities {
 
     public static boolean checkInlinePermissions(Context context) {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context);
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    public static boolean checkPipPermissions(Context context) {
+        if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
+            return false;
+        }
+        AppOpsManager appOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
+        int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, android.os.Process.myUid(), context.getPackageName());
+
+        return mode == AppOpsManager.MODE_ALLOWED;
+    }
+
+    public static boolean isInPictureInPictureMode(Activity activity) {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && activity.isInPictureInPictureMode();
+    }
+
+    public static void resetPictureInPictureParams(Activity activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            final PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder();
+            builder.setSourceRectHint(null);
+            builder.setAspectRatio(null);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder.setSeamlessResizeEnabled(false);
+                builder.setAutoEnterEnabled(false);
+            }
+            activity.setPictureInPictureParams(builder.build());
+        }
     }
 
     public static void updateVisibleRows(RecyclerListView listView) {
