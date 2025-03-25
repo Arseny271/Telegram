@@ -6546,7 +6546,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 PhotoViewer.getPipInstance().destroyPhotoViewer();
             }
             if (PhotoViewer.hasInstance()) {
-                PhotoViewer.getInstance().destroyPhotoViewer();
+                PhotoViewer.getInstance().closePhoto(false, false); //destroyPhotoViewer();
             }
         }
     }
