@@ -16,7 +16,7 @@ import com.google.android.exoplayer2.Player;
 import org.webrtc.TextureViewRenderer;
 
 public class PipSource {
-    static final String TAG = "WTF_DEBUG";
+    static final String TAG = "PIP_SOURCE";
 
     private static int sourceIdCounter = 0;
 
@@ -126,7 +126,7 @@ public class PipSource {
 
     void applyPictureInPictureParams() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !activity.isInPictureInPictureMode()) {
-            Log.i(TAG, "[UPDATE] setPictureInPictureParams " + tag);
+            // Log.i(TAG, "[UPDATE] setPictureInPictureParams " + tag);
             activity.setPictureInPictureParams(buildPictureInPictureParams());
         }
     }
@@ -174,7 +174,7 @@ public class PipSource {
             ((PictureInPictureActivityHandler) activity).addActivityPipView(attachedToPictureInPictureView);
             listener.onAttachContentToPip();
 
-            Log.i(TAG, "[LIFECYCLE] pip attach " + tag);
+            // Log.i(TAG, "[LIFECYCLE] pip attach " + tag);
         }
     }
 
@@ -190,7 +190,7 @@ public class PipSource {
 
             attachedToPictureInPictureView = null;
 
-            Log.i(TAG, "[LIFECYCLE] pip detach " + tag);
+            // Log.i(TAG, "[LIFECYCLE] pip detach " + tag);
         }
     }
 

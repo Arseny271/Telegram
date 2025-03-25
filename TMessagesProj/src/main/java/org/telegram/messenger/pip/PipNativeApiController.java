@@ -31,14 +31,14 @@ public class PipNativeApiController {
 
     static void register(PipSource source) {
         sources.put(source.tag, source);
-        Log.i(PipSource.TAG, "[LIFECYCLE] init " + source.tag + " " + sources.size());
+        // Log.i(PipSource.TAG, "[LIFECYCLE] init " + source.tag + " " + sources.size());
         onUpdateSourcesMap();
 
     }
 
     static void unregister(PipSource source) {
         if (sources.remove(source.tag) != null) {
-            Log.i(PipSource.TAG, "[LIFECYCLE] destroy " + source.tag + " " + sources.size());
+            // Log.i(PipSource.TAG, "[LIFECYCLE] destroy " + source.tag + " " + sources.size());
             onUpdateSourcesMap();
         }
     }
@@ -90,14 +90,14 @@ public class PipNativeApiController {
                 mediaSession.setActive(false);
                 mediaSession.release();
                 mediaSession = null;
-                Log.i(PipSource.TAG, "[MEDIA] stop media session");
+                // Log.i(PipSource.TAG, "[MEDIA] stop media session");
             }
 
             if (newSource != null) {
                 mediaSession = new MediaSessionCompat(newSource.activity, "pip-media-session");
                 mediaSession.setActive(true);
                 mediaSessionConnector = new MediaSessionConnector(mediaSession);
-                Log.i(PipSource.TAG, "[MEDIA] start media session");
+                // Log.i(PipSource.TAG, "[MEDIA] start media session");
             }
         }
 
