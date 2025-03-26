@@ -429,6 +429,22 @@ public class VoIPPiPView implements VoIPService.StateListener, PictureInPictureC
 
     @Override
     public void onMediaStateUpdated(int audioState, int videoState) {
+        final VoIPService service = VoIPService.getSharedInstance();
+        if (service != null && service.getRemoteVideoState() == Instance.VIDEO_STATE_ACTIVE) {
+            final Context context = instance.windowView.getContext();
+            if (pipSource == null && PipNativeApiController.checkPermissions(context) == PipNativeApiController.PIP_GRANTED_PIP) {
+                if (context instanceof Activity) {
+                    pipSource = new PipSource.Builder((Activity) context, this)
+                            .setTagPrefix("voip-pip")
+                            .setPriority(1)
+                            .setContentView(windowView)
+                            .build();
+                }
+            }
+        } else if (pipSource != null) {
+            pipSource.destroy();
+            pipSource = null;
+        }
         updateViewState();
     }
 

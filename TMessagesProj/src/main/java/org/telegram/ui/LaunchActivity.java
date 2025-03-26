@@ -6539,9 +6539,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             if (PipVideoOverlay.isVisible()) {
                 PipVideoOverlay.dismiss();
             }
-
-            GroupCallActivity.onLeaveClick(this, null, false, true);
-
+            if (VoIPService.hasRtmpStream()) {
+                GroupCallActivity.onLeaveClick(this, null, false, true);
+            }
             if (PhotoViewer.getPipInstance() != null) {
                 PhotoViewer.getPipInstance().destroyPhotoViewer();
             }

@@ -400,11 +400,14 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             fragment.updateSystemBarColors();
         }
 
-        if (PipNativeApiController.checkPermissions(activity) == PipNativeApiController.PIP_GRANTED_PIP) {
-            instance.pipSource = new PipSource.Builder(activity, instance)
-                .setTagPrefix("voip-fragment-pip")
-                .setContentView(instance.callingUserTextureView.renderer)
-                .build();
+        final VoIPService service = VoIPService.getSharedInstance();
+        if (service != null && service.getRemoteVideoState() == Instance.VIDEO_STATE_ACTIVE) {
+            if (PipNativeApiController.checkPermissions(activity) == PipNativeApiController.PIP_GRANTED_PIP) {
+                instance.pipSource = new PipSource.Builder(activity, instance)
+                        .setTagPrefix("voip-fragment-pip")
+                        .setContentView(instance.callingUserTextureView.renderer)
+                        .build();
+            }
         }
     }
 
@@ -590,6 +593,18 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         previousState = currentState;
         if (videoState == Instance.VIDEO_STATE_ACTIVE && !isVideoCall) {
             isVideoCall = true;
+        }
+        final VoIPService service = VoIPService.getSharedInstance();
+        if (service != null && service.getRemoteVideoState() == Instance.VIDEO_STATE_ACTIVE) {
+            if (pipSource == null && PipNativeApiController.checkPermissions(activity) == PipNativeApiController.PIP_GRANTED_PIP) {
+                pipSource = new PipSource.Builder(activity, this)
+                        .setTagPrefix("voip-fragment-pip")
+                        .setContentView(callingUserTextureView.renderer)
+                        .build();
+            }
+        } else if (pipSource != null) {
+            pipSource.destroy();
+            pipSource = null;
         }
         updateViewState();
     }

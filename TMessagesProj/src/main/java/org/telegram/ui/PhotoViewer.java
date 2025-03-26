@@ -22613,7 +22613,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         videoPlayer.setSurfaceView(null);
         containerView.removeView(aspectRatioFrameLayout);
         windowView.setVisibility(View.GONE);
-
+        menuItem.closeSubMenu();
+        videoItem.closeSubMenu();
         return aspectRatioFrameLayout;
     }
 
