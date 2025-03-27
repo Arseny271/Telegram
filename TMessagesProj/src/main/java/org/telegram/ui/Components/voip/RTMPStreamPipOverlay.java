@@ -70,10 +70,10 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
     private final static float SIDE_PADDING_DP = 16;
     private final static FloatPropertyCompat<RTMPStreamPipOverlay> PIP_X_PROPERTY = new SimpleFloatPropertyCompat<>("pipX", obj -> obj.pipX, (obj, value) -> {
         obj.windowLayoutParams.x = (int) (obj.pipX = value);
-        obj.windowManager.updateViewLayout(obj.contentView, obj.windowLayoutParams);
+        AndroidUtilities.updateViewLayout(obj.windowManager, obj.contentView, obj.windowLayoutParams);
     }), PIP_Y_PROPERTY = new SimpleFloatPropertyCompat<>("pipY", obj -> obj.pipY, (obj, value) -> {
         obj.windowLayoutParams.y = (int) (obj.pipY = value);
-        obj.windowManager.updateViewLayout(obj.contentView, obj.windowLayoutParams);
+        AndroidUtilities.updateViewLayout(obj.windowManager, obj.contentView, obj.windowLayoutParams);
     });
 
     @SuppressLint("StaticFieldLeak")
@@ -294,7 +294,7 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
                 isScrollDisallowed = true;
                 windowLayoutParams.width = (int) (getSuggestedWidth() * maxScaleFactor);
                 windowLayoutParams.height = (int) (getSuggestedHeight() * maxScaleFactor);
-                windowManager.updateViewLayout(contentView, windowLayoutParams);
+                AndroidUtilities.updateViewLayout(windowManager, contentView, windowLayoutParams);
 
                 return true;
             }
@@ -332,7 +332,7 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
             private void updateLayout() {
                 pipWidth = windowLayoutParams.width = (int) (getSuggestedWidth() * scaleFactor);
                 pipHeight = windowLayoutParams.height = (int) (getSuggestedHeight() * scaleFactor);
-                windowManager.updateViewLayout(contentView, windowLayoutParams);
+                AndroidUtilities.updateViewLayout(windowManager, contentView, windowLayoutParams);
             }
         });
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -415,7 +415,7 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
                 if (isScrolling) {
                     windowLayoutParams.x = (int) (pipX = startPipX + e2.getRawX() - e1.getRawX());
                     windowLayoutParams.y = (int) (pipY = startPipY + e2.getRawY() - e1.getRawY());
-                    windowManager.updateViewLayout(contentView, windowLayoutParams);
+                    AndroidUtilities.updateViewLayout(windowManager, contentView, windowLayoutParams);
                 }
                 return true;
             }
@@ -719,7 +719,7 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
         if (pipWidth != getSuggestedWidth() * scaleFactor || pipHeight != getSuggestedHeight() * scaleFactor) {
             windowLayoutParams.width = pipWidth = (int) (getSuggestedWidth() * scaleFactor);
             windowLayoutParams.height = pipHeight = (int) (getSuggestedHeight() * scaleFactor);
-            windowManager.updateViewLayout(contentView, windowLayoutParams);
+            AndroidUtilities.updateViewLayout(windowManager, contentView, windowLayoutParams);
 
             pipXSpring.setStartValue(pipX)
                     .getSpring()

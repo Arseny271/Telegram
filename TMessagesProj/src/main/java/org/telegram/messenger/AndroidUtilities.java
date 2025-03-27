@@ -5409,6 +5409,12 @@ public class AndroidUtilities {
         }
     }
 
+    public static void updateViewLayout(WindowManager windowManager, View view, ViewGroup.LayoutParams params) {
+        if (view.getParent() != null) {
+            windowManager.updateViewLayout(view, params);
+        }
+    }
+
     public static void updateVisibleRows(RecyclerListView listView) {
         if (listView == null) {
             return;

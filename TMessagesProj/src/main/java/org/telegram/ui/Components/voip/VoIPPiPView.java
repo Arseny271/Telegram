@@ -121,9 +121,7 @@ public class VoIPPiPView implements VoIPService.StateListener, PictureInPictureC
         public void onAnimationUpdate(ValueAnimator valueAnimator) {
             float x = (float) valueAnimator.getAnimatedValue();
             windowLayoutParams.x = (int) x;
-            if (windowView.getParent() != null) {
-                windowManager.updateViewLayout(windowView, windowLayoutParams);
-            }
+            AndroidUtilities.updateViewLayout(windowManager, windowView, windowLayoutParams);
         }
     };
 
@@ -132,9 +130,7 @@ public class VoIPPiPView implements VoIPService.StateListener, PictureInPictureC
         public void onAnimationUpdate(ValueAnimator valueAnimator) {
             float y = (float) valueAnimator.getAnimatedValue();
             windowLayoutParams.y = (int) y;
-            if (windowView.getParent() != null) {
-                windowManager.updateViewLayout(windowView, windowLayoutParams);
-            }
+            AndroidUtilities.updateViewLayout(windowManager, windowView, windowLayoutParams);
         }
     };
 
@@ -273,9 +269,7 @@ public class VoIPPiPView implements VoIPService.StateListener, PictureInPictureC
         windowLayoutParams.x = (int) (x * (width - leftPadding - rightPadding - floatingWidth) - (xOffset - leftPadding));
         windowLayoutParams.y = (int) (y * (height - topPadding - bottomPadding - floatingHeight) - (yOffset - topPadding));
 
-        if (windowView.getParent() != null) {
-            windowManager.updateViewLayout(windowView, windowLayoutParams);
-        }
+        AndroidUtilities.updateViewLayout(windowManager, windowView, windowLayoutParams);
     }
 
     public static VoIPPiPView getInstance() {
@@ -643,9 +637,7 @@ public class VoIPPiPView implements VoIPService.StateListener, PictureInPictureC
                         windowLayoutParams.y += dy;
                         startX = x;
                         startY = y;
-                        if (windowView.getParent() != null) {
-                            windowManager.updateViewLayout(windowView, windowLayoutParams);
-                        }
+                        AndroidUtilities.updateViewLayout(windowManager, windowView, windowLayoutParams);
                     }
                     break;
                 case MotionEvent.ACTION_CANCEL:

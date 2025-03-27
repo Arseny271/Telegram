@@ -64,7 +64,7 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
     private final static FloatPropertyCompat<PipVideoOverlay> PIP_X_PROPERTY = new SimpleFloatPropertyCompat<>("pipX", obj -> obj.pipX, (obj, value) -> {
         obj.windowLayoutParams.x = (int) (obj.pipX = value);
         try {
-            obj.windowManager.updateViewLayout(obj.contentView, obj.windowLayoutParams);
+            AndroidUtilities.updateViewLayout(obj.windowManager, obj.contentView, obj.windowLayoutParams);
         } catch (IllegalArgumentException e) {
             obj.pipXSpring.cancel();
         }
@@ -72,7 +72,7 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
         obj.windowLayoutParams.y = (int) (obj.pipY = value);
 
         try {
-            obj.windowManager.updateViewLayout(obj.contentView, obj.windowLayoutParams);
+            AndroidUtilities.updateViewLayout(obj.windowManager, obj.contentView, obj.windowLayoutParams);
         } catch (IllegalArgumentException e) {
             obj.pipYSpring.cancel();
         }
@@ -646,7 +646,7 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
                 isScrollDisallowed = true;
                 windowLayoutParams.width = (int) (getSuggestedWidth() * maxScaleFactor);
                 windowLayoutParams.height = (int) (getSuggestedHeight() * maxScaleFactor);
-                windowManager.updateViewLayout(contentView, windowLayoutParams);
+                AndroidUtilities.updateViewLayout(windowManager, contentView, windowLayoutParams);
 
                 return true;
             }
@@ -685,7 +685,7 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
                 pipWidth = windowLayoutParams.width = (int) (getSuggestedWidth() * scaleFactor);
                 pipHeight = windowLayoutParams.height = (int) (getSuggestedHeight() * scaleFactor);
                 try {
-                    windowManager.updateViewLayout(contentView, windowLayoutParams);
+                    AndroidUtilities.updateViewLayout(windowManager, contentView, windowLayoutParams);
                 } catch (IllegalArgumentException ignored) {}
             }
         });
@@ -875,7 +875,7 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
                         }
                         windowLayoutParams.y = (int) pipY;
                         getPipConfig().setPipY(pipY);
-                        windowManager.updateViewLayout(contentView, windowLayoutParams);
+                        AndroidUtilities.updateViewLayout(windowManager, contentView, windowLayoutParams);
                     }
                 }
                 return true;
@@ -962,7 +962,7 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
                 if (pipWidth != getSuggestedWidth() * scaleFactor || pipHeight != getSuggestedHeight() * scaleFactor) {
                     windowLayoutParams.width = pipWidth = (int) (getSuggestedWidth() * scaleFactor);
                     windowLayoutParams.height = pipHeight = (int) (getSuggestedHeight() * scaleFactor);
-                    windowManager.updateViewLayout(contentView, windowLayoutParams);
+                    AndroidUtilities.updateViewLayout(windowManager, contentView, windowLayoutParams);
 
                     pipXSpring.setStartValue(pipX)
                             .getSpring()
