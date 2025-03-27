@@ -183,12 +183,15 @@ public class VoIPPiPView implements VoIPService.StateListener, PictureInPictureC
             }
         }
 
-        if (PipNativeApiController.checkPermissions(activity) == PipNativeApiController.PIP_GRANTED_PIP) {
-            instance.pipSource = new PipSource.Builder(activity, instance)
-                .setTagPrefix("voip-pip")
-                .setPriority(1)
-                .setContentView(instance.windowView)
-                .build();
+        final VoIPService service = VoIPService.getSharedInstance();
+        if (service != null && service.getRemoteVideoState() == Instance.VIDEO_STATE_ACTIVE) {
+            if (PipNativeApiController.checkPermissions(activity) == PipNativeApiController.PIP_GRANTED_PIP) {
+                instance.pipSource = new PipSource.Builder(activity, instance)
+                    .setTagPrefix("voip-pip")
+                    .setPriority(1)
+                    .setContentView(instance.callingUserTextureView)
+                    .build();
+            }
         }
     }
 
@@ -437,7 +440,7 @@ public class VoIPPiPView implements VoIPService.StateListener, PictureInPictureC
                     pipSource = new PipSource.Builder((Activity) context, this)
                             .setTagPrefix("voip-pip")
                             .setPriority(1)
-                            .setContentView(windowView)
+                            .setContentView(callingUserTextureView)
                             .build();
                 }
             }
