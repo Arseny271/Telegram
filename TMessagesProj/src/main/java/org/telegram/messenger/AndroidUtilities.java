@@ -112,6 +112,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RawRes;
 import androidx.annotation.RequiresApi;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -1114,6 +1116,25 @@ public class AndroidUtilities {
         }
 
         return new String(readBuffer, 0, totalRead);
+    }
+
+    @Nullable
+    public static Bitmap getBitmapFromRaw(@RawRes int rawRes) {
+        InputStream is = null;
+        Bitmap bitmap = null;
+        try {
+            is = ApplicationLoader.applicationContext.getResources().openRawResource(rawRes);
+            bitmap = BitmapFactory.decodeStream(is);
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            try {
+                is.close();
+            } catch (IOException e) {
+
+            }
+        }
+        return bitmap;
     }
 
     private static class LinkSpec {
