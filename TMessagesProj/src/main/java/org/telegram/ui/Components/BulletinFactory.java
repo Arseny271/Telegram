@@ -1224,10 +1224,22 @@ public final class BulletinFactory {
 
     @CheckResult
     public static Bulletin createForwardedBulletin(Context context, BaseFragment fragment, FrameLayout containerLayout, int dialogsCount, long did, int messagesCount, int backgroundColor, int textColor, int duration) {
+        return createForwardedBulletin(context, fragment, containerLayout, dialogsCount, did, messagesCount, backgroundColor, textColor, duration, null, null);
+    }
+
+    public static Bulletin createForwardedBulletin(Context context, BaseFragment fragment, FrameLayout containerLayout, int dialogsCount, long did, int messagesCount, int backgroundColor, int textColor, int duration, Runnable undoAction, Runnable delayedAction) {
         final Bulletin.LottieLayout layout = UserConfig.getInstance(UserConfig.selectedAccount).isPremium() && fragment != null && dialogsCount <= 1 && did == UserConfig.getInstance(UserConfig.selectedAccount).clientUserId ?
             new Bulletin.LottieLayoutWithReactions(fragment, messagesCount) :
             new Bulletin.LottieLayout(context, fragment != null ? fragment.getResourceProvider() : null, backgroundColor, textColor);
         final CharSequence text;
+
+        final boolean[] isCanceled = new boolean[]{ false };
+        final Runnable delayedActionOnce = delayedAction != null ? () -> {
+            if (!isCanceled[0]) {
+                isCanceled[0] = true;
+                delayedAction.run();
+            }
+        } : null;
 
         int hapticDelay = -1;
         if (dialogsCount <= 1) {
@@ -1241,6 +1253,9 @@ public final class BulletinFactory {
                 hapticDelay = 300;
             } else {
                 final Runnable onClick = () -> {
+                    if (delayedActionOnce != null) {
+                        delayedActionOnce.run();
+                    }
                     if (fragment != null) {
                         fragment.presentFragment(ChatActivity.of(did));
                     }
@@ -1290,6 +1305,14 @@ public final class BulletinFactory {
             hapticDelay = 300;
         }
         layout.textView.setText(text);
+
+        if (undoAction != null || delayedActionOnce != null) {
+            layout.setButton(new Bulletin.UndoButton(layout.getContext(), true, fragment != null ? fragment.getResourceProvider() : null)
+                    .setUndoAction(undoAction)
+                    .setDelayedAction(delayedActionOnce)
+            );
+        }
+
         if (hapticDelay > 0) {
             layout.postDelayed(() -> {
                 layout.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);

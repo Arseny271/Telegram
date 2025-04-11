@@ -36841,17 +36841,23 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 arrayList.add(messageObject);
             }
 
-            int result = SendMessagesHelper.getInstance(currentAccount).sendMessage(arrayList, did, false, false, true, 0, null, -1, 0);
-            AlertsCreator.showSendMediaAlert(result, ChatActivity.this, null);
-            if (result != 0) {
-                return null;
+            final boolean isSavedMessages = did == UserConfig.getInstance(UserConfig.selectedAccount).clientUserId;
+            final ArrayList<MessageObject> finalArrayList = arrayList;
+            Runnable delayedRunnalble = () -> {
+                int result = SendMessagesHelper.getInstance(currentAccount).sendMessage(finalArrayList, did, false, false, true, 0, null, -1, 0);
+                AlertsCreator.showSendMediaAlert(result, ChatActivity.this, null);
+            };
+
+            if (isSavedMessages) {
+                delayedRunnalble.run();
+                delayedRunnalble = null;
             }
 
             final Bulletin bulletin = BulletinFactory.createForwardedBulletin(getContext(),
                     ChatActivity.this, null, 1, did, 1,
                     getThemedColor(Theme.key_undo_background),
                     getThemedColor(Theme.key_undo_infoColor),
-                    Bulletin.DURATION_LONG
+                    Bulletin.DURATION_LONG, null, delayedRunnalble
             );
 
             return bulletin.allowBlur().show(bulletin.getLayout() instanceof Bulletin.LottieLayoutWithReactions);

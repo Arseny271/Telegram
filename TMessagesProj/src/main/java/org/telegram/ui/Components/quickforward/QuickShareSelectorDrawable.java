@@ -861,7 +861,7 @@ public class QuickShareSelectorDrawable extends Drawable implements Animator.Ani
     };
 
     private final ObjectAnimator openAnimation = ObjectAnimator.ofFloat(this, OPEN_FACTOR, 1)
-            .setDuration(OPEN_DURATION);
+            .setDuration((long) (OPEN_DURATION * 0.75f));
 
     private final static Property<QuickShareSelectorDrawable, Float> CLOSE_FACTOR = new AnimationProperties.FloatProperty<QuickShareSelectorDrawable>("openFactor") {
         @Override
@@ -877,7 +877,7 @@ public class QuickShareSelectorDrawable extends Drawable implements Animator.Ani
     };
 
     private final ObjectAnimator closeAnimation = ObjectAnimator.ofFloat(this, CLOSE_FACTOR, 1)
-            .setDuration(CLOSE_DURATION);
+            .setDuration((long) (CLOSE_DURATION * 0.75f));
 
     @Override
     public void onAnimationStart(@NonNull Animator animation) {
