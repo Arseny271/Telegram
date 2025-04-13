@@ -156,8 +156,8 @@ public class QuickShareSelectorDrawable extends Drawable implements Animator.Ani
             globalBlurBitmapPaint.setShader(bitmapShader);
 
             ColorMatrix colorMatrix = new ColorMatrix();
-            AndroidUtilities.adjustSaturationColorMatrix(colorMatrix, Theme.isCurrentThemeDark() ? .08f : +.25f);
-            AndroidUtilities.adjustBrightnessColorMatrix(colorMatrix, Theme.isCurrentThemeDark() ? -.02f : -.07f);
+            AndroidUtilities.adjustSaturationColorMatrix(colorMatrix, Theme.isCurrentThemeDark() ? .08f : +.99f);
+            AndroidUtilities.adjustBrightnessColorMatrix(colorMatrix, Theme.isCurrentThemeDark() ? -.02f : -.13f);
             globalBlurBitmapPaint.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
 
             bitmapMatrix.reset();
