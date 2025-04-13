@@ -10090,6 +10090,11 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         PipVideoOverlay.updatePlayButton();
         videoPlayerSeekbar.updateTimestamps(currentMessageObject, getVideoDuration());
         updateVideoPlayerTime();
+        AndroidUtilities.runOnUIThread(() -> {
+            if (pipSource != null) {
+                pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
+            }
+        });
     }
 
     private void playVideoOrWeb() {
@@ -10269,6 +10274,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         .setTagPrefix("photo-viewer-" + videoPlayer.playerId)
                         .setNeedMediaSession(true)
                         .build();
+                    pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
                 }
                 newPlayerCreated = true;
             }
@@ -14266,6 +14272,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     } else if (!pipAvailable) {
                         pipItem.setEnabled(false);
                         setItemVisible(pipItem, true, !masksItemVisible && editItem.getAlpha() <= 0, 0.5f);
+                        if (pipSource != null) {
+                            pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
+                        }
                     } else {
                         setItemVisible(pipItem, true, !masksItemVisible && editItem.getAlpha() <= 0);
                     }
@@ -14763,6 +14772,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 if (!pipAvailable) {
                     pipItem.setEnabled(false);
                     setItemVisible(pipItem, true, true, 0.5f);
+                    if (pipSource != null) {
+                        pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
+                    }
                 } else {
                     setItemVisible(pipItem, true, true);
                 }

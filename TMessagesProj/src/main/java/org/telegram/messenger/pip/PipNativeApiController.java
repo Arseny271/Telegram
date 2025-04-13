@@ -58,11 +58,15 @@ public class PipNativeApiController {
         return source != null ? source.tag : null;
     }
 
-    private static void onUpdateSourcesMap() {
+    static void onUpdateSourcesMap() {
         final PipSource oldSource = maxPrioritySource;
         final String oldTag = oldSource != null ? oldSource.tag : null;
         maxPrioritySource = null;
         for (PipSource source : sources.values()) {
+            if (!source.isEnabled() && !source.isAttachedToPictureInPicture()) {
+                continue;
+            }
+
             if (maxPrioritySource == null) {
                 maxPrioritySource = source;
                 continue;

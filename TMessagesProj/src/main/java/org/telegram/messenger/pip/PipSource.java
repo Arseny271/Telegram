@@ -30,6 +30,7 @@ public class PipSource {
     private final Rect position = new Rect();
     private final Point ratio = new Point();
 
+    private boolean isEnabled;
     private View contentView;
     Activity activity;
     Player player;
@@ -46,6 +47,15 @@ public class PipSource {
         setContentView(builder.contentView);
 
         PipNativeApiController.register(this);
+    }
+
+    public void setEnabled(boolean enabled) {
+        isEnabled = enabled;
+        PipNativeApiController.onUpdateSourcesMap();
+    }
+
+    public boolean isEnabled() {
+        return isEnabled;
     }
 
     public void destroy() {
@@ -165,6 +175,10 @@ public class PipSource {
     /* */
 
     private View attachedToPictureInPictureView;
+
+    public boolean isAttachedToPictureInPicture() {
+        return attachedToPictureInPictureView != null;
+    }
 
     void attachToPictureInPicture() {
         detachFromPictureInPicture();
