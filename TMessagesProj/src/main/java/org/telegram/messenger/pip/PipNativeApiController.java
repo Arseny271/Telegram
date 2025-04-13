@@ -118,10 +118,10 @@ public class PipNativeApiController {
                 newSource.attachToPictureInPicture();
             }
         } else if (oldSource != null) {
+            AndroidUtilities.resetPictureInPictureParams(oldSource.activity);
             if (AndroidUtilities.isInPictureInPictureMode(oldSource.activity)) {
                 oldSource.activity.moveTaskToBack(false);
             }
-            AndroidUtilities.resetPictureInPictureParams(oldSource.activity);
         }
     }
 

@@ -537,7 +537,9 @@ public class VoIPPiPView implements VoIPService.StateListener, PictureInPictureC
 
     @Override
     public void onAttachContentToPip() {
-        VoIPService.getSharedInstance().setSinks(currentUserTextureView.renderer, callingUserTextureView.renderer);
+        if (VoIPService.getSharedInstance() != null) {
+            VoIPService.getSharedInstance().setSinks(currentUserTextureView.renderer, callingUserTextureView.renderer);
+        }
     }
 
     @Override
@@ -550,7 +552,9 @@ public class VoIPPiPView implements VoIPService.StateListener, PictureInPictureC
         windowView.setVisibility(View.VISIBLE);
         floatingView.addView(callingUserTextureView, 0);
 
-        VoIPService.getSharedInstance().setSinks(currentUserTextureView.renderer, callingUserTextureView.renderer);
+        if (VoIPService.getSharedInstance() != null) {
+            VoIPService.getSharedInstance().setSinks(currentUserTextureView.renderer, callingUserTextureView.renderer);
+        }
     }
 
     private class FloatingView extends FrameLayout {

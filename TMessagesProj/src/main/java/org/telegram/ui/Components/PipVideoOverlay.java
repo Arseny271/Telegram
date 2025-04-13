@@ -1280,12 +1280,13 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
 
     @Override
     public View detachContentFromWindow() {
-        VideoPlayer videoPlayer = photoViewer.getVideoPlayer();
-        videoPlayer.setSurfaceView(null);
-        videoPlayer.setTextureView(null);
+        if (photoViewer != null && photoViewer.getVideoPlayer() != null) {
+            VideoPlayer videoPlayer = photoViewer.getVideoPlayer();
+            videoPlayer.setSurfaceView(null);
+            videoPlayer.setTextureView(null);
+        }
 
         contentView.setVisibility(View.GONE);
-
         contentFrameLayout.removeView(innerView);
 
         return innerView;
@@ -1293,6 +1294,10 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
 
     @Override
     public void onAttachContentToPip() {
+        if (photoViewer == null || photoViewer.getVideoPlayer() == null) {
+            return;
+        }
+
         VideoPlayer videoPlayer = photoViewer.getVideoPlayer();
 
         videoPlayer.setSurfaceView(null);
@@ -1302,6 +1307,10 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
 
     @Override
     public void prepareDetachContentFromPip() {
+        if (photoViewer == null || photoViewer.getVideoPlayer() == null) {
+            return;
+        }
+
         VideoPlayer videoPlayer = photoViewer.getVideoPlayer();
         videoPlayer.setSurfaceView(null);
         videoPlayer.setTextureView(null);
@@ -1311,6 +1320,9 @@ public class PipVideoOverlay implements PictureInPictureContentViewProvider {
     public void attachContentToWindow() {
         contentFrameLayout.addView(innerView, 0, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         contentView.setVisibility(View.VISIBLE);
+        if (photoViewer == null || photoViewer.getVideoPlayer() == null) {
+            return;
+        }
 
         VideoPlayer videoPlayer = photoViewer.getVideoPlayer();
         videoPlayer.setSurfaceView(null);

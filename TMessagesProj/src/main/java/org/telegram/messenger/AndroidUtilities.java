@@ -5404,7 +5404,7 @@ public class AndroidUtilities {
     }
 
     public static void resetPictureInPictureParams(Activity activity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null && !activity.isDestroyed()) {
             final PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder();
             builder.setSourceRectHint(null);
             builder.setAspectRatio(null);
@@ -5412,7 +5412,11 @@ public class AndroidUtilities {
                 builder.setSeamlessResizeEnabled(false);
                 builder.setAutoEnterEnabled(false);
             }
-            activity.setPictureInPictureParams(builder.build());
+            try {
+                activity.setPictureInPictureParams(builder.build());
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
         }
     }
 

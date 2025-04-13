@@ -12,6 +12,7 @@ import android.view.View;
 import androidx.annotation.RequiresApi;
 
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.video.VideoSize;
 
 import org.webrtc.TextureViewRenderer;
 
@@ -30,7 +31,7 @@ public class PipSource {
     private final Rect position = new Rect();
     private final Point ratio = new Point();
 
-    private boolean isEnabled;
+    private boolean isEnabled = true;
     private View contentView;
     Activity activity;
     Player player;
@@ -159,11 +160,11 @@ public class PipSource {
             builder.setAspectRatio(null);
         }
 
-        if (position.width() > 0 && position.height() > 0) {
-            builder.setSourceRectHint(position);
-        } else {
-            builder.setSourceRectHint(null);
-        }
+        //if (position.width() > 0 && position.height() > 0) {
+        //    builder.setSourceRectHint(position);
+        //} else {
+        //    builder.setSourceRectHint(null);
+        //}
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setSeamlessResizeEnabled(true);

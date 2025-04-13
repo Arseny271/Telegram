@@ -143,6 +143,7 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.analytics.AnalyticsListener;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
+import com.google.android.exoplayer2.video.VideoSize;
 import com.google.android.gms.cast.framework.CastContext;
 import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.face.Face;
@@ -10476,6 +10477,16 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             videoPlayer.setPlayWhenReady(playWhenReady);
             if (pipSource != null) {
                 pipSource.setPlayer(videoPlayer.player);
+                if (videoPlayer.player != null) {
+                    VideoSize vs = videoPlayer.player.getVideoSize();
+                    if (vs != null && vs.width > 0 && vs.height > 0) {
+                        if (vs.unappliedRotationDegrees == 90 || vs.unappliedRotationDegrees == 270) {
+                            pipSource.setContentRatio(vs.height, vs.width);
+                        } else {
+                            pipSource.setContentRatio(vs.width, vs.height);
+                        }
+                    }
+                }
             }
         }
 
@@ -10684,6 +10695,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     private void releasePlayer(boolean onClose) {
         usedSurfaceView = false;
+        if (pipSource != null) {
+            pipSource.destroy();
+            pipSource = null;
+        }
         if (videoPlayer != null) {
             cancelVideoPlayRunnable();
             AndroidUtilities.cancelRunOnUIThread(setLoadingRunnable);
@@ -10699,10 +10714,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             videoPlayer = null;
         } else {
             playerWasPlaying = false;
-        }
-        if (pipSource != null) {
-            pipSource.destroy();
-            pipSource = null;
         }
         if (photoViewerWebView != null) {
             AndroidUtilities.cancelRunOnUIThread(hideActionBarRunnable);
@@ -22633,8 +22644,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     @Override
     public View detachContentFromWindow() {
-        videoPlayer.setTextureView(null);
-        videoPlayer.setSurfaceView(null);
+        if (videoPlayer != null) {
+            videoPlayer.setTextureView(null);
+            videoPlayer.setSurfaceView(null);
+        }
         containerView.removeView(aspectRatioFrameLayout);
         windowView.setVisibility(View.GONE);
         menuItem.closeSubMenu();
@@ -22644,6 +22657,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     @Override
     public void onAttachContentToPip() {
+        if (videoPlayer == null) {
+            return;
+        }
         if (videoTextureView != null) {
             videoPlayer.setTextureView(videoTextureView);
         } else if (videoSurfaceView != null) {
@@ -22653,6 +22669,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     @Override
     public void prepareDetachContentFromPip() {
+        if (videoPlayer == null) {
+            return;
+        }
         videoPlayer.setTextureView(null);
         videoPlayer.setSurfaceView(null);
     }
@@ -22661,6 +22680,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     public void attachContentToWindow() {
         containerView.addView(aspectRatioFrameLayout, 0, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.CENTER));
         windowView.setVisibility(View.VISIBLE);
+        if (videoPlayer == null) {
+            return;
+        }
 
         if (videoTextureView != null) {
             videoPlayer.setTextureView(videoTextureView);
