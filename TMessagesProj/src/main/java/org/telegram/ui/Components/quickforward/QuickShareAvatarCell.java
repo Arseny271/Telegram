@@ -201,7 +201,7 @@ class QuickShareAvatarCell implements ValueAnimator.AnimatorUpdateListener {
 
         if (hasGradientService || blurPaint != null) {
             cachedAlpha = Theme.chat_actionBackgroundGradientDarkenPaint.getAlpha();
-            Theme.chat_actionBackgroundGradientDarkenPaint.setAlpha((int) (cachedAlpha * textAlpha));
+            Theme.chat_actionBackgroundGradientDarkenPaint.setAlpha(Math.min((int) (cachedAlpha * (Theme.isCurrentThemeDark() ? 1 : 2) * textAlpha), 255));
             c.drawRoundRect(tmpRectF, r, r, Theme.chat_actionBackgroundGradientDarkenPaint);
             Theme.chat_actionBackgroundGradientDarkenPaint.setAlpha(cachedAlpha);
         }
