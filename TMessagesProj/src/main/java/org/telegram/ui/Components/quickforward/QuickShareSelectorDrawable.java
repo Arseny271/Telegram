@@ -842,9 +842,9 @@ public class QuickShareSelectorDrawable extends Drawable implements Animator.Ani
         public static final Interpolator ballsRadius = interpolator(new DecelerateInterpolator(), 150, 250, OPEN_DURATION);
         public static final Interpolator overshootCancel = interpolator(new DecelerateInterpolator(), 350, 550, OPEN_DURATION);
         public static final Interpolator avatar1 = interpolator(new DecelerateInterpolator(), 150, 550, OPEN_DURATION);
-        public static final Interpolator avatar2 = interpolator(new DecelerateInterpolator(), 200, 550, OPEN_DURATION);
-        public static final Interpolator avatar3 = interpolator(new DecelerateInterpolator(), 280, 550, OPEN_DURATION);
-        public static final Interpolator avatarOvershootCancel = interpolator(new DecelerateInterpolator(), 500, 650, OPEN_DURATION);
+        public static final Interpolator avatar2 = interpolator(new DecelerateInterpolator(), 200, 575, OPEN_DURATION);
+        public static final Interpolator avatar3 = interpolator(new DecelerateInterpolator(), 280, 600, OPEN_DURATION);
+        public static final Interpolator avatarOvershootCancel = interpolator(new DecelerateInterpolator(), 480, 650, OPEN_DURATION);
     }
 
     private final static Property<QuickShareSelectorDrawable, Float> OPEN_FACTOR = new AnimationProperties.FloatProperty<QuickShareSelectorDrawable>("openFactor") {
@@ -862,7 +862,7 @@ public class QuickShareSelectorDrawable extends Drawable implements Animator.Ani
     };
 
     private final ObjectAnimator openAnimation = ObjectAnimator.ofFloat(this, OPEN_FACTOR, 1)
-            .setDuration((long) (OPEN_DURATION * 0.75f));
+            .setDuration((long) (OPEN_DURATION * 0.6f));
 
     private final static Property<QuickShareSelectorDrawable, Float> CLOSE_FACTOR = new AnimationProperties.FloatProperty<QuickShareSelectorDrawable>("openFactor") {
         @Override

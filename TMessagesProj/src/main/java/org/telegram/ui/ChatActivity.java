@@ -36857,7 +36857,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     ChatActivity.this, null, 1, did, 1,
                     getThemedColor(Theme.key_undo_background),
                     getThemedColor(Theme.key_undo_infoColor),
-                    Bulletin.DURATION_LONG, null, delayedRunnalble
+                    Bulletin.DURATION_PROLONG, null, delayedRunnalble
             );
 
             return bulletin.allowBlur().show(bulletin.getLayout() instanceof Bulletin.LottieLayoutWithReactions);

@@ -25,6 +25,7 @@ import android.widget.FrameLayout;
 
 import androidx.annotation.CheckResult;
 import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
 import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -1233,6 +1234,7 @@ public final class BulletinFactory {
             new Bulletin.LottieLayout(context, fragment != null ? fragment.getResourceProvider() : null, backgroundColor, textColor);
         final CharSequence text;
 
+        final boolean hasUndoButton = delayedAction != null || undoAction != null;
         final boolean[] isCanceled = new boolean[]{ false };
         final Runnable delayedActionOnce = delayedAction != null ? () -> {
             if (!isCanceled[0]) {
@@ -1279,16 +1281,18 @@ public final class BulletinFactory {
                 } else {
                     TLRPC.User user = MessagesController.getInstance(UserConfig.selectedAccount).getUser(did);
                     if (messagesCount <= 1) {
+                        final @StringRes int res = hasUndoButton ? R.string.FwdMessageToUserShort : R.string.FwdMessageToUser;
                         if (fragment != null) {
-                            text = AndroidUtilities.replaceSingleTag(LocaleController.formatString(R.string.FwdMessageToUser, UserObject.getFirstName(user)), -1, AndroidUtilities.REPLACING_TAG_TYPE_LINKBOLD, onClick);
+                            text = AndroidUtilities.replaceSingleTag(LocaleController.formatString(res, UserObject.getFirstName(user)), -1, AndroidUtilities.REPLACING_TAG_TYPE_LINKBOLD, onClick);
                         } else {
-                            text = AndroidUtilities.replaceTags(LocaleController.formatString(R.string.FwdMessageToUser, UserObject.getFirstName(user)));
+                            text = AndroidUtilities.replaceTags(LocaleController.formatString(res, UserObject.getFirstName(user)));
                         }
                     } else {
+                        final @StringRes int res = hasUndoButton ? R.string.FwdMessagesToUserShort : R.string.FwdMessagesToUser;
                         if (fragment != null) {
-                            text = AndroidUtilities.replaceSingleTag(LocaleController.formatString(R.string.FwdMessagesToUser, UserObject.getFirstName(user)), -1, AndroidUtilities.REPLACING_TAG_TYPE_LINKBOLD, onClick);
+                            text = AndroidUtilities.replaceSingleTag(LocaleController.formatString(res, UserObject.getFirstName(user)), -1, AndroidUtilities.REPLACING_TAG_TYPE_LINKBOLD, onClick);
                         } else {
-                            text = AndroidUtilities.replaceTags(LocaleController.formatString(R.string.FwdMessagesToUser, UserObject.getFirstName(user)));
+                            text = AndroidUtilities.replaceTags(LocaleController.formatString(res, UserObject.getFirstName(user)));
                         }
                     }
                 }
@@ -1306,8 +1310,8 @@ public final class BulletinFactory {
         }
         layout.textView.setText(text);
 
-        if (undoAction != null || delayedActionOnce != null) {
-            layout.setButton(new Bulletin.UndoButton(layout.getContext(), true, fragment != null ? fragment.getResourceProvider() : null)
+        if (hasUndoButton) {
+            layout.setButton(new Bulletin.UndoButton(layout.getContext(), true, true, fragment != null ? fragment.getResourceProvider() : null)
                     .setUndoAction(undoAction)
                     .setDelayedAction(delayedActionOnce)
             );

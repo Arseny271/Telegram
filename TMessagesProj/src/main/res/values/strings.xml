@@ -1521,6 +1521,8 @@
     <string name="FwdMessagesToGroup">Messages forwarded to **%1$s**.</string>
     <string name="FwdMessageToUser">Message forwarded to **%1$s**.</string>
     <string name="FwdMessagesToUser">Messages forwarded to **%1$s**.</string>
+    <string name="FwdMessageToUserShort">Forwarded to **%1$s**.</string>
+    <string name="FwdMessagesToUserShort">Forwarded to **%1$s**.</string>
     <string name="FwdMessageToManyChats_one">Message forwarded to **a chat**.</string>
     <string name="FwdMessageToManyChats_other">Message forwarded to **%1$d chats**.</string>
     <string name="FwdMessagesToManyChats_one">Messages forwarded to **a chat**.</string>
