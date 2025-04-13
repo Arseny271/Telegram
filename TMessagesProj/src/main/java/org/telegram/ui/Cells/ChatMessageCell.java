@@ -575,6 +575,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         default void didQuickShareEnd(ChatMessageCell cell, float x, float y) {
         }
 
+        default void didQuickShareCancel(ChatMessageCell cell, float x, float y) {
+        }
+
         default void didPressOther(ChatMessageCell cell, float otherX, float otherY) {
         }
 
@@ -1861,7 +1864,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
             inQuickShareMode = false;
             if (delegate != null) {
-                delegate.didQuickShareEnd(this, getEventX(event), getEventY(event));
+                if (action == MotionEvent.ACTION_UP) {
+                    delegate.didQuickShareEnd(this, getEventX(event), getEventY(event));
+                } else {
+                    delegate.didQuickShareCancel(this, getEventX(event), getEventY(event));
+                }
             }
 
             return true;
