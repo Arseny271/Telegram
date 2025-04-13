@@ -63,7 +63,7 @@ public class PipNativeApiController {
         final String oldTag = oldSource != null ? oldSource.tag : null;
         maxPrioritySource = null;
         for (PipSource source : sources.values()) {
-            if (!source.isEnabled() && !source.isAttachedToPictureInPicture()) {
+            if ((!source.isEnabled() || (source.player != null && (source.ratio.x == 0 || source.ratio.y == 0))) && !source.isAttachedToPictureInPicture()) {
                 continue;
             }
 

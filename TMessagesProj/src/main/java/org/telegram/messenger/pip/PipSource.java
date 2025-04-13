@@ -29,7 +29,7 @@ public class PipSource {
     private final View.OnLayoutChangeListener onLayoutChangeListener = this::onLayoutChange;
     private final PictureInPictureContentViewProvider listener;
     private final Rect position = new Rect();
-    private final Point ratio = new Point();
+    final Point ratio = new Point();
 
     private boolean isEnabled = true;
     private View contentView;
@@ -82,7 +82,9 @@ public class PipSource {
     public void setContentRatio(int width, int height) {
         final boolean changed = (ratio.x != width || ratio.y != height);
         ratio.set(width, height);
-
+        if (player != null && changed) {
+            PipNativeApiController.onUpdateSourcesMap();
+        }
         if (PipNativeApiController.isMaxPrioritySource(tag) && changed) {
             applyPictureInPictureParams();
         }
@@ -90,6 +92,7 @@ public class PipSource {
 
     public void setPlayer(Player player) {
         this.player = player;
+        PipNativeApiController.onUpdateSourcesMap();
         if (PipNativeApiController.isMaxPrioritySource(tag)) {
             if (PipNativeApiController.mediaSessionConnector != null) {
                 PipNativeApiController.mediaSessionConnector.setPlayer(player);
@@ -124,6 +127,9 @@ public class PipSource {
             final int height = ((TextureViewRenderer) v).rotatedFrameHeight;
             changed |= (ratio.x != width || ratio.y != height);
             ratio.set(width, height);
+            if (player != null && changed) {
+                PipNativeApiController.onUpdateSourcesMap();
+            }
         }
 
         if (PipNativeApiController.isMaxPrioritySource(tag) && changed) {
