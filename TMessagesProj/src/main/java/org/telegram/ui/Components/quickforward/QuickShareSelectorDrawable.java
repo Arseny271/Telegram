@@ -223,7 +223,8 @@ public class QuickShareSelectorDrawable extends Drawable implements Animator.Ani
         final float x = touchX - bubbleCurrent.left + offsetX;
         final float y = touchY - bubbleCurrent.top + offsetY;
         final int indexH = (int) Math.floor((x - ((dp(Sizes.PADDING_H) - dp(Sizes.GAP) / 2f))) / dp(Sizes.AVATAR + Sizes.GAP));
-        final int index = y < bubbleCurrent.height() ? MathUtils.clamp(indexH, 0, avatarCells.length - 1) : -1;
+        final int index = (-dp(21 + Sizes.TEXT_PADDING_EXTERNAL)) < y && y < bubbleCurrent.height() ?
+            MathUtils.clamp(indexH, 0, avatarCells.length - 1) : -1;
 
         setIndex(index);
     }
