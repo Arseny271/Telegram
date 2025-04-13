@@ -292,7 +292,7 @@ public class GroupCallRenderersContainer extends FrameLayout {
                     RTMPStreamPipOverlay.show(groupCallActivity.getParentActivity());
                     groupCallActivity.dismiss();
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    AlertsCreator.createDrawOverlayPermissionDialog(groupCallActivity.getParentActivity(), null).show();
+                    AlertsCreator.createDrawOverlayPermissionDialog(groupCallActivity.getParentActivity(), null, true).show();
                 }
                 return;
             }

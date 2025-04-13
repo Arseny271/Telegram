@@ -2991,7 +2991,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 if (windowView != null) {
                     windowView.finish();
                 }
-            }).show();
+            }, true).show();
         }
     }
 

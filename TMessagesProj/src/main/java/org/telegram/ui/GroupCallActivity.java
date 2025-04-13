@@ -4623,7 +4623,7 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
                     RTMPStreamPipOverlay.show(parentActivity);
                     dismiss();
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    AlertsCreator.createDrawOverlayPermissionDialog(parentActivity, null).show();
+                    AlertsCreator.createDrawOverlayPermissionDialog(parentActivity, null, true).show();
                 }
                 return;
             }

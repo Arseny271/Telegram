@@ -8536,7 +8536,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         if (Build.VERSION.SDK_INT < 23 || PipNativeApiController.checkAnyPipPermissions(parentActivity)) {
             return true;
         } else {
-            AlertsCreator.createDrawOverlayPermissionDialog(parentActivity, null).show();
+            AlertsCreator.createDrawOverlayPermissionDialog(parentActivity, null, true).show();
         }
         return false;
     }
