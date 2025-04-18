@@ -190,8 +190,10 @@ import org.telegram.messenger.camera.Size;
 import org.telegram.messenger.chromecast.ChromecastController;
 import org.telegram.messenger.chromecast.ChromecastMedia;
 import org.telegram.messenger.chromecast.ChromecastMediaVariations;
-import org.telegram.messenger.pip.PictureInPictureContentViewProvider;
+import org.telegram.messenger.pip.source.IPipSourceDelegate;
+import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
+import org.telegram.messenger.pip.utils.PipUtils;
 import org.telegram.messenger.video.OldVideoPlayerRewinder;
 import org.telegram.messenger.video.VideoFramesRewinder;
 import org.telegram.messenger.video.VideoPlayerRewinder;
@@ -260,7 +262,6 @@ import org.telegram.ui.Components.PhotoViewerBlurDrawable;
 import org.telegram.ui.Components.PhotoViewerCoverEditor;
 import org.telegram.ui.Components.PhotoViewerWebView;
 import org.telegram.ui.Components.PickerBottomLayoutViewer;
-import org.telegram.messenger.pip.PipNativeApiController;
 import org.telegram.ui.Components.PipVideoOverlay;
 import org.telegram.ui.Components.PlayPauseDrawable;
 import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
@@ -314,7 +315,7 @@ import java.util.Objects;
 
 @SuppressLint("WrongConstant")
 @SuppressWarnings("unchecked")
-public class PhotoViewer implements NotificationCenter.NotificationCenterDelegate, GestureDetector2.OnGestureListener, GestureDetector2.OnDoubleTapListener, PictureInPictureContentViewProvider {
+public class PhotoViewer implements NotificationCenter.NotificationCenterDelegate, GestureDetector2.OnGestureListener, GestureDetector2.OnDoubleTapListener, IPipSourceDelegate {
     private final static float ZOOM_SCALE = 0.1f;
     private final static int MARK_DEFERRED_IMAGE_LOADING = 1;
 
@@ -1641,6 +1642,16 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             if (videoTextureView == null) {
                 return true;
             }
+
+            /* unsafe part - todo: test */
+            if (PipVideoOverlay.isVisible() && PipVideoOverlay.getPipSource() != null) {
+                if (PipVideoOverlay.getPipSource().state2.isAttachedToPip()) {
+                    savedSurfaceTexture = surface;
+                    return false;
+                }
+            }
+            /* unsafe part end */
+
             if (changingTextureView) {
                 if (switchingInlineMode) {
                     waitingForFirstTextureUpload = 2;
@@ -2157,6 +2168,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
         @Override
         public void draw(Canvas canvas) {
+            if (textureViewSkipRender) {
+                return;
+            }
+
             if (animationInProgress != 0 && !AndroidUtilities.isTablet() && currentPlaceObject != null && currentPlaceObject.animatingImageView != null) {
                 animatingImageView.getClippedVisibleRect(visibleRect);
                 if (!visibleRect.isEmpty()) {
@@ -4743,6 +4758,14 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     blackPaint.setAlpha(backgroundDrawable.getAlpha());
                     canvas.drawRect(0, getMeasuredHeight(), getMeasuredWidth(), getMeasuredHeight() + insets.bottom, blackPaint);
                 }
+            }
+
+            @Override
+            public void draw(@NonNull Canvas canvas) {
+                if (windowViewSkipRender) {
+                    return;
+                }
+                super.draw(canvas);
             }
 
             @Override
@@ -8533,7 +8556,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         if (parentActivity == null) {
             return false;
         }
-        if (Build.VERSION.SDK_INT < 23 || PipNativeApiController.checkAnyPipPermissions(parentActivity)) {
+        if (Build.VERSION.SDK_INT < 23 || PipUtils.checkAnyPipPermissions(parentActivity)) {
             return true;
         } else {
             AlertsCreator.createDrawOverlayPermissionDialog(parentActivity, null, true).show();
@@ -10270,11 +10293,13 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     }
                 };
                 videoPlayer.setOnQualityChangeListener(this::updateQualityItems);
-                if (PipNativeApiController.checkPermissions(parentActivity) == PipNativeApiController.PIP_GRANTED_PIP) {
-                    pipSource = new PipSource.Builder(parentActivity, this)
+                if (PipUtils.checkPermissions(parentActivity) == PipPermissions.PIP_GRANTED_PIP) {
+                    pipSource = new PipSource.Builder(parentActivity)
                         .setTagPrefix("photo-viewer-" + videoPlayer.playerId)
                         .setNeedMediaSession(true)
                         .build();
+                    pipSource.setDelegate(this);
+                    pipSource.setContentView(aspectRatioFrameLayout);
                     pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
                 }
                 newPlayerCreated = true;
@@ -10391,6 +10416,26 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
                 @Override
                 public boolean onSurfaceDestroyed(SurfaceTexture surfaceTexture) {
+                    /* unsafe part - todo: test */
+                    if (changedTextureView != null && surfaceTexture == changedTextureView.getSurfaceTexture()) {
+                        videoTextureView.setSurfaceTexture(surfaceTexture);
+                        videoTextureView.setVisibility(View.VISIBLE);
+                        videoPlayer.setTextureView(videoTextureView);
+                        changingTextureView = false;
+                        waitingForFirstTextureUpload = 2;
+                        videoPlayer.play();
+                        containerView.invalidate();
+                        return true;
+                    }
+
+                    if (savedSurfaceTexture != null && changedTextureView != null) {
+                        changedTextureView.setSurfaceTexture(savedSurfaceTexture);
+                        // changedTextureView.setSurfaceTextureListener(surfaceTextureListener);
+                        savedSurfaceTexture = null;
+                        return false;
+                    }
+                    /* unsafe part end */
+
                     if (changingTextureView) {
                         changingTextureView = false;
                         if (isInline) {
@@ -10638,6 +10683,29 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     return true;
                 }
                 return super.drawChild(canvas, child, drawingTime);
+            }
+
+            private final Rect tmpRect = new Rect();
+
+            @Override
+            protected void dispatchDraw(@NonNull Canvas canvas) {
+                super.dispatchDraw(canvas);
+                if (pipBitmap != null) {
+                    if (!pipBitmap.isRecycled()) {
+                        tmpRect.set(0, 0, getMeasuredWidth(), getMeasuredHeight());
+                        canvas.drawBitmap(pipBitmap, null, tmpRect, null);
+                    } else {
+                        pipBitmap = null;
+                    }
+                }
+            }
+
+            @Override
+            public void draw(@NonNull Canvas canvas) {
+                if (textureViewSkipRender) {
+                    return;
+                }
+                super.draw(canvas);
             }
         };
         aspectRatioFrameLayout.setWillNotDraw(false);
@@ -22642,48 +22710,88 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
 
-    @Override
-    public View detachContentFromWindow() {
-        if (videoPlayer != null) {
-            videoPlayer.setTextureView(null);
-            videoPlayer.setSurfaceView(null);
-        }
-        containerView.removeView(aspectRatioFrameLayout);
-        windowView.setVisibility(View.GONE);
-        menuItem.closeSubMenu();
-        videoItem.closeSubMenu();
-        return aspectRatioFrameLayout;
-    }
+
+    /* Pip V2 */
+
+    public SurfaceTexture savedSurfaceTexture;
+    private TextureView pipTextureView;
+    private boolean windowViewSkipRender;
+    private boolean textureViewSkipRender;
+    private Bitmap pipBitmap;
 
     @Override
-    public void onAttachContentToPip() {
-        if (videoPlayer == null) {
-            return;
-        }
+    public Bitmap pipCreatePrimaryWindowViewBitmap() {
         if (videoTextureView != null) {
-            videoPlayer.setTextureView(videoTextureView);
-        } else if (videoSurfaceView != null) {
-            videoPlayer.setSurfaceView(videoSurfaceView);
+            return videoTextureView.getBitmap();
         }
+        if (usedSurfaceView) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                Bitmap bitmap = Bitmaps.createBitmap(videoSurfaceView.getWidth(), videoSurfaceView.getHeight(), Bitmap.Config.ARGB_8888);
+                AndroidUtilities.getBitmapFromSurface(videoSurfaceView, bitmap);
+                return bitmap;
+            }
+        }
+        return null;
     }
 
     @Override
-    public void prepareDetachContentFromPip() {
+    public void pipRenderBackground(Canvas canvas) {
+        canvas.drawColor(0xFF000000);
+    }
+
+    @Override
+    public void pipRenderForeground(Canvas canvas) {
+        textureViewSkipRender = true;
+        windowView.draw(canvas);
+        textureViewSkipRender = false;
+    }
+
+    @Override
+    public View pipCreatePictureInPictureView() {
+        pipTextureView = new TextureView(parentActivity);
+        pipTextureView.setOpaque(false);
+
+        return pipTextureView;
+    }
+
+    @Override
+    public void pipHidePrimaryWindowView() {
+        if (videoPlayer != null) {
+            videoPlayer.setSurfaceView(null);
+            videoPlayer.setTextureView(null);
+            videoPlayer.play();
+            videoPlayer.setTextureView(pipTextureView);
+        };
+
+        WindowManager wm = (WindowManager) parentActivity.getSystemService(Context.WINDOW_SERVICE);
+        wm.removeView(windowView);
+        windowViewSkipRender = true;
+        windowView.invalidate();
+    }
+
+    @Override
+    public Bitmap pipCreatePictureInPictureViewBitmap() {
+        if (pipTextureView == null || !pipTextureView.isAvailable()) {
+            return null;
+        }
+
+        return pipBitmap = pipTextureView.getBitmap();
+    }
+
+    @Override
+    public void pipShowPrimaryWindowView() {
+        WindowManager wm = (WindowManager) parentActivity.getSystemService(Context.WINDOW_SERVICE);
+        wm.addView(windowView, windowLayoutParams);
+        windowViewSkipRender = false;
+        windowView.invalidate();
+
         if (videoPlayer == null) {
             return;
         }
-        videoPlayer.setTextureView(null);
+
         videoPlayer.setSurfaceView(null);
-    }
-
-    @Override
-    public void attachContentToWindow() {
-        containerView.addView(aspectRatioFrameLayout, 0, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.CENTER));
-        windowView.setVisibility(View.VISIBLE);
-        if (videoPlayer == null) {
-            return;
-        }
-
+        videoPlayer.setTextureView(null);
+        videoPlayer.play();
         if (videoTextureView != null) {
             videoPlayer.setTextureView(videoTextureView);
         } else if (videoSurfaceView != null) {

@@ -92,6 +92,7 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewPropertyAnimator;
+import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -5403,20 +5404,36 @@ public class AndroidUtilities {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && activity.isInPictureInPictureMode();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    public static void setPictureInPictureParams(Activity activity, PictureInPictureParams params) {
+        if (activity == null || activity.isDestroyed()) {
+            return;
+        }
+
+        if (params == null) {
+            resetPictureInPictureParams(activity);
+            return;
+        }
+
+        try {
+            activity.setPictureInPictureParams(params);
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
     public static void resetPictureInPictureParams(Activity activity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null && !activity.isDestroyed()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             final PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder();
             builder.setSourceRectHint(null);
             builder.setAspectRatio(null);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                builder.setSeamlessResizeEnabled(false);
+                builder.setSeamlessResizeEnabled(true);
                 builder.setAutoEnterEnabled(false);
             }
-            try {
-                activity.setPictureInPictureParams(builder.build());
-            } catch (Throwable e) {
-                FileLog.e(e);
-            }
+
+            setPictureInPictureParams(activity, builder.build());
         }
     }
 
@@ -6473,4 +6490,36 @@ public class AndroidUtilities {
         }
     }
 
+    public static void doOnPreDraw(@NonNull View view, @NonNull Runnable action, long timeoutMs) {
+        final ViewTreeObserver observer = view.getViewTreeObserver();
+
+        ViewTreeObserver.OnPreDrawListener[] listenerHolder = new ViewTreeObserver.OnPreDrawListener[1];
+        Runnable[] timeoutRunnable = new Runnable[1];
+        boolean[] completed = new boolean[1];
+
+        listenerHolder[0] = () -> {
+            if (observer.isAlive()) {
+                observer.removeOnPreDrawListener(listenerHolder[0]);
+            }
+            AndroidUtilities.cancelRunOnUIThread(timeoutRunnable[0]);
+            if (!completed[0]) {
+                completed[0] = true;
+                action.run();
+            }
+            return true;
+        };
+
+        timeoutRunnable[0] = () -> {
+            if (observer.isAlive()) {
+                observer.removeOnPreDrawListener(listenerHolder[0]);
+            }
+            if (!completed[0]) {
+                completed[0] = true;
+                action.run();
+            }
+        };
+
+        observer.addOnPreDrawListener(listenerHolder[0]);
+        AndroidUtilities.runOnUIThread(timeoutRunnable[0], timeoutMs);
+    }
 }

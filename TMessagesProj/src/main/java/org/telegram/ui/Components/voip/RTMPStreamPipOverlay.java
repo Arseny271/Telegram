@@ -12,6 +12,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
@@ -30,6 +31,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
+import androidx.annotation.NonNull;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.math.MathUtils;
 import androidx.core.view.GestureDetectorCompat;
@@ -47,8 +49,10 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
-import org.telegram.messenger.pip.PictureInPictureContentViewProvider;
+import org.telegram.messenger.pip.source.IPipSourceDelegate;
+import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
+import org.telegram.messenger.pip.utils.PipUtils;
 import org.telegram.messenger.voip.VideoCapturerDevice;
 import org.telegram.messenger.voip.VoIPService;
 import org.telegram.tgnet.TLRPC;
@@ -57,7 +61,6 @@ import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
-import org.telegram.messenger.pip.PipNativeApiController;
 import org.telegram.ui.Components.SimpleFloatPropertyCompat;
 import org.telegram.ui.LaunchActivity;
 import org.webrtc.RendererCommon;
@@ -65,7 +68,7 @@ import org.webrtc.RendererCommon;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCenterDelegate, PictureInPictureContentViewProvider {
+public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCenterDelegate, IPipSourceDelegate {
     private final static float ROUNDED_CORNERS_DP = 10;
     private final static float SIDE_PADDING_DP = 16;
     private final static FloatPropertyCompat<RTMPStreamPipOverlay> PIP_X_PROPERTY = new SimpleFloatPropertyCompat<>("pipX", obj -> obj.pipX, (obj, value) -> {
@@ -509,6 +512,15 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
                     contentFrameLayout.measure(MeasureSpec.makeMeasureSpec(pipWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(pipHeight, MeasureSpec.EXACTLY));
                 }
             }
+
+            @Override
+            public void draw(@NonNull Canvas canvas) {
+                if (windowViewSkipRender) {
+                    return;
+                }
+
+                super.draw(canvas);
+            }
         };
         contentView.addView(contentFrameLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -617,7 +629,7 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
         contentFrameLayout.addView(controlsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        windowLayoutParams = PipNativeApiController.createWindowLayoutParams(context, false);
+        windowLayoutParams = PipUtils.createWindowLayoutParams(context, false);
         windowLayoutParams.width = pipWidth;
         windowLayoutParams.height = pipHeight;
         windowLayoutParams.x = (int) (pipX = AndroidUtilities.displaySize.x - pipWidth - AndroidUtilities.dp(SIDE_PADDING_DP));
@@ -649,12 +661,13 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
             pipSource = null;
         }
         if (activity != null) {
-            if (PipNativeApiController.checkPermissions(activity) == PipNativeApiController.PIP_GRANTED_PIP) {
-                pipSource = new PipSource.Builder(activity, this)
+            if (PipUtils.checkPermissions(activity) == PipPermissions.PIP_GRANTED_PIP) {
+                pipSource = new PipSource.Builder(activity)
                     .setTagPrefix("pip-rtmp-video")
                     .setPriority(1)
                     .setContentView(contentView)
                     .build();
+                pipSource.setDelegate(this);
             }
         }
     }
@@ -670,6 +683,8 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
                 if (boundParticipant != null) {
                     VoIPService.getSharedInstance().removeRemoteSink(boundParticipant, boundPresentation);
                 }
+
+                final VoIPTextureView textureView = pipTextureView != null ? pipTextureView : this.textureView;
 
                 boundPresentation = participant.presentation != null;
                 if (participant.self) { // For debug reasons
@@ -746,7 +761,7 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
 
     /* * */
 
-    @Override
+    /*@Override
     public View detachContentFromWindow() {
         controlsView.setVisibility(View.GONE);
         contentView.setVisibility(View.GONE);
@@ -771,6 +786,62 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
         controlsView.setVisibility(View.VISIBLE);
         contentView.setVisibility(View.VISIBLE);
 
+        bindTextureView(true);
+    }*/
+
+
+    private VoIPTextureView pipTextureView;
+    private boolean windowViewSkipRender;
+
+    @Override
+    public Bitmap pipCreatePrimaryWindowViewBitmap() {
+        if (textureView == null || !textureView.renderer.isAvailable()) {
+            return null;
+        }
+
+        return textureView.renderer.getBitmap();
+    }
+
+    @Override
+    public View pipCreatePictureInPictureView() {
+        pipTextureView = new VoIPTextureView(textureView.getContext(), false, false, false, false);
+        pipTextureView.renderer.setOpaque(false);
+        pipTextureView.renderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
+        pipTextureView.scaleType = VoIPTextureView.SCALE_TYPE_FILL;
+        pipTextureView.renderer.setRotateTextureWithScreen(true);
+        pipTextureView.renderer.init(VideoCapturerDevice.getEglBase().getEglBaseContext(), null);
+
+        return pipTextureView;
+    }
+
+    @Override
+    public void pipHidePrimaryWindowView() {
+        bindTextureView(true);
+
+        windowViewSkipRender = true;
+        windowManager.removeView(contentView);
+        contentView.invalidate();
+    }
+
+    @Override
+    public Bitmap pipCreatePictureInPictureViewBitmap() {
+        if (pipTextureView == null || !pipTextureView.renderer.isAvailable()) {
+            return null;
+        }
+
+        return pipTextureView.renderer.getBitmap();
+    }
+
+    @Override
+    public void pipShowPrimaryWindowView() {
+        windowViewSkipRender = false;
+        windowManager.addView(contentView, windowLayoutParams);
+        contentView.invalidate();
+
+        if (pipTextureView != null) {
+            pipTextureView.renderer.release();
+            pipTextureView = null;
+        }
         bindTextureView(true);
     }
 }

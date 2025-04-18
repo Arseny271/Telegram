@@ -22,6 +22,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Dialog;
+import android.app.PictureInPictureParams;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -36,7 +37,6 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Looper;
 import android.os.Parcelable;
 import android.os.StatFs;
 import android.os.StrictMode;
@@ -49,7 +49,6 @@ import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.style.ClickableSpan;
 import android.util.Base64;
-import android.util.Pair;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 import android.view.ActionMode;
@@ -126,7 +125,10 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.browser.Browser;
-import org.telegram.messenger.pip.PictureInPictureActivityHandler;
+import org.telegram.messenger.pip.activity.IPipActivity;
+import org.telegram.messenger.pip.PipActivityController;
+import org.telegram.messenger.pip.activity.IPipActivityHandler;
+import org.telegram.messenger.pip.activity.IPipActivityListener;
 import org.telegram.messenger.voip.VideoCapturerDevice;
 import org.telegram.messenger.voip.VoIPPendingCall;
 import org.telegram.messenger.voip.VoIPPreNotificationService;
@@ -178,7 +180,6 @@ import org.telegram.ui.Components.MediaActivity;
 import org.telegram.ui.Components.PasscodeView;
 import org.telegram.ui.Components.PasscodeViewDialog;
 import org.telegram.ui.Components.PhonebookShareAlert;
-import org.telegram.messenger.pip.PipNativeApiController;
 import org.telegram.ui.Components.PipRoundVideoView;
 import org.telegram.ui.Components.PipVideoOverlay;
 import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
@@ -230,7 +231,7 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class LaunchActivity extends BasePermissionsActivity implements INavigationLayout.INavigationLayoutDelegate, NotificationCenter.NotificationCenterDelegate, DialogsActivity.DialogsActivityDelegate, PictureInPictureActivityHandler {
+public class LaunchActivity extends BasePermissionsActivity implements INavigationLayout.INavigationLayoutDelegate, NotificationCenter.NotificationCenterDelegate, DialogsActivity.DialogsActivityDelegate, IPipActivity {
     public final static String EXTRA_FORCE_NOT_INTERNAL_APPS = "force_not_internal_apps";
     public final static String EXTRA_FORCE_REQUEST = "force_request";
     public final static Pattern PREFIX_T_ME_PATTERN = Pattern.compile("^(?:http(?:s|)://|)([A-z0-9-]+?)\\.t\\.me");
@@ -267,6 +268,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     private boolean wasMutedByAdminRaisedHand;
 
+    private final PipActivityController pipActivityController = new PipActivityController(this);
+    private final IPipActivityHandler pipActivityHandler = pipActivityController.getHandler();
+
     private ImageView themeSwitchImageView;
     private View themeSwitchSunView;
     private RLottieDrawable themeSwitchSunDrawable;
@@ -277,7 +281,6 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     private FrameLayout shadowTablet;
     private FrameLayout shadowTabletSide;
     private SizeNotifierFrameLayout backgroundTablet;
-    private FrameLayout pipNativeWrapper;
     public FrameLayout frameLayout;
     private FireworksOverlay fireworksOverlay;
     private BottomSheetTabsOverlay bottomSheetTabsOverlay;
@@ -426,9 +429,20 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         };
         frameLayout.setClipToPadding(false);
         frameLayout.setClipChildren(false);
-        pipNativeWrapper = new FrameLayout(this);
-        pipNativeWrapper.addView(frameLayout, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        setContentView(pipNativeWrapper, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        setContentView(frameLayout);
+        pipActivityController.addPipListener(new IPipActivityListener() {
+            @Override
+            public void onCompleteEnterToPip() {
+                frameLayout.setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onStartExitFromPip(boolean byActivityStop) {
+                frameLayout.setVisibility(View.VISIBLE);
+            }
+        });
+
+        ((ViewGroup) (getWindow().getDecorView())).addView(pipActivityController.getPipContentView());
         if (Build.VERSION.SDK_INT >= 21) {
             themeSwitchImageView = new ImageView(this);
             themeSwitchImageView.setVisibility(View.GONE);
@@ -6464,6 +6478,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     protected void onPause() {
         super.onPause();
         isResumed = false;
+        pipActivityHandler.onPause();
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 4096);
         ApplicationLoader.mainInterfacePaused = true;
         int account = currentAccount;
@@ -6512,6 +6527,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     protected void onStart() {
         super.onStart();
         isStarted = true;
+        pipActivityHandler.onStart();
         Browser.bindCustomTabsService(this);
         ApplicationLoader.mainInterfaceStopped = false;
         GroupCallPip.updateVisibility(this);
@@ -6524,6 +6540,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     protected void onStop() {
         super.onStop();
         isStarted = false;
+        pipActivityHandler.onStop();
         Browser.unbindCustomTabsService(this);
         ApplicationLoader.mainInterfaceStopped = true;
         GroupCallPip.updateVisibility(this);
@@ -6533,27 +6550,22 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     @Override
-    public boolean isActivityStopped() {
-        return !isStarted;
+    public boolean onPictureInPictureRequested() {
+        pipActivityHandler.onPictureInPictureRequested();
+        return super.onPictureInPictureRequested();
     }
 
     @Override
-    public void addActivityPipView(View view) {
-        frameLayout.setVisibility(View.GONE);
-        pipNativeWrapper.addView(view, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-    }
-
-    @Override
-    public void removeActivityPipView(View view) {
-        pipNativeWrapper.removeView(view);
-        frameLayout.setVisibility(pipNativeWrapper.getChildCount() > 1 ? View.GONE : View.VISIBLE);
+    public void setPictureInPictureParams(@NonNull PictureInPictureParams params) {
+        super.setPictureInPictureParams(params);
+        pipActivityHandler.setPictureInPictureParams(params);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, @NonNull Configuration newConfig) {
-        PipNativeApiController.onPictureInPictureModeChanged(this, isInPictureInPictureMode);
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        pipActivityHandler.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
 
         if (!isInPictureInPictureMode && !isStarted) {
             if (RTMPStreamPipOverlay.isVisible()) {
@@ -6639,13 +6651,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     @Override
     protected void onUserLeaveHint() {
+        pipActivityHandler.onUserLeaveHint();
         for (Runnable callback : onUserLeaveHintListeners) {
             callback.run();
         }
         if (actionBarLayout != null) {
             actionBarLayout.onUserLeaveHint();
         }
-        PipNativeApiController.onUserLeaveHint(this);
     }
 
     View feedbackView;
@@ -6654,6 +6666,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     protected void onResume() {
         super.onResume();
         isResumed = true;
+        pipActivityHandler.onResume();
         if (onResumeStaticCallback != null) {
             onResumeStaticCallback.run();
             onResumeStaticCallback = null;
@@ -6795,6 +6808,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         AndroidUtilities.checkDisplaySize(this, newConfig);
         AndroidUtilities.setPreferredMaxRefreshRate(getWindow());
         super.onConfigurationChanged(newConfig);
+        pipActivityHandler.onConfigurationChanged(newConfig);
         checkLayout();
         PipRoundVideoView pipRoundVideoView = PipRoundVideoView.getInstance();
         if (pipRoundVideoView != null) {
@@ -8815,5 +8829,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         if (currentRipple != null) {
             currentRipple.animate(x, y, intensity);
         }
+    }
+
+    @Override
+    public PipActivityController getPipController() {
+        return pipActivityController;
     }
 }

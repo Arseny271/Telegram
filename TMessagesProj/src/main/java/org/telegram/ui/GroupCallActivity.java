@@ -96,6 +96,7 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.pip.PipSource;
+import org.telegram.messenger.pip.utils.PipUtils;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.messenger.voip.Instance;
 import org.telegram.messenger.voip.VoIPService;
@@ -140,7 +141,6 @@ import org.telegram.ui.Components.JoinCallAlert;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.NumberPicker;
 import org.telegram.ui.Components.PermissionRequest;
-import org.telegram.messenger.pip.PipNativeApiController;
 import org.telegram.ui.Components.ProfileGalleryView;
 import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RLottieImageView;
@@ -4619,7 +4619,7 @@ public class GroupCallActivity extends BottomSheet implements NotificationCenter
         pipItem.setBackgroundDrawable(Theme.createSelectorDrawable(Theme.getColor(Theme.key_voipgroup_actionBarItemsSelector), 6));
         pipItem.setOnClickListener(v -> {
             if (isRtmpStream()) {
-                if (PipNativeApiController.checkAnyPipPermissions(parentActivity)) {
+                if (PipUtils.checkAnyPipPermissions(parentActivity)) {
                     RTMPStreamPipOverlay.show(parentActivity);
                     dismiss();
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {

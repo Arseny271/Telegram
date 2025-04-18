@@ -18,6 +18,7 @@ import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -53,6 +54,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
@@ -73,9 +75,10 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
-import org.telegram.messenger.pip.PictureInPictureContentViewProvider;
-import org.telegram.messenger.pip.PipPermissions;
+import org.telegram.messenger.pip.source.IPipSourceDelegate;
+import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
+import org.telegram.messenger.pip.utils.PipUtils;
 import org.telegram.messenger.voip.EncryptionKeyEmojifier;
 import org.telegram.messenger.voip.Instance;
 import org.telegram.messenger.voip.VideoCapturerDevice;
@@ -96,7 +99,6 @@ import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.HideViewAfterAnimation;
 import org.telegram.ui.Components.LayoutHelper;
-import org.telegram.messenger.pip.PipNativeApiController;
 import org.telegram.ui.Components.voip.AcceptDeclineView;
 import org.telegram.ui.Components.voip.EmojiRationalLayout;
 import org.telegram.ui.Components.voip.HideEmojiTextView;
@@ -129,7 +131,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-public class VoIPFragment implements VoIPService.StateListener, NotificationCenter.NotificationCenterDelegate, PictureInPictureContentViewProvider {
+public class VoIPFragment implements VoIPService.StateListener, NotificationCenter.NotificationCenterDelegate, IPipSourceDelegate {
 
     private final static int STATE_GONE = 0;
     private final static int STATE_FULLSCREEN = 1;
@@ -338,6 +340,14 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             }
 
             @Override
+            public void draw(@NonNull Canvas canvas) {
+                if (fragment.windowViewSkipRender) {
+                    return;
+                }
+                super.draw(canvas);
+            }
+
+            @Override
             protected void dispatchDraw(Canvas canvas) {
                 if (fragment.switchingToPip && getAlpha() != 0) {
                     float width = fragment.callingUserTextureView.getWidth() * fragment.callingUserTextureView.getScaleX();
@@ -402,11 +412,12 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
         final VoIPService service = VoIPService.getSharedInstance();
         if (service != null && service.getRemoteVideoState() == Instance.VIDEO_STATE_ACTIVE) {
-            if (PipNativeApiController.checkPermissions(activity) == PipNativeApiController.PIP_GRANTED_PIP) {
-                instance.pipSource = new PipSource.Builder(activity, instance)
+            if (PipUtils.checkPermissions(activity) == PipPermissions.PIP_GRANTED_PIP) {
+                instance.pipSource = new PipSource.Builder(activity)
                         .setTagPrefix("voip-fragment-pip")
                         .setContentView(instance.callingUserTextureView.renderer)
                         .build();
+                instance.pipSource.setDelegate(instance);
             }
         }
     }
@@ -434,7 +445,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 return;
             }
             if (canSwitchToPip && !lockOnScreen) {
-                if (PipNativeApiController.checkAnyPipPermissions(activity)) {
+                if (PipUtils.checkAnyPipPermissions(activity)) {
                     switchToPip();
                 } else {
                     requestInlinePermissions();
@@ -596,11 +607,12 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         }
         final VoIPService service = VoIPService.getSharedInstance();
         if (service != null && service.getRemoteVideoState() == Instance.VIDEO_STATE_ACTIVE) {
-            if (pipSource == null && PipNativeApiController.checkPermissions(activity) == PipNativeApiController.PIP_GRANTED_PIP) {
-                pipSource = new PipSource.Builder(activity, this)
+            if (pipSource == null && PipUtils.checkPermissions(activity) == PipPermissions.PIP_GRANTED_PIP) {
+                pipSource = new PipSource.Builder(activity)
                         .setTagPrefix("voip-fragment-pip")
                         .setContentView(callingUserTextureView.renderer)
                         .build();
+                pipSource.setDelegate(instance);
             }
         } else if (pipSource != null) {
             pipSource.destroy();
@@ -2063,7 +2075,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             }
             currentUserTextureView.setIsScreencast(service.isScreencast());
             currentUserTextureView.renderer.setMirror(service.isFrontFaceCamera());
-            service.setSinks(currentUserIsVideo && !service.isScreencast() ? currentUserTextureView.renderer : null, showCallingUserVideoMini ? callingUserMiniTextureRenderer : callingUserTextureView.renderer);
+            service.setSinks(currentUserIsVideo && !service.isScreencast() ? currentUserTextureView.renderer : null, windowViewSkipRender && pipTextureView != null ? pipTextureView.renderer : showCallingUserVideoMini ? callingUserMiniTextureRenderer : callingUserTextureView.renderer);
 
             if (animated) {
                 notificationsLayout.beforeLayoutChanges();
@@ -2934,10 +2946,10 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             screenOn = pm.isScreenOn();
         }
 
-        final @PipPermissions int permissions = PipNativeApiController.checkPermissions(activity);
+        final @PipPermissions int permissions = PipUtils.checkPermissions(activity);
         final boolean hasPermissionsToPip = permissions > 0;
 
-        if (canSwitchToPip && permissions == PipNativeApiController.PIP_GRANTED_OVERLAY) {
+        if (canSwitchToPip && permissions == PipPermissions.PIP_GRANTED_OVERLAY) {
             int h = instance.windowView.getMeasuredHeight();
             VoIPPiPView.show(instance.activity, instance.currentAccount, instance.windowView.getMeasuredWidth(), h, VoIPPiPView.ANIMATION_ENTER_TYPE_SCALE);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH && instance.lastInsets != null) {
@@ -3013,7 +3025,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         return null;
     }
 
-    @Override
+    /*@Override
     public View detachContentFromWindow() {
         windowView.setVisibility(View.GONE);
         fragmentView.removeView(callingUserTextureView);
@@ -3035,5 +3047,65 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         windowView.setVisibility(View.VISIBLE);
         fragmentView.addView(callingUserTextureView, fragmentView.indexOfChild(voIpSnowView) + 1);
         updateViewState();
+    }*/
+
+
+
+    private VoIPTextureView pipTextureView;
+    private boolean windowViewSkipRender;
+
+    @Override
+    public Bitmap pipCreatePrimaryWindowViewBitmap() {
+        if (callingUserTextureView == null || !callingUserTextureView.renderer.isAvailable()) {
+            return null;
+        }
+
+        return callingUserTextureView.renderer.getBitmap();
+    }
+
+    @Override
+    public View pipCreatePictureInPictureView() {
+        pipTextureView = new VoIPTextureView(activity, false, true, false, false);
+        pipTextureView.renderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
+        pipTextureView.renderer.setEnableHardwareScaler(true);
+        pipTextureView.renderer.setRotateTextureWithScreen(true);
+        pipTextureView.scaleType = VoIPTextureView.SCALE_TYPE_FIT;
+        pipTextureView.renderer.init(VideoCapturerDevice.getEglBase().getEglBaseContext(), null);
+
+        return pipTextureView;
+    }
+
+    @Override
+    public void pipHidePrimaryWindowView() {
+        windowViewSkipRender = true;
+        updateViewState();
+
+        WindowManager wm = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
+        wm.removeView(windowView);
+        windowView.invalidate();
+    }
+
+    @Override
+    public Bitmap pipCreatePictureInPictureViewBitmap() {
+        if (pipTextureView == null || !pipTextureView.renderer.isAvailable()) {
+            return null;
+        }
+
+        return pipTextureView.renderer.getBitmap();
+    }
+
+    @Override
+    public void pipShowPrimaryWindowView() {
+        WindowManager wm = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
+        wm.addView(windowView, windowView.createWindowLayoutParams());
+
+        windowViewSkipRender = false;
+        updateViewState();
+        windowView.invalidate();
+
+        if (pipTextureView != null) {
+            pipTextureView.renderer.release();
+            pipTextureView = null;
+        }
     }
 }
