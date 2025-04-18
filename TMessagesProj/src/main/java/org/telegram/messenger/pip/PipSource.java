@@ -146,7 +146,7 @@ public class PipSource {
         PictureInPictureParams.Builder builder = params.build();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setAutoEnterEnabled(PipUtils.useAutoEnterInPictureInPictureMode());
-            builder.setSeamlessResizeEnabled(true);
+            //builder.setSeamlessResizeEnabled(true);
         }
         return builder.build();
     }

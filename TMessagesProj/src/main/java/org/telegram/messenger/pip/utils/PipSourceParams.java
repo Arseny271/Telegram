@@ -79,8 +79,14 @@ public class PipSourceParams {
                 r = new Rational(ratio.x, ratio.y);
             }
             builder.setAspectRatio(r);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                builder.setExpandedAspectRatio(r);
+            }
         } else {
             builder.setAspectRatio(null);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                builder.setExpandedAspectRatio(null);
+            }
         }
 
         if (!position.isEmpty()) {

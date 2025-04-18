@@ -5429,7 +5429,7 @@ public class AndroidUtilities {
             builder.setSourceRectHint(null);
             builder.setAspectRatio(null);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                builder.setSeamlessResizeEnabled(true);
+                //builder.setSeamlessResizeEnabled(true);
                 builder.setAutoEnterEnabled(false);
             }
 

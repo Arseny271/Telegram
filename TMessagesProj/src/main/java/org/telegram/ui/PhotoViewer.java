@@ -319,7 +319,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private final static float ZOOM_SCALE = 0.1f;
     private final static int MARK_DEFERRED_IMAGE_LOADING = 1;
 
-    private boolean ALLOW_USE_SURFACE = Build.VERSION.SDK_INT >= 30;
+    private boolean ALLOW_USE_SURFACE = false; //Build.VERSION.SDK_INT >= 30;
 
     private int classGuid;
     private PhotoViewerProvider placeProvider;
