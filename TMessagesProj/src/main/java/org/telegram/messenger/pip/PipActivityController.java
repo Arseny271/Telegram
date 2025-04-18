@@ -95,6 +95,7 @@ public class PipActivityController {
             if (newSource != null) {
                 mediaSession = new MediaSessionCompat(activity, "pip-media-session");
                 mediaSession.setQueue(null);
+                mediaSession.setActive(true);
                 mediaSessionConnector = new MediaSessionConnector(mediaSession);
 
                 // Log.i(PipSource.TAG, "[MEDIA] start media session");
