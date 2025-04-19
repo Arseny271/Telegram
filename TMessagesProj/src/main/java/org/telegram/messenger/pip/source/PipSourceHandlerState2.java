@@ -315,7 +315,6 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
     }
 
     private void drawForeground(Canvas canvas) {
-        Log.i("WTF_DEBUG", "draw foreground " + (1f - lastProgress));
         contentForeground.draw(canvas, 1f - lastProgress);
     }
 

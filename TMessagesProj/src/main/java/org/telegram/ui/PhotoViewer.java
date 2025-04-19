@@ -10411,7 +10411,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         pipFirstFrameCallback = null;
                     }
 
-                    Log.i("WTF_DEBUG", "onRenderedFirstFrame 2");
                     if (eventTime.eventPlaybackPositionMs == needCaptureFrameReadyAtTime) {
                         captureFrameReadyAtTime = eventTime.eventPlaybackPositionMs;
                         needCaptureFrameReadyAtTime = -1;
@@ -10459,7 +10458,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
                 @Override
                 public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
-                    Log.i("WTF_DEBUG", "surface updated");
                     checkChangedTextureView(false);
 
                     AndroidUtilities.runOnUIThread(() -> {
