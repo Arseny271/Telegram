@@ -443,6 +443,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         });
 
         ((ViewGroup) (getWindow().getDecorView())).addView(pipActivityController.getPipContentView());
+        pipActivityController.getPipContentView().bringToFront();
+
         if (Build.VERSION.SDK_INT >= 21) {
             themeSwitchImageView = new ImageView(this);
             themeSwitchImageView.setVisibility(View.GONE);

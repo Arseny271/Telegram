@@ -2,8 +2,8 @@ package org.telegram.messenger.pip;
 
 import android.app.Activity;
 import android.app.PictureInPictureParams;
-import android.graphics.Bitmap;
 import android.os.Build;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.RequiresApi;
@@ -22,39 +22,34 @@ public class PipSource {
     private static int sourceIdCounter = 0;
     public final int sourceId = sourceIdCounter++;
 
+    public final PipSourcePlaceholderView placeholderView;
     public final PipActivityController controller;
     public final PipSourceHandlerState2 state2;
 
     public final String tag;
     public final int priority;
+    public final int cornerRadius;
     public final boolean needMediaSession;
 
-    public final View activityView;
-    public final View windowView;
-
-    public IPipSourceDelegate delegate;
+    public final IPipSourceDelegate delegate;
     public final PipSourceParams params = new PipSourceParams();
     private final View.OnLayoutChangeListener onLayoutChangeListener = this::onLayoutChange;
 
-    public void setDelegate(IPipSourceDelegate delegate) {
-        this.delegate = delegate;
-    }
-
     private boolean isEnabled = true;
-    private View contentView;
+    public View contentView;
     Player player;
 
     private PipSource(PipActivityController controller, PipSource.Builder builder) {
         this.tag = (builder.tagPrefix != null ? builder.tagPrefix : "pip-source") + "-" + sourceId;
-        this.activityView = controller.activity.getWindow().getDecorView();
-        this.windowView = builder.windowView;
 
-        this.delegate = builder.handler2;
+        this.delegate = builder.delegate;
         this.priority = builder.priority;
+        this.cornerRadius = builder.cornerRadius;
         this.needMediaSession = builder.needMediaSession;
         this.controller = controller;
         this.params.setRatio(builder.width, builder.height);
         this.player = builder.player;
+        this.placeholderView = builder.placeholderView;
 
         this.state2 = new PipSourceHandlerState2(this);
 
@@ -75,7 +70,9 @@ public class PipSource {
 
     public void destroy() {
         controller.dispatchSourceUnregister(this);
-        setContentView(null);
+        if (this.contentView != null) {
+            this.contentView.removeOnLayoutChangeListener(onLayoutChangeListener);
+        }
     }
 
     public void setContentView(View contentView) {
@@ -106,6 +103,13 @@ public class PipSource {
     /* */
 
     private static final int[] tmpCords = new int[2];
+
+    public void invalidatePosition() {
+        if (contentView != null) {
+            updateContentPosition(contentView);
+        }
+    }
+
     private void updateContentPosition(View v) {
         if (AndroidUtilities.isInPictureInPictureMode(controller.activity)) {
             return;
@@ -118,6 +122,9 @@ public class PipSource {
 
         if (controller.activity != null) {
             controller.activity.getWindow().getDecorView().getLocationOnScreen(tmpCords);
+
+            Log.i(PipUtils.TAG, "[Debug] " + x + " " + tmpCords[0] + " " + y + " " + tmpCords[1]);
+
             x -= tmpCords[0];
             y -= tmpCords[1];
         }
@@ -175,25 +182,20 @@ public class PipSource {
 
     public static class Builder {
         private final Activity activity;
-        private View windowView;
-        private IPipSourceDelegate handler2;
+        private final IPipSourceDelegate delegate;
 
         private String tagPrefix;
-
+        private int cornerRadius;
         private int priority = 0;
         private boolean needMediaSession = false;
         private Player player;
         private int width, height;
         private View contentView;
+        private PipSourcePlaceholderView placeholderView;
 
-        public Builder(Activity activity) {
+        public Builder(Activity activity, IPipSourceDelegate delegate) {
             this.activity = activity;
-        }
-
-        public Builder(Activity activity, View windowView, IPipSourceDelegate delegate) {
-            this.activity = activity;
-            this.windowView = windowView;
-            this.handler2 = delegate;
+            this.delegate = delegate;
         }
 
         public Builder setTagPrefix(String tagPrefix) {
@@ -203,6 +205,16 @@ public class PipSource {
 
         public Builder setPriority(int priority) {
             this.priority = priority;
+            return this;
+        }
+
+        public Builder setPlaceholderView(PipSourcePlaceholderView placeholderView) {
+            this.placeholderView = placeholderView;
+            return this;
+        }
+
+        public Builder setCornerRadius(int cornerRadius) {
+            this.cornerRadius = cornerRadius;
             return this;
         }
 

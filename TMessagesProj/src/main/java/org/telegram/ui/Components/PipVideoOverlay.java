@@ -25,7 +25,6 @@ import android.os.Build;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
-import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -49,6 +48,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.pip.PipSourcePlaceholderView;
 import org.telegram.messenger.pip.source.IPipSourceDelegate;
 import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
@@ -511,15 +511,16 @@ public class PipVideoOverlay implements IPipSourceDelegate {
 
         if (videoPlayer != null) {
             if (PipUtils.checkPermissions(photoViewer.getParentActivity()) == PipPermissions.PIP_GRANTED_PIP) {
-                instance.pipSource = new PipSource.Builder(photoViewer.getParentActivity())
+                instance.pipSource = new PipSource.Builder(photoViewer.getParentActivity(), instance)
                     .setTagPrefix("photo-viewer-pip-" + videoPlayer.playerId)
                     .setPriority(1)
+                    .setCornerRadius(AndroidUtilities.dp(ROUNDED_CORNERS_DP))
                     .setContentView(instance.contentView)
+                    .setPlaceholderView(instance.placeholderView)
                     .setContentRatio(instance.mVideoWidth, instance.mVideoHeight)
                     .setPlayer(videoPlayer.player)
                     .setNeedMediaSession(true)
                     .build();
-                instance.pipSource.setDelegate(instance);
             }
         }
 
@@ -1043,6 +1044,8 @@ public class PipVideoOverlay implements IPipSourceDelegate {
             ((ViewGroup)innerView.getParent()).removeView(innerView);
         }
         contentFrameLayout.addView(innerView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        placeholderView = new PipSourcePlaceholderView(context);
+        contentFrameLayout.addView(placeholderView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         videoForwardDrawable.setDelegate(new VideoForwardDrawable.VideoForwardDrawableDelegate() {
             @Override
@@ -1289,6 +1292,7 @@ public class PipVideoOverlay implements IPipSourceDelegate {
 
     /* * */
 
+    private PipSourcePlaceholderView placeholderView;
     private TextureView pipTextureView;
     private boolean windowViewSkipRender;
 
@@ -1310,8 +1314,10 @@ public class PipVideoOverlay implements IPipSourceDelegate {
     }
 
     @Override
-    public void pipHidePrimaryWindowView() {
+    public void pipHidePrimaryWindowView(Runnable firstFrameCallback) {
         if (photoViewer != null && photoViewer.getVideoPlayer() != null) {
+            photoViewer.pipFirstFrameCallback = firstFrameCallback;
+
             VideoPlayer videoPlayer = photoViewer.getVideoPlayer();
             videoPlayer.setSurfaceView(null);
             videoPlayer.setTextureView(null);
@@ -1339,7 +1345,7 @@ public class PipVideoOverlay implements IPipSourceDelegate {
     }
 
     @Override
-    public void pipShowPrimaryWindowView() {
+    public void pipShowPrimaryWindowView(Runnable firstFrameCallback) {
         windowManager.addView(contentView, windowLayoutParams);
         windowViewSkipRender = false;
         contentView.invalidate();
@@ -1349,16 +1355,10 @@ public class PipVideoOverlay implements IPipSourceDelegate {
             return;
         }
 
+        photoViewer.pipFirstFrameCallback = firstFrameCallback;
         videoPlayer.setSurfaceView(null);
         videoPlayer.setTextureView(null);
         videoPlayer.play();
-
-        //photoViewer.getVideoTextureView().setSurfaceTexture(photoViewer.savedSurfaceTexture);
-        //photoViewer.getVideoTextureView().setSurfaceTexture(null);
-        //videoPlayer.setSurface(new Surface(photoViewer.changedTextureView.getSurfaceTexture()));
-
-        //photoViewer.getVideoTextureView().setSurfaceTexture(photoViewer.savedSurfaceTexture);
-        //photoViewer.savedSurfaceTexture = null;
 
         videoPlayer.setTextureView(photoViewer.changedTextureView);
     }

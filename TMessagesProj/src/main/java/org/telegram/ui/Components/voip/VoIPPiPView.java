@@ -185,12 +185,11 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
         final VoIPService service = VoIPService.getSharedInstance();
         if (service != null && service.getRemoteVideoState() == Instance.VIDEO_STATE_ACTIVE) {
             if (PipUtils.checkPermissions(activity) == PipPermissions.PIP_GRANTED_PIP) {
-                instance.pipSource = new PipSource.Builder(activity)
+                instance.pipSource = new PipSource.Builder(activity, instance)
                     .setTagPrefix("voip-pip")
                     .setPriority(1)
                     .setContentView(instance.callingUserTextureView.renderer)
                     .build();
-                instance.pipSource.setDelegate(instance);
             }
         }
     }
@@ -435,12 +434,11 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
             final Context context = instance.windowView.getContext();
             if (pipSource == null && PipUtils.checkPermissions(context) == PipPermissions.PIP_GRANTED_PIP) {
                 if (context instanceof Activity) {
-                    pipSource = new PipSource.Builder((Activity) context)
+                    pipSource = new PipSource.Builder((Activity) context, this)
                             .setTagPrefix("voip-pip")
                             .setPriority(1)
                             .setContentView(callingUserTextureView.renderer)
                             .build();
-                    pipSource.setDelegate(this);
                 }
             }
         } else if (pipSource != null) {
@@ -559,7 +557,7 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
     }
 
     @Override
-    public void pipHidePrimaryWindowView() {
+    public void pipHidePrimaryWindowView(Runnable firstFrameCallback) {
         if (VoIPService.getSharedInstance() != null) {
             VoIPService.getSharedInstance().setSinks(currentUserTextureView.renderer, pipTextureView.renderer);
         }
@@ -579,7 +577,7 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
     }
 
     @Override
-    public void pipShowPrimaryWindowView() {
+    public void pipShowPrimaryWindowView(Runnable firstFrameCallback) {
         windowManager.addView(windowView, windowLayoutParams);
 
         if (pipTextureView != null) {

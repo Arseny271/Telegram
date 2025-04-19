@@ -6,22 +6,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Trigger implements Runnable {
 
-    private final Runnable action;
+    public interface TimeoutRunnable {
+        void run(boolean byTimeout);
+    }
+
+    private final TimeoutRunnable action;
     private final Runnable timeoutRunnable;
     private final AtomicBoolean triggered = new AtomicBoolean(false);
 
-    private Trigger(Runnable action, long timeoutMs) {
+    private Trigger(TimeoutRunnable action, long timeoutMs) {
         this.action = action;
         this.timeoutRunnable = () -> {
             if (triggered.compareAndSet(false, true)) {
-                action.run();
+                action.run(true);
             }
         };
 
         AndroidUtilities.runOnUIThread(timeoutRunnable, timeoutMs);
     }
 
-    public static Trigger run(Runnable action, long timeoutMs) {
+    public static Trigger run(TimeoutRunnable action, long timeoutMs) {
         return new Trigger(action, timeoutMs);
     }
 
@@ -29,7 +33,7 @@ public class Trigger implements Runnable {
     public void run() {
         if (triggered.compareAndSet(false, true)) {
             AndroidUtilities.cancelRunOnUIThread(timeoutRunnable);
-            action.run();
+            action.run(false);
         }
     }
 

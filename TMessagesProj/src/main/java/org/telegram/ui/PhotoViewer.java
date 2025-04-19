@@ -83,6 +83,7 @@ import android.transition.TransitionManager;
 import android.transition.TransitionSet;
 import android.transition.TransitionValues;
 import android.util.FloatProperty;
+import android.util.Log;
 import android.util.Pair;
 import android.util.Property;
 import android.util.Range;
@@ -190,6 +191,7 @@ import org.telegram.messenger.camera.Size;
 import org.telegram.messenger.chromecast.ChromecastController;
 import org.telegram.messenger.chromecast.ChromecastMedia;
 import org.telegram.messenger.chromecast.ChromecastMediaVariations;
+import org.telegram.messenger.pip.PipSourcePlaceholderView;
 import org.telegram.messenger.pip.source.IPipSourceDelegate;
 import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
@@ -319,7 +321,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private final static float ZOOM_SCALE = 0.1f;
     private final static int MARK_DEFERRED_IMAGE_LOADING = 1;
 
-    private boolean ALLOW_USE_SURFACE = false; //Build.VERSION.SDK_INT >= 30;
+    private boolean ALLOW_USE_SURFACE = Build.VERSION.SDK_INT >= 30;
 
     private int classGuid;
     private PhotoViewerProvider placeProvider;
@@ -10294,12 +10296,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 };
                 videoPlayer.setOnQualityChangeListener(this::updateQualityItems);
                 if (PipUtils.checkPermissions(parentActivity) == PipPermissions.PIP_GRANTED_PIP) {
-                    pipSource = new PipSource.Builder(parentActivity)
+                    pipSource = new PipSource.Builder(parentActivity, this)
                         .setTagPrefix("photo-viewer-" + videoPlayer.playerId)
+                        .setContentView(aspectRatioFrameLayout)
+                        .setPlaceholderView(pipPlaceholderView)
                         .setNeedMediaSession(true)
                         .build();
-                    pipSource.setDelegate(this);
-                    pipSource.setContentView(aspectRatioFrameLayout);
                     pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
                 }
                 newPlayerCreated = true;
@@ -10404,6 +10406,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
                 @Override
                 public void onRenderedFirstFrame(AnalyticsListener.EventTime eventTime) {
+                    if (pipFirstFrameCallback != null) {
+                        pipFirstFrameCallback.run();
+                        pipFirstFrameCallback = null;
+                    }
+
+                    Log.i("WTF_DEBUG", "onRenderedFirstFrame 2");
                     if (eventTime.eventPlaybackPositionMs == needCaptureFrameReadyAtTime) {
                         captureFrameReadyAtTime = eventTime.eventPlaybackPositionMs;
                         needCaptureFrameReadyAtTime = -1;
@@ -10451,6 +10459,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
                 @Override
                 public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+                    Log.i("WTF_DEBUG", "surface updated");
                     checkChangedTextureView(false);
 
                     AndroidUtilities.runOnUIThread(() -> {
@@ -10685,21 +10694,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 return super.drawChild(canvas, child, drawingTime);
             }
 
-            private final Rect tmpRect = new Rect();
-
-            @Override
-            protected void dispatchDraw(@NonNull Canvas canvas) {
-                super.dispatchDraw(canvas);
-                if (pipBitmap != null) {
-                    if (!pipBitmap.isRecycled()) {
-                        tmpRect.set(0, 0, getMeasuredWidth(), getMeasuredHeight());
-                        canvas.drawBitmap(pipBitmap, null, tmpRect, null);
-                    } else {
-                        pipBitmap = null;
-                    }
-                }
-            }
-
             @Override
             public void draw(@NonNull Canvas canvas) {
                 if (textureViewSkipRender) {
@@ -10750,6 +10744,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         firstFrameView.setScaleType(ImageView.ScaleType.FIT_XY);
         aspectRatioFrameLayout.addView(firstFrameView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.CENTER));
 
+        pipPlaceholderView = new PipSourcePlaceholderView(parentActivity);
+        aspectRatioFrameLayout.addView(pipPlaceholderView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+
         if (sendPhotoType == SELECT_TYPE_AVATAR) {
             flashView = new View(parentActivity);
             flashView.setBackgroundColor(0xffffffff);
@@ -10757,7 +10754,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             aspectRatioFrameLayout.addView(flashView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.CENTER));
         }
         if (pipSource != null) {
-            pipSource.setContentView(aspectRatioFrameLayout);
+            pipSource.setContentView(pipPlaceholderView);
         }
     }
 
@@ -21347,8 +21344,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     private RenderNode renderNode;
 
-    public static boolean BLUR_RENDERNODE() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SharedConfig.useNewBlur && SharedConfig.getDevicePerformanceClass() >= SharedConfig.PERFORMANCE_CLASS_HIGH && !AndroidUtilities.makingGlobalBlurBitmap;
+    public boolean BLUR_RENDERNODE() {
+        return !textureViewSkipRender && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SharedConfig.useNewBlur && SharedConfig.getDevicePerformanceClass() >= SharedConfig.PERFORMANCE_CLASS_HIGH && !AndroidUtilities.makingGlobalBlurBitmap;
     }
 
     public void drawCaptionBlur(Canvas canvas, BlurringShader.StoryBlurDrawer drawer, int bgColor, int overlayColor, boolean clip, boolean allowTransparent, boolean allowCrossfade) {
@@ -22713,11 +22710,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     /* Pip V2 */
 
+    private PipSourcePlaceholderView pipPlaceholderView;
+    public Runnable pipFirstFrameCallback;
     public SurfaceTexture savedSurfaceTexture;
     private TextureView pipTextureView;
     private boolean windowViewSkipRender;
     private boolean textureViewSkipRender;
-    private Bitmap pipBitmap;
 
     @Override
     public Bitmap pipCreatePrimaryWindowViewBitmap() {
@@ -22750,12 +22748,17 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     public View pipCreatePictureInPictureView() {
         pipTextureView = new TextureView(parentActivity);
         pipTextureView.setOpaque(false);
+        if (pipPlaceholderView != null) {
+            pipPlaceholderView.bringToFront();
+        }
 
         return pipTextureView;
     }
 
     @Override
-    public void pipHidePrimaryWindowView() {
+    public void pipHidePrimaryWindowView(Runnable firstFrameCallback) {
+        this.pipFirstFrameCallback = firstFrameCallback;
+
         if (videoPlayer != null) {
             videoPlayer.setSurfaceView(null);
             videoPlayer.setTextureView(null);
@@ -22775,11 +22778,13 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             return null;
         }
 
-        return pipBitmap = pipTextureView.getBitmap();
+        return pipTextureView.getBitmap();
     }
 
     @Override
-    public void pipShowPrimaryWindowView() {
+    public void pipShowPrimaryWindowView(Runnable firstFrameCallback) {
+        this.pipFirstFrameCallback = firstFrameCallback;
+
         WindowManager wm = (WindowManager) parentActivity.getSystemService(Context.WINDOW_SERVICE);
         wm.addView(windowView, windowLayoutParams);
         windowViewSkipRender = false;

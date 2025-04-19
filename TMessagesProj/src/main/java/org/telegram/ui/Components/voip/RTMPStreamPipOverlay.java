@@ -49,6 +49,7 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
+import org.telegram.messenger.pip.PipSourcePlaceholderView;
 import org.telegram.messenger.pip.source.IPipSourceDelegate;
 import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
@@ -546,6 +547,10 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
             @Override
             public void onFirstFrameRendered() {
                 firstFrameRendered = true;
+                if (firstFrameCallback != null) {
+                    firstFrameCallback.run();
+                    firstFrameCallback = null;
+                }
                 AndroidUtilities.runOnUIThread(()-> bindTextureView());
             }
 
@@ -565,6 +570,9 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
             }
         });
         contentFrameLayout.addView(textureView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+
+        PipSourcePlaceholderView pipPlaceholderView = new PipSourcePlaceholderView(context);
+        contentFrameLayout.addView(pipPlaceholderView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         flickerView = new View(context) {
             @Override
@@ -662,12 +670,13 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
         }
         if (activity != null) {
             if (PipUtils.checkPermissions(activity) == PipPermissions.PIP_GRANTED_PIP) {
-                pipSource = new PipSource.Builder(activity)
+                pipSource = new PipSource.Builder(activity, this)
                     .setTagPrefix("pip-rtmp-video")
                     .setPriority(1)
+                    .setCornerRadius(AndroidUtilities.dp(ROUNDED_CORNERS_DP))
                     .setContentView(contentView)
+                    .setPlaceholderView(pipPlaceholderView)
                     .build();
-                pipSource.setDelegate(this);
             }
         }
     }
@@ -790,6 +799,7 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
     }*/
 
 
+    private Runnable firstFrameCallback;
     private VoIPTextureView pipTextureView;
     private boolean windowViewSkipRender;
 
@@ -809,13 +819,31 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
         pipTextureView.renderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
         pipTextureView.scaleType = VoIPTextureView.SCALE_TYPE_FILL;
         pipTextureView.renderer.setRotateTextureWithScreen(true);
-        pipTextureView.renderer.init(VideoCapturerDevice.getEglBase().getEglBaseContext(), null);
+        pipTextureView.renderer.init(VideoCapturerDevice.getEglBase().getEglBaseContext(), new RendererCommon.RendererEvents() {
+            @Override
+            public void onFirstFrameRendered() {
+                if (firstFrameCallback != null) {
+                    firstFrameCallback.run();
+                    firstFrameCallback = null;
+                }
+            }
+
+            @Override
+            public void onFrameResolutionChanged(int videoWidth, int videoHeight, int rotation) {
+
+            }
+        });
 
         return pipTextureView;
     }
 
     @Override
-    public void pipHidePrimaryWindowView() {
+    public void pipHidePrimaryWindowView(Runnable firstFrameCallback) {
+        this.firstFrameCallback = firstFrameCallback;
+        if (textureView != null) {
+            textureView.renderer.clearFirstFrame();
+        }
+
         bindTextureView(true);
 
         windowViewSkipRender = true;
@@ -833,7 +861,9 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
     }
 
     @Override
-    public void pipShowPrimaryWindowView() {
+    public void pipShowPrimaryWindowView(Runnable firstFrameCallback) {
+        this.firstFrameCallback = firstFrameCallback;
+
         windowViewSkipRender = false;
         windowManager.addView(contentView, windowLayoutParams);
         contentView.invalidate();

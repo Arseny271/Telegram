@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 
 import androidx.annotation.Nullable;
 
@@ -20,22 +21,75 @@ import java.util.HashMap;
 public class PipActivityController {
     private final HashMap<String, PipSource> sources = new HashMap<>();
     private final PipActivityHandler handler;
+    private PipActivityContentLayout pipContentView;
 
     public final Activity activity;
-    public PipActivityPipContentView pipContentView;
 
     public PipActivityController(Activity activity) {
         this.activity = activity;
         this.handler = new PipActivityHandler(activity);
+
+        handler.addPipListener(new IPipActivityListener() {
+            @Override
+            public void onStartEnterToPip() {
+                Log.d(PipUtils.TAG, "onStartEnterToPip");
+            }
+
+            @Override
+            public void onCompleteEnterToPip() {
+                Log.d(PipUtils.TAG, "onCompleteEnterToPip");
+            }
+
+            @Override
+            public void onStartExitFromPip(boolean byActivityStop) {
+                Log.d(PipUtils.TAG, "onStartExitFromPip: byActivityStop=" + byActivityStop);
+            }
+
+            @Override
+            public void onCompleteExitFromPip(boolean byActivityStop) {
+                Log.d(PipUtils.TAG, "onCompleteExitFromPip: byActivityStop=" + byActivityStop);
+            }
+        });
+        handler.addAnimationListener(new IPipActivityAnimationListener() {
+            @Override
+            public void onEnterAnimationStart(long estimatedDuration) {
+                Log.d(PipUtils.TAG, "onEnterAnimationStart: estimatedDuration=" + estimatedDuration);
+            }
+
+            @Override
+            public void onEnterAnimationEnd(long duration) {
+                Log.d(PipUtils.TAG, "onEnterAnimationEnd: duration=" + duration);
+            }
+
+            @Override
+            public void onLeaveAnimationStart(long estimatedDuration) {
+                Log.d(PipUtils.TAG, "onLeaveAnimationStart: estimatedDuration=" + estimatedDuration);
+            }
+
+            @Override
+            public void onLeaveAnimationEnd(long duration) {
+                Log.d(PipUtils.TAG, "onLeaveAnimationEnd: duration=" + duration);
+            }
+
+            @Override
+            public void onTransitionAnimationFrame() {
+                Log.d(PipUtils.TAG, "onTransitionAnimationFrame");
+            }
+
+            @Override
+            public void onTransitionAnimationProgress(float estimatedProgress) {
+                Log.d(PipUtils.TAG, "onTransitionAnimationProgress: estimatedProgress=" + estimatedProgress);
+            }
+        });
     }
 
     public IPipActivityHandler getHandler() {
         return handler;
     }
 
-    public View getPipContentView() {
+    public ViewGroup getPipContentView() {
         if (this.pipContentView == null) {
-            this.pipContentView = new PipActivityPipContentView(activity);
+            this.pipContentView = new PipActivityContentLayout(activity);
         }
 
         return this.pipContentView;
@@ -110,6 +164,7 @@ public class PipActivityController {
             if (mediaSessionConnector != null) {
                 mediaSessionConnector.setPlayer(newSource.player);
             }
+            pipContentView.bringToFront();
             newSource.state2.onReceiveMaxPriority();
         } else if (oldSource != null) {
             if (AndroidUtilities.isInPictureInPictureMode(activity)) {
@@ -180,63 +235,4 @@ public class PipActivityController {
     public void removeAnimationListener(IPipActivityAnimationListener listener) {
         handler.removeAnimationListener(listener);
     }
-
-
-
-    /* Logs */
-
-    /*
-        handler.addPipListener(new IPipActivityListener() {
-            @Override
-            public void onStartEnterToPip() {
-                Log.d(PipUtils.TAG, "onStartEnterToPip");
-            }
-
-            @Override
-            public void onCompleteEnterToPip() {
-                Log.d(PipUtils.TAG, "onCompleteEnterToPip");
-            }
-
-            @Override
-            public void onStartExitFromPip(boolean byActivityStop) {
-                Log.d(PipUtils.TAG, "onStartExitFromPip: byActivityStop=" + byActivityStop);
-            }
-
-            @Override
-            public void onCompleteExitFromPip(boolean byActivityStop) {
-                Log.d(PipUtils.TAG, "onCompleteExitFromPip: byActivityStop=" + byActivityStop);
-            }
-        });
-        handler.addAnimationListener(new IPipActivityAnimationListener() {
-            @Override
-            public void onEnterAnimationStart(long estimatedDuration) {
-                Log.d(PipUtils.TAG, "onEnterAnimationStart: estimatedDuration=" + estimatedDuration);
-            }
-
-            @Override
-            public void onEnterAnimationEnd(long duration) {
-                Log.d(PipUtils.TAG, "onEnterAnimationEnd: duration=" + duration);
-            }
-
-            @Override
-            public void onLeaveAnimationStart(long estimatedDuration) {
-                Log.d(PipUtils.TAG, "onLeaveAnimationStart: estimatedDuration=" + estimatedDuration);
-            }
-
-            @Override
-            public void onLeaveAnimationEnd(long duration) {
-                Log.d(PipUtils.TAG, "onLeaveAnimationEnd: duration=" + duration);
-            }
-
-            @Override
-            public void onTransitionAnimationFrame() {
-                // Log.d(TAG, "onTransitionAnimationFrame");
-            }
-
-            @Override
-            public void onTransitionAnimationProgress(float estimatedProgress) {
-                // Log.d(TAG, "onTransitionAnimationProgress: estimatedProgress=" + estimatedProgress);
-            }
-        });
-    */
 }

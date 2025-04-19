@@ -12,9 +12,9 @@ public interface IPipSourceDelegate {
 
     View pipCreatePictureInPictureView();
 
-    void pipHidePrimaryWindowView();
+    void pipHidePrimaryWindowView(Runnable firstFrameCallback);
 
     Bitmap pipCreatePictureInPictureViewBitmap();
 
-    void pipShowPrimaryWindowView();
+    void pipShowPrimaryWindowView(Runnable firstFrameCallback);
 }

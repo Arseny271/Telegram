@@ -413,11 +413,10 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         final VoIPService service = VoIPService.getSharedInstance();
         if (service != null && service.getRemoteVideoState() == Instance.VIDEO_STATE_ACTIVE) {
             if (PipUtils.checkPermissions(activity) == PipPermissions.PIP_GRANTED_PIP) {
-                instance.pipSource = new PipSource.Builder(activity)
-                        .setTagPrefix("voip-fragment-pip")
-                        .setContentView(instance.callingUserTextureView.renderer)
-                        .build();
-                instance.pipSource.setDelegate(instance);
+                instance.pipSource = new PipSource.Builder(activity, instance)
+                    .setTagPrefix("voip-fragment-pip")
+                    .setContentView(instance.callingUserTextureView.renderer)
+                    .build();
             }
         }
     }
@@ -608,11 +607,10 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         final VoIPService service = VoIPService.getSharedInstance();
         if (service != null && service.getRemoteVideoState() == Instance.VIDEO_STATE_ACTIVE) {
             if (pipSource == null && PipUtils.checkPermissions(activity) == PipPermissions.PIP_GRANTED_PIP) {
-                pipSource = new PipSource.Builder(activity)
+                pipSource = new PipSource.Builder(activity, instance)
                         .setTagPrefix("voip-fragment-pip")
                         .setContentView(callingUserTextureView.renderer)
                         .build();
-                pipSource.setDelegate(instance);
             }
         } else if (pipSource != null) {
             pipSource.destroy();
@@ -3064,6 +3062,11 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     }
 
     @Override
+    public void pipRenderBackground(Canvas canvas) {
+        canvas.drawColor(0xff1b1f23);
+    }
+
+    @Override
     public View pipCreatePictureInPictureView() {
         pipTextureView = new VoIPTextureView(activity, false, true, false, false);
         pipTextureView.renderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
@@ -3076,7 +3079,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     }
 
     @Override
-    public void pipHidePrimaryWindowView() {
+    public void pipHidePrimaryWindowView(Runnable firstFrameCallback) {
         windowViewSkipRender = true;
         updateViewState();
 
@@ -3095,7 +3098,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     }
 
     @Override
-    public void pipShowPrimaryWindowView() {
+    public void pipShowPrimaryWindowView(Runnable firstFrameCallback) {
         WindowManager wm = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
         wm.addView(windowView, windowView.createWindowLayoutParams());
 
