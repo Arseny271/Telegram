@@ -21,6 +21,7 @@ import android.graphics.Outline;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
+import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -48,7 +49,6 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.R;
-import org.telegram.messenger.pip.PipSourcePlaceholderView;
 import org.telegram.messenger.pip.source.IPipSourceDelegate;
 import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
@@ -1044,7 +1044,7 @@ public class PipVideoOverlay implements IPipSourceDelegate {
             ((ViewGroup)innerView.getParent()).removeView(innerView);
         }
         contentFrameLayout.addView(innerView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-        placeholderView = new PipSourcePlaceholderView(context);
+        placeholderView = new View(context);
         contentFrameLayout.addView(placeholderView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         videoForwardDrawable.setDelegate(new VideoForwardDrawable.VideoForwardDrawableDelegate() {
@@ -1292,9 +1292,22 @@ public class PipVideoOverlay implements IPipSourceDelegate {
 
     /* * */
 
-    private PipSourcePlaceholderView placeholderView;
-    private TextureView pipTextureView;
+    private View placeholderView;
+    public TextureView pipTextureView;
     private boolean windowViewSkipRender;
+
+    public static boolean isPipSurfaceTexture(SurfaceTexture texture) {
+        return instance != null && instance.pipTextureView != null && instance.pipTextureView.getSurfaceTexture() == texture;
+    }
+
+    public static TextureView getPipTextureView() {
+        return instance != null ? instance.pipTextureView : null;
+    }
+
+    @Override
+    public boolean pipIsAvailable() {
+        return photoViewer != null && photoViewer.pipIsAvailable();
+    }
 
     @Override
     public Bitmap pipCreatePrimaryWindowViewBitmap() {
@@ -1308,7 +1321,31 @@ public class PipVideoOverlay implements IPipSourceDelegate {
     @Override
     public View pipCreatePictureInPictureView() {
         pipTextureView = new TextureView(contentView.getContext());
+        pipTextureView.setVisibility(View.INVISIBLE);
         pipTextureView.setOpaque(false);
+        pipTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
+
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, int width, int height) {
+
+            }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surface) {
+                photoViewer.changedTextureView.setSurfaceTexture(surface);
+
+                return false;
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
+
+            }
+        });
 
         return pipTextureView;
     }
@@ -1317,13 +1354,6 @@ public class PipVideoOverlay implements IPipSourceDelegate {
     public void pipHidePrimaryWindowView(Runnable firstFrameCallback) {
         if (photoViewer != null && photoViewer.getVideoPlayer() != null) {
             photoViewer.pipFirstFrameCallback = firstFrameCallback;
-
-            VideoPlayer videoPlayer = photoViewer.getVideoPlayer();
-            videoPlayer.setSurfaceView(null);
-            videoPlayer.setTextureView(null);
-            videoPlayer.play();
-            videoPlayer.setTextureView(pipTextureView);
-            // photoViewer.changingTextureView = true;
         }
 
         windowManager.removeView(contentView);
@@ -1356,10 +1386,5 @@ public class PipVideoOverlay implements IPipSourceDelegate {
         }
 
         photoViewer.pipFirstFrameCallback = firstFrameCallback;
-        videoPlayer.setSurfaceView(null);
-        videoPlayer.setTextureView(null);
-        videoPlayer.play();
-
-        videoPlayer.setTextureView(photoViewer.changedTextureView);
     }
 }

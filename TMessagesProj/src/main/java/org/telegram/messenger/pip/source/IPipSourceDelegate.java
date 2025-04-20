@@ -8,6 +8,10 @@ public interface IPipSourceDelegate {
     default void pipRenderBackground(Canvas canvas) {}
     default void pipRenderForeground(Canvas canvas) {}
 
+    default boolean pipIsAvailable() {
+        return true;
+    }
+
     Bitmap pipCreatePrimaryWindowViewBitmap();
 
     View pipCreatePictureInPictureView();

@@ -49,7 +49,6 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
-import org.telegram.messenger.pip.PipSourcePlaceholderView;
 import org.telegram.messenger.pip.source.IPipSourceDelegate;
 import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
@@ -571,7 +570,7 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
         });
         contentFrameLayout.addView(textureView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
-        PipSourcePlaceholderView pipPlaceholderView = new PipSourcePlaceholderView(context);
+        final View pipPlaceholderView = new View(context);
         contentFrameLayout.addView(pipPlaceholderView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         flickerView = new View(context) {

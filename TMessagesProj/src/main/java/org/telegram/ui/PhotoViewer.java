@@ -191,7 +191,6 @@ import org.telegram.messenger.camera.Size;
 import org.telegram.messenger.chromecast.ChromecastController;
 import org.telegram.messenger.chromecast.ChromecastMedia;
 import org.telegram.messenger.chromecast.ChromecastMediaVariations;
-import org.telegram.messenger.pip.PipSourcePlaceholderView;
 import org.telegram.messenger.pip.source.IPipSourceDelegate;
 import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
@@ -1631,24 +1630,30 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private TextureView.SurfaceTextureListener surfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-
+            Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureAvailable " + surface + " " + width + " " + height);
         }
 
         @Override
         public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-
+            Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureSizeChanged " + surface + " " + width + " " + height);
         }
 
         @Override
         public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+            Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed " + surface);
+
             if (videoTextureView == null) {
+                Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed true videoTextureView == null");
                 return true;
             }
 
             /* unsafe part - todo: test */
             if (PipVideoOverlay.isVisible() && PipVideoOverlay.getPipSource() != null) {
                 if (PipVideoOverlay.getPipSource().state2.isAttachedToPip()) {
-                    savedSurfaceTexture = surface;
+                    PipVideoOverlay.getPipTextureView().setSurfaceTexture(surface);
+                    PipVideoOverlay.getPipTextureView().setVisibility(View.VISIBLE);
+                    Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed false savedSurfaceTexture");
+
                     return false;
                 }
             }
@@ -1662,8 +1667,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 videoTextureView.setVisibility(View.VISIBLE);
                 changingTextureView = false;
                 containerView.invalidate();
+                Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed false changingTextureView");
                 return false;
             }
+            Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed true");
             return true;
         }
 
@@ -10116,11 +10123,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         PipVideoOverlay.updatePlayButton();
         videoPlayerSeekbar.updateTimestamps(currentMessageObject, getVideoDuration());
         updateVideoPlayerTime();
-        AndroidUtilities.runOnUIThread(() -> {
-            if (pipSource != null) {
-                pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
-            }
-        });
+        AndroidUtilities.runOnUIThread(this::pipInvalidateAvailability);
     }
 
     private void playVideoOrWeb() {
@@ -10302,7 +10305,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         .setPlaceholderView(pipPlaceholderView)
                         .setNeedMediaSession(true)
                         .build();
-                    pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
                 }
                 newPlayerCreated = true;
             }
@@ -10424,23 +10426,17 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 @Override
                 public boolean onSurfaceDestroyed(SurfaceTexture surfaceTexture) {
                     /* unsafe part - todo: test */
-                    if (changedTextureView != null && surfaceTexture == changedTextureView.getSurfaceTexture()) {
-                        videoTextureView.setSurfaceTexture(surfaceTexture);
-                        videoTextureView.setVisibility(View.VISIBLE);
-                        videoPlayer.setTextureView(videoTextureView);
-                        changingTextureView = false;
-                        waitingForFirstTextureUpload = 2;
-                        videoPlayer.play();
-                        containerView.invalidate();
-                        return true;
+                    Log.i("WTF_DEBUG", "videoPlayer onSurfaceDestroyed " + surfaceTexture);
+
+                    if (PipVideoOverlay.getPipSource() != null && PipVideoOverlay.getPipSource().state2.isAttachedToPip()) {
+                        if (changedTextureView != null && changedTextureView.getSurfaceTexture() == surfaceTexture) {
+                            PipVideoOverlay.getPipTextureView().setSurfaceTexture(surfaceTexture);
+                            PipVideoOverlay.getPipTextureView().setVisibility(View.VISIBLE);
+                            Log.i("WTF_DEBUG", "videoPlayer onSurfaceDestroyed send surface to pip false");
+                            return true;
+                        }
                     }
 
-                    if (savedSurfaceTexture != null && changedTextureView != null) {
-                        changedTextureView.setSurfaceTexture(savedSurfaceTexture);
-                        // changedTextureView.setSurfaceTextureListener(surfaceTextureListener);
-                        savedSurfaceTexture = null;
-                        return false;
-                    }
                     /* unsafe part end */
 
                     if (changingTextureView) {
@@ -10450,9 +10446,11 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                             changedTextureView.setSurfaceTexture(surfaceTexture);
                             changedTextureView.setSurfaceTextureListener(surfaceTextureListener);
                             changedTextureView.setVisibility(View.VISIBLE);
+                            Log.i("WTF_DEBUG", "videoPlayer onSurfaceDestroyed changingTextureView && isInline false");
                             return true;
                         }
                     }
+                    Log.i("WTF_DEBUG", "videoPlayer onSurfaceDestroyed true");
                     return false;
                 }
 
@@ -10742,7 +10740,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         firstFrameView.setScaleType(ImageView.ScaleType.FIT_XY);
         aspectRatioFrameLayout.addView(firstFrameView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.CENTER));
 
-        pipPlaceholderView = new PipSourcePlaceholderView(parentActivity);
+        pipPlaceholderView = new View(parentActivity);
         aspectRatioFrameLayout.addView(pipPlaceholderView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         if (sendPhotoType == SELECT_TYPE_AVATAR) {
@@ -14346,9 +14344,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     } else if (!pipAvailable) {
                         pipItem.setEnabled(false);
                         setItemVisible(pipItem, true, !masksItemVisible && editItem.getAlpha() <= 0, 0.5f);
-                        if (pipSource != null) {
-                            pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
-                        }
+                        pipInvalidateAvailability();
                     } else {
                         setItemVisible(pipItem, true, !masksItemVisible && editItem.getAlpha() <= 0);
                     }
@@ -14846,9 +14842,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 if (!pipAvailable) {
                     pipItem.setEnabled(false);
                     setItemVisible(pipItem, true, true, 0.5f);
-                    if (pipSource != null) {
-                        pipSource.setEnabled(pipItem != null && pipItem.isEnabled() && isPlaying);
-                    }
+                    pipInvalidateAvailability();
                 } else {
                     setItemVisible(pipItem, true, true);
                 }
@@ -22708,12 +22702,25 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     /* Pip V2 */
 
-    private PipSourcePlaceholderView pipPlaceholderView;
+    private void pipInvalidateAvailability() {
+        if (pipSource != null) {
+            pipSource.invalidateAvailability();
+        }
+        if (PipVideoOverlay.getPipSource() != null) {
+            PipVideoOverlay.getPipSource().invalidateAvailability();
+        }
+    }
+
+    private View pipPlaceholderView;
     public Runnable pipFirstFrameCallback;
-    public SurfaceTexture savedSurfaceTexture;
     private TextureView pipTextureView;
     private boolean windowViewSkipRender;
     private boolean textureViewSkipRender;
+
+    @Override
+    public boolean pipIsAvailable() {
+        return pipItem != null && pipItem.isEnabled() && isPlaying;
+    }
 
     @Override
     public Bitmap pipCreatePrimaryWindowViewBitmap() {
@@ -22755,6 +22762,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     @Override
     public void pipHidePrimaryWindowView(Runnable firstFrameCallback) {
+        if (PipVideoOverlay.isVisible()) {
+            PipVideoOverlay.dismiss(false);
+        }
+
         this.pipFirstFrameCallback = firstFrameCallback;
 
         if (videoPlayer != null) {

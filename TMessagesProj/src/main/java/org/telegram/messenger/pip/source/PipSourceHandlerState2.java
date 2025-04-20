@@ -2,7 +2,6 @@ package org.telegram.messenger.pip.source;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -14,12 +13,10 @@ import androidx.core.graphics.ColorUtils;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.pip.PipSourceContentView;
-import org.telegram.messenger.pip.PipSourcePlaceholderView;
 import org.telegram.messenger.pip.PipSource;
 import org.telegram.messenger.pip.activity.IPipActivityAnimationListener;
 import org.telegram.messenger.pip.activity.IPipActivityListener;
 import org.telegram.messenger.pip.utils.Trigger;
-import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 
 public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivityAnimationListener {
@@ -77,16 +74,13 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
 
     private PipSourceSnapshot contentBackground;
     private PipSourceSnapshot contentForeground;
-    private Bitmap contentPlaceholder;
-
-
 
     private PipSourceContentView pictureInPictureWrapperView;
+    public View pictureInPicturePlaceholderView;
+
+    private PipSourcePlaceholder pipSourcePlaceholder;
+
     public View pictureInPictureView;
-
-    public PipSourcePlaceholderView pipSourcePlaceholder;
-
-    public Bitmap pictureInPicturePlaceholder;
 
     private final PipSource source;
 
@@ -108,23 +102,22 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
         final int width = source.controller.activity.getWindow().getDecorView().getMeasuredWidth();
         final int height = source.controller.activity.getWindow().getDecorView().getMeasuredHeight();
 
-        contentPlaceholder = source.delegate.pipCreatePrimaryWindowViewBitmap();
-
-        pipSourcePlaceholder = source.placeholderView;
+        Bitmap bitmap = source.delegate.pipCreatePrimaryWindowViewBitmap();
 
         contentBackground = new PipSourceSnapshot(width, height, source.delegate::pipRenderBackground);
         contentForeground = new PipSourceSnapshot(width, height, source.delegate::pipRenderForeground);
 
         pictureInPictureView = source.delegate.pipCreatePictureInPictureView();
+        pictureInPicturePlaceholderView = new View(source.controller.activity);
         pictureInPictureWrapperView = new PipSourceContentView(source.controller.activity, this);
+        pictureInPictureWrapperView.addView(pictureInPicturePlaceholderView);
         pictureInPictureWrapperView.addView(pictureInPictureView);
+
+        pipSourcePlaceholder = new PipSourcePlaceholder(pictureInPicturePlaceholderView, source.placeholderView);
+        pipSourcePlaceholder.setPlaceholder(bitmap);
 
         source.controller.getPipContentView()
             .addView(pictureInPictureWrapperView);
-
-        if (pipSourcePlaceholder != null) {
-            pipSourcePlaceholder.setPlaceholder(contentPlaceholder);
-        }
 
         state = STATE_PRE_ATTACHED;
 
@@ -144,10 +137,9 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
 
         Log.i("PIP_DEBUG", "[HANDLER] attach");
 
+        pipSourcePlaceholder.stopPlaceholderForSource();
         source.delegate.pipHidePrimaryWindowView(Trigger.run(timeout -> {
-            if (pipSourcePlaceholder != null) {
-                pipSourcePlaceholder.setPlaceholder(null);
-            }
+            pipSourcePlaceholder.stopPlaceholderForActivity();
             Log.i("PIP_DEBUG", "[HANDLER] on new source render first frame " + timeout);
         }, 400));
 
@@ -159,16 +151,12 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
             throw new IllegalStateException("wtf");
         }
 
-        pictureInPicturePlaceholder = source.delegate.pipCreatePictureInPictureViewBitmap();
+        pipSourcePlaceholder.setPlaceholder(source.delegate.pipCreatePictureInPictureViewBitmap());
         state = STATE_PRE_DETACHED_1;
 
         pictureInPictureWrapperView.removeView(pictureInPictureView);
         pictureInPictureWrapperView.invalidate();
         pictureInPictureView = null;
-
-        if (pipSourcePlaceholder != null) {
-            pipSourcePlaceholder.setPlaceholder(pictureInPicturePlaceholder);
-        }
 
         // wait render activity placeholder
         AndroidUtilities.doOnPreDraw(pictureInPictureWrapperView, () -> {
@@ -183,22 +171,9 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
             throw new IllegalStateException("wtf");
         }
 
-        a = 2;
-
         source.delegate.pipShowPrimaryWindowView(Trigger.run(timeout -> {
             Log.i("PIP_DEBUG", "[HANDLER] on old source render first frame " + timeout);
-            AndroidUtilities.runOnUIThread(() -> {
-                a--;
-                if (a == 0 && pictureInPicturePlaceholder != null) {
-                    if (pipSourcePlaceholder != null) {
-                        pipSourcePlaceholder.setPlaceholder(null);
-                    }
-
-                    pictureInPicturePlaceholder.recycle();
-                    pictureInPicturePlaceholder = null;
-                }
-            });
-
+            AndroidUtilities.runOnUIThread(pipSourcePlaceholder::stopPlaceholderForSource);
         }, 400));
         pictureInPictureWrapperView.invalidate();
         state = STATE_PRE_DETACHED_2;
@@ -211,8 +186,6 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
         Log.i("PIP_DEBUG", "[HANDLER] pre detach 2");
     }
 
-    private int a;
-
     private void performDetach() {
         if (state != STATE_PRE_DETACHED_2) {
             throw new IllegalStateException("wtf");
@@ -223,6 +196,7 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
 
         pictureInPictureView = null;
         pictureInPictureWrapperView = null;
+        pictureInPicturePlaceholderView = null;
 
         if (contentForeground != null) {
             contentForeground.release();
@@ -233,21 +207,7 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
             contentBackground = null;
         }
 
-
-        a--;
-        if (a == 0 && pictureInPicturePlaceholder != null) {
-            pictureInPicturePlaceholder.recycle();
-            pictureInPicturePlaceholder = null;
-            if (pipSourcePlaceholder != null) {
-                pipSourcePlaceholder.setPlaceholder(null);
-            }
-        }
-
-        if (contentPlaceholder != null) {
-            contentPlaceholder.recycle();
-            contentPlaceholder =  null;
-        }
-
+        pipSourcePlaceholder.stopPlaceholderForActivity();
         state = STATE_DETACHED;
 
         Log.i("PIP_DEBUG", "[HANDLER] detach");
@@ -294,7 +254,6 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
             canvas.clipPath(path);
         }
 
-        drawPlaceholder(canvas);
         content.run(canvas);
         drawForeground(canvas);
 
@@ -307,15 +266,6 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
         final int color = Theme.getColor(Theme.key_windowBackgroundWhite);
         canvas.drawColor(ColorUtils.setAlphaComponent(color, (int) (Math.min(lastProgress * 420, 255))));
         contentBackground.draw(canvas, 1f);
-    }
-
-    private void drawPlaceholder(Canvas canvas) {
-        final Bitmap bitmap = state == STATE_PRE_ATTACHED || state == STATE_ATTACHED ?
-                contentPlaceholder : pictureInPicturePlaceholder;
-
-        if (bitmap != null && !bitmap.isRecycled()) {
-            canvas.drawBitmap(bitmap, null, position, null);
-        }
     }
 
     private void drawForeground(Canvas canvas) {

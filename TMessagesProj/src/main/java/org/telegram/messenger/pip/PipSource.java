@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.PictureInPictureParams;
 import android.graphics.Rect;
 import android.os.Build;
-import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.RequiresApi;
@@ -24,7 +23,7 @@ public class PipSource {
     private static int sourceIdCounter = 0;
     public final int sourceId = sourceIdCounter++;
 
-    public final PipSourcePlaceholderView placeholderView;
+    public final View placeholderView;
     public final PipActivityController controller;
     public final PipSourceHandlerState2 state2;
 
@@ -38,7 +37,6 @@ public class PipSource {
 
     private final PipPositionObserver pipPositionObserver = new PipPositionObserver(this::invalidatePosition);
 
-    private boolean isEnabled = true;
     public View contentView;
     Player player;
 
@@ -60,15 +58,6 @@ public class PipSource {
 
         checkAvailable(false);
         controller.dispatchSourceRegister(this);
-    }
-
-    public void setEnabled(boolean enabled) {
-        isEnabled = enabled;
-        checkAvailable(true);
-    }
-
-    public boolean isEnabled() {
-        return isEnabled;
     }
 
     public void destroy() {
@@ -144,13 +133,17 @@ public class PipSource {
 
     private boolean isAvailable;
     private void checkAvailable(boolean notify) {
-        boolean isAvailable = isEnabled && params.isValid();
+        boolean isAvailable = params.isValid() && delegate.pipIsAvailable();
         if (this.isAvailable != isAvailable) {
             this.isAvailable = isAvailable;
             if (notify) {
                 controller.dispatchSourceAvailabilityChanged(this);
             }
         }
+    }
+
+    public void invalidateAvailability() {
+        checkAvailable(true);
     }
 
     public boolean isAvailable() {
@@ -171,7 +164,7 @@ public class PipSource {
         private Player player;
         private int width, height;
         private View contentView;
-        private PipSourcePlaceholderView placeholderView;
+        private View placeholderView;
 
         public Builder(Activity activity, IPipSourceDelegate delegate) {
             this.activity = activity;
@@ -188,7 +181,7 @@ public class PipSource {
             return this;
         }
 
-        public Builder setPlaceholderView(PipSourcePlaceholderView placeholderView) {
+        public Builder setPlaceholderView(View placeholderView) {
             this.placeholderView = placeholderView;
             return this;
         }
