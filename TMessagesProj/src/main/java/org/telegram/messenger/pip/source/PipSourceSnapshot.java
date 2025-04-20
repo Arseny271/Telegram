@@ -1,7 +1,6 @@
 package org.telegram.messenger.pip.source;
 
 import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.graphics.Picture;
 import android.graphics.RenderNode;
 import android.os.Build;

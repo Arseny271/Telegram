@@ -659,6 +659,14 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
                 ObjectAnimator.ofFloat(contentView, View.SCALE_X, 1f),
                 ObjectAnimator.ofFloat(contentView, View.SCALE_Y, 1f)
         );
+        set.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(@NonNull Animator animation, boolean isReverse) {
+                if (pipSource != null) {
+                    pipSource.invalidatePosition();
+                }
+            }
+        });
         set.start();
 
         bindTextureView();

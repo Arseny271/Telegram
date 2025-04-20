@@ -2,6 +2,7 @@ package org.telegram.messenger.pip;
 
 import android.app.Activity;
 import android.app.PictureInPictureParams;
+import android.graphics.Rect;
 import android.os.Build;
 import android.util.Log;
 import android.view.View;
@@ -14,6 +15,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.pip.activity.IPipActivity;
 import org.telegram.messenger.pip.source.IPipSourceDelegate;
 import org.telegram.messenger.pip.source.PipSourceHandlerState2;
+import org.telegram.messenger.pip.utils.PipPositionObserver;
 import org.telegram.messenger.pip.utils.PipSourceParams;
 import org.telegram.messenger.pip.utils.PipUtils;
 import org.webrtc.TextureViewRenderer;
@@ -33,7 +35,8 @@ public class PipSource {
 
     public final IPipSourceDelegate delegate;
     public final PipSourceParams params = new PipSourceParams();
-    private final View.OnLayoutChangeListener onLayoutChangeListener = this::onLayoutChange;
+
+    private final PipPositionObserver pipPositionObserver = new PipPositionObserver(this::invalidatePosition);
 
     private boolean isEnabled = true;
     public View contentView;
@@ -69,20 +72,15 @@ public class PipSource {
     }
 
     public void destroy() {
+        pipPositionObserver.stop();
         controller.dispatchSourceUnregister(this);
-        if (this.contentView != null) {
-            this.contentView.removeOnLayoutChangeListener(onLayoutChangeListener);
-        }
     }
 
     public void setContentView(View contentView) {
-        if (this.contentView != null) {
-            this.contentView.removeOnLayoutChangeListener(onLayoutChangeListener);
-        }
+        pipPositionObserver.start(contentView);
 
         this.contentView = contentView;
         if (this.contentView != null) {
-            this.contentView.addOnLayoutChangeListener(onLayoutChangeListener);
             updateContentPosition(this.contentView);
         }
     }
@@ -102,35 +100,15 @@ public class PipSource {
 
     /* */
 
-    private static final int[] tmpCords = new int[2];
-
-    public void invalidatePosition() {
-        if (contentView != null) {
-            updateContentPosition(contentView);
-        }
-    }
+    private static final Rect tmpRect = new Rect();
 
     private void updateContentPosition(View v) {
         if (AndroidUtilities.isInPictureInPictureMode(controller.activity)) {
             return;
         }
 
-        int x, y;
-        v.getLocationOnScreen(tmpCords);
-        x = tmpCords[0];
-        y = tmpCords[1];
-
-        if (controller.activity != null) {
-            controller.activity.getWindow().getDecorView().getLocationOnScreen(tmpCords);
-
-            Log.i(PipUtils.TAG, "[Debug] " + x + " " + tmpCords[0] + " " + y + " " + tmpCords[1]);
-
-            x -= tmpCords[0];
-            y -= tmpCords[1];
-        }
-
-        final int l = x, t = y, r = x + v.getWidth(), b = y + v.getHeight();
-        boolean changed = params.setPosition(l, t, r, b);
+        PipUtils.getPipSourceRectHintPosition(controller.activity, v, tmpRect);
+        boolean changed = params.setPosition(tmpRect);
 
         if (v instanceof TextureViewRenderer) {
             final int width = ((TextureViewRenderer) v).rotatedFrameWidth;
@@ -144,8 +122,10 @@ public class PipSource {
         }
     }
 
-    private void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
-        updateContentPosition(v);
+    public void invalidatePosition() {
+        if (contentView != null) {
+            updateContentPosition(contentView);
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)

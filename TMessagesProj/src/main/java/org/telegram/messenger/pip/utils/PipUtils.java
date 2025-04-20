@@ -3,11 +3,14 @@ package org.telegram.messenger.pip.utils;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewParent;
 import android.view.WindowManager;
+
+import androidx.core.math.MathUtils;
 
 import com.google.android.exoplayer2.util.Log;
 
@@ -69,6 +72,29 @@ public class PipUtils {
                 AndroidUtilities.resetPictureInPictureParams(activity);
             }
         }
+    }
+
+    private static final int[] tmpCords = new int[2];
+    public static void getPipSourceRectHintPosition(Activity activity, View view, Rect out) {
+        int l, t, r, b;
+        view.getLocationOnScreen(tmpCords);
+        l = tmpCords[0];
+        t = tmpCords[1];
+
+        final View activityView = activity.getWindow().getDecorView();
+
+        activityView.getLocationOnScreen(tmpCords);
+        l -= tmpCords[0];
+        t -= tmpCords[1];
+        r = l + view.getWidth();
+        b = t + view.getHeight();
+
+        out.set(
+            MathUtils.clamp(l, tmpCords[0], tmpCords[0] + activityView.getWidth()),
+            MathUtils.clamp(t, tmpCords[1], tmpCords[1] + activityView.getHeight()),
+            MathUtils.clamp(r, tmpCords[0], tmpCords[0] + activityView.getWidth()),
+            MathUtils.clamp(b, tmpCords[1], tmpCords[1] + activityView.getHeight())
+        );
     }
 
     public static void logParentChain(View view) {

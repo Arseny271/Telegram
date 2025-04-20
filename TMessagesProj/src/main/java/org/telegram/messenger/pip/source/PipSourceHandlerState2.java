@@ -2,11 +2,14 @@ package org.telegram.messenger.pip.source;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.Log;
 import android.view.View;
+
+import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Utilities;
@@ -16,6 +19,8 @@ import org.telegram.messenger.pip.PipSource;
 import org.telegram.messenger.pip.activity.IPipActivityAnimationListener;
 import org.telegram.messenger.pip.activity.IPipActivityListener;
 import org.telegram.messenger.pip.utils.Trigger;
+import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.Theme;
 
 public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivityAnimationListener {
 
@@ -246,9 +251,6 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
         state = STATE_DETACHED;
 
         Log.i("PIP_DEBUG", "[HANDLER] detach");
-
-        AndroidUtilities.cancelRunOnUIThread(updateRunnable);
-        doUpdate();
     }
 
 
@@ -302,6 +304,8 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
     }
 
     private void drawBackground(Canvas canvas) {
+        final int color = Theme.getColor(Theme.key_windowBackgroundWhite);
+        canvas.drawColor(ColorUtils.setAlphaComponent(color, (int) (Math.min(lastProgress * 420, 255))));
         contentBackground.draw(canvas, 1f);
     }
 
@@ -347,15 +351,9 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
         pictureInPictureWrapperView.invalidate();
     }
 
-
-
     public void onReceiveMaxPriority() {
         source.controller.addPipListener(this);
         source.controller.addAnimationListener(this);
-
-        isInMaxPriority = true;
-        AndroidUtilities.cancelRunOnUIThread(updateRunnable);
-        AndroidUtilities.runOnUIThread(updateRunnable, 750);
     }
 
     public void onLoseMaxPriority() {
@@ -364,17 +362,5 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
         }
         source.controller.removePipListener(this);
         source.controller.removeAnimationListener(this);
-
-        isInMaxPriority = false;
-        AndroidUtilities.cancelRunOnUIThread(updateRunnable);
-    }
-
-    private boolean isInMaxPriority;
-    private final Runnable updateRunnable = this::doUpdate;
-    private void doUpdate() {
-        if (isInMaxPriority && state == STATE_DETACHED) {
-            source.invalidatePosition();
-            AndroidUtilities.runOnUIThread(updateRunnable, 750);
-        }
     }
 }
