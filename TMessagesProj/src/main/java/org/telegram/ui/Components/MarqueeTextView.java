@@ -140,7 +140,7 @@ public class MarqueeTextView extends TextView {
     private void pendingMarqueeInternal() {
         if (!marqueeIsPending) {
             marqueeIsPending = true;
-            AndroidUtilities.runOnUIThread(startMarquee, 1000);
+            AndroidUtilities.runOnUIThread(startMarquee, 1500);
         }
     }
 

@@ -577,10 +577,11 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
 
             @Override
             protected void onImageUpdated(ImageReceiver imageReceiver) {
-                final int padding = imageReceiver.hasImageLoaded() ? AndroidUtilities.dp(64) : 0;
+                final Bitmap b = imageReceiver.getBitmap();
+                final int padding = (b != null && imageReceiver.hasImageLoaded() || imageReceiver.hasBitmapImage()) ? AndroidUtilities.dp(64) : 0;
                 setCustomPaddingRight(padding, true);
                 if (blurredView.getTag() != null) {
-                    bigAlbumConver.setImageBitmap(imageReceiver.getBitmap());
+                    bigAlbumConver.setImageBitmap(b);
                 }
             }
         };
