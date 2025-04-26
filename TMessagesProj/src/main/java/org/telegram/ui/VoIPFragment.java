@@ -15,6 +15,7 @@ import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.KeyguardManager;
+import android.app.RemoteAction;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -25,6 +26,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.PowerManager;
 import android.text.Layout;
@@ -36,6 +38,7 @@ import android.transition.TransitionManager;
 import android.transition.TransitionSet;
 import android.transition.TransitionValues;
 import android.transition.Visibility;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -75,7 +78,9 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.pip.activity.IPipActivityActionListener;
 import org.telegram.messenger.pip.source.IPipSourceDelegate;
+import org.telegram.messenger.pip.utils.PipActions;
 import org.telegram.messenger.pip.utils.PipPermissions;
 import org.telegram.messenger.pip.PipSource;
 import org.telegram.messenger.pip.utils.PipUtils;
@@ -131,7 +136,10 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-public class VoIPFragment implements VoIPService.StateListener, NotificationCenter.NotificationCenterDelegate, IPipSourceDelegate {
+public class VoIPFragment implements VoIPService.StateListener,
+        NotificationCenter.NotificationCenterDelegate,
+        IPipSourceDelegate
+{
 
     private final static int STATE_GONE = 0;
     private final static int STATE_FULLSCREEN = 1;
@@ -416,6 +424,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 instance.pipSource = new PipSource.Builder(activity, instance)
                     .setTagPrefix("voip-fragment-pip")
                     .setContentView(instance.callingUserTextureView.renderer)
+                    .setPlaceholderView(instance.callingUserTextureView.getPlaceholderView())
                     .build();
             }
         }
@@ -610,6 +619,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 pipSource = new PipSource.Builder(activity, instance)
                         .setTagPrefix("voip-fragment-pip")
                         .setContentView(callingUserTextureView.renderer)
+                        .setPlaceholderView(callingUserTextureView.getPlaceholderView())
                         .build();
             }
         } else if (pipSource != null) {
@@ -1397,6 +1407,10 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         callingUserTextureView.renderer.init(VideoCapturerDevice.getEglBase().getEglBaseContext(), new RendererCommon.RendererEvents() {
             @Override
             public void onFirstFrameRendered() {
+                if (firstFrameCallback != null) {
+                    firstFrameCallback.run();
+                    firstFrameCallback = null;
+                }
                 AndroidUtilities.runOnUIThread(() -> updateViewState());
             }
 
@@ -2206,6 +2220,10 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         AndroidUtilities.cancelRunOnUIThread(stopAnimatingBgRunnable);
         if (currentState == VoIPService.STATE_ESTABLISHED) {
             AndroidUtilities.runOnUIThread(stopAnimatingBgRunnable, 10000);
+        }
+
+        if (pipSource != null) {
+            pipSource.invalidateActions();
         }
     }
 
@@ -3050,6 +3068,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
 
     private VoIPTextureView pipTextureView;
+    private Runnable firstFrameCallback;
     private boolean windowViewSkipRender;
 
     @Override
@@ -3073,13 +3092,34 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         pipTextureView.renderer.setEnableHardwareScaler(true);
         pipTextureView.renderer.setRotateTextureWithScreen(true);
         pipTextureView.scaleType = VoIPTextureView.SCALE_TYPE_FIT;
-        pipTextureView.renderer.init(VideoCapturerDevice.getEglBase().getEglBaseContext(), null);
+        pipTextureView.renderer.init(VideoCapturerDevice.getEglBase().getEglBaseContext(), new RendererCommon.RendererEvents() {
+            @Override
+            public void onFirstFrameRendered() {
+                if (firstFrameCallback != null) {
+                    firstFrameCallback.run();
+                    firstFrameCallback = null;
+                }
+            }
+
+            @Override
+            public void onFrameResolutionChanged(int videoWidth, int videoHeight, int rotation) {
+
+            }
+        });
+        if (pipTextureView.backgroundView != null) {
+            pipTextureView.backgroundView.setVisibility(View.GONE);
+        }
 
         return pipTextureView;
     }
 
     @Override
     public void pipHidePrimaryWindowView(Runnable firstFrameCallback) {
+        this.firstFrameCallback = firstFrameCallback;
+        if (callingUserTextureView != null) {
+            callingUserTextureView.renderer.clearFirstFrame();
+        }
+
         windowViewSkipRender = true;
         updateViewState();
 
@@ -3099,6 +3139,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
     @Override
     public void pipShowPrimaryWindowView(Runnable firstFrameCallback) {
+        this.firstFrameCallback = firstFrameCallback;
         WindowManager wm = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
         wm.addView(windowView, windowView.createWindowLayoutParams());
 
@@ -3111,4 +3152,59 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             pipTextureView = null;
         }
     }
+
+    /*
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    @Override
+    public void pipCreateActionsList(ArrayList<RemoteAction> output, String sourceId, int maxActions) {
+        Log.i("WTF_DEBUG", "pipCreateActionsList " + maxActions);
+
+        final VoIPService serviceInstance = VoIPService.getSharedInstance();
+        if (serviceInstance == null) {
+            return;
+        }
+
+        if (!serviceInstance.isMicMute()) {
+            output.add(PipActions.create(
+                activity,
+                sourceId,
+                42,
+                "title",
+                "descr",
+                Icon.createWithResource(activity, R.drawable.msg_tabs_mic1)
+            ));
+        } else {
+            output.add(PipActions.create(
+                activity,
+                sourceId,
+                43,
+                "title",
+                "descr",
+                Icon.createWithResource(activity, R.drawable.msg_tabs_mic2)
+            ));
+        }
+
+
+    }
+
+    @Override
+    public void onPipAction(int actionId) {
+        Log.i("WTF_DEBUG", "onPipAction " + actionId);
+
+        final VoIPService serviceInstance = VoIPService.getSharedInstance();
+        if (serviceInstance == null) {
+            return;
+        }
+
+        if (actionId == 42) {
+            serviceInstance.setMicMute(true, false, true);
+        } else if (actionId == 43) {
+            serviceInstance.setMicMute(false, false, true);
+        }
+
+        if (pipSource != null) {
+            pipSource.invalidateActions();
+        }
+    }
+    */
 }

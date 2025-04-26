@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.pip.activity.IPipActivityActionListener;
 import org.telegram.messenger.pip.activity.IPipActivityAnimationListener;
 import org.telegram.messenger.pip.activity.IPipActivityHandler;
 import org.telegram.messenger.pip.activity.IPipActivityListener;
@@ -234,5 +235,13 @@ public class PipActivityController {
 
     public void removeAnimationListener(IPipActivityAnimationListener listener) {
         handler.removeAnimationListener(listener);
+    }
+
+    public void addActionListener(String sourceId, IPipActivityActionListener listener) {
+        handler.addActionListener(sourceId, listener);
+    }
+
+    public void removeActionListener(String sourceId, IPipActivityActionListener listener) {
+        handler.removeActionListener(sourceId, listener);
     }
 }

@@ -570,9 +570,6 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
         });
         contentFrameLayout.addView(textureView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
-        final View pipPlaceholderView = new View(context);
-        contentFrameLayout.addView(pipPlaceholderView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-
         flickerView = new View(context) {
             @Override
             protected void onDraw(Canvas canvas) {
@@ -682,7 +679,7 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
                     .setPriority(1)
                     .setCornerRadius(AndroidUtilities.dp(ROUNDED_CORNERS_DP))
                     .setContentView(contentView)
-                    .setPlaceholderView(pipPlaceholderView)
+                    .setPlaceholderView(textureView.getPlaceholderView())
                     .build();
             }
         }
@@ -775,37 +772,6 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
 
 
 
-    /* * */
-
-    /*@Override
-    public View detachContentFromWindow() {
-        controlsView.setVisibility(View.GONE);
-        contentView.setVisibility(View.GONE);
-        contentView.removeView(contentFrameLayout);
-
-        return contentFrameLayout;
-    }
-
-    @Override
-    public void onAttachContentToPip() {
-        bindTextureView(true);
-    }
-
-    @Override
-    public void prepareDetachContentFromPip() {
-
-    }
-
-    @Override
-    public void attachContentToWindow() {
-        contentView.addView(contentFrameLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-        controlsView.setVisibility(View.VISIBLE);
-        contentView.setVisibility(View.VISIBLE);
-
-        bindTextureView(true);
-    }*/
-
-
     private Runnable firstFrameCallback;
     private VoIPTextureView pipTextureView;
     private boolean windowViewSkipRender;
@@ -840,6 +806,9 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
 
             }
         });
+        if (pipTextureView.backgroundView != null) {
+            pipTextureView.backgroundView.setVisibility(View.GONE);
+        }
 
         return pipTextureView;
     }

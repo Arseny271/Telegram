@@ -11,6 +11,7 @@ import android.view.View;
 import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.pip.PipSourceContentView;
 import org.telegram.messenger.pip.PipSource;
@@ -301,6 +302,7 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
     public void onReceiveMaxPriority() {
         source.controller.addPipListener(this);
         source.controller.addAnimationListener(this);
+        source.controller.addActionListener(source.tag, source.actionListener);
     }
 
     public void onLoseMaxPriority() {
@@ -309,5 +311,6 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
         }
         source.controller.removePipListener(this);
         source.controller.removeAnimationListener(this);
+        source.controller.removeActionListener(source.tag, source.actionListener);
     }
 }

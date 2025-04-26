@@ -2,6 +2,7 @@ package org.telegram.messenger.pip;
 
 import android.app.Activity;
 import android.app.PictureInPictureParams;
+import android.app.RemoteAction;
 import android.graphics.Rect;
 import android.os.Build;
 import android.view.View;
@@ -12,6 +13,7 @@ import com.google.android.exoplayer2.Player;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.pip.activity.IPipActivity;
+import org.telegram.messenger.pip.activity.IPipActivityActionListener;
 import org.telegram.messenger.pip.source.IPipSourceDelegate;
 import org.telegram.messenger.pip.source.PipSourceHandlerState2;
 import org.telegram.messenger.pip.utils.PipPositionObserver;
@@ -19,11 +21,13 @@ import org.telegram.messenger.pip.utils.PipSourceParams;
 import org.telegram.messenger.pip.utils.PipUtils;
 import org.webrtc.TextureViewRenderer;
 
+import java.util.ArrayList;
+
 public class PipSource {
     private static int sourceIdCounter = 0;
     public final int sourceId = sourceIdCounter++;
 
-    public final View placeholderView;
+
     public final PipActivityController controller;
     public final PipSourceHandlerState2 state2;
 
@@ -32,18 +36,23 @@ public class PipSource {
     public final int cornerRadius;
     public final boolean needMediaSession;
 
+    public final IPipActivityActionListener actionListener;
+    private ArrayList<RemoteAction> remoteActions;
+
     public final IPipSourceDelegate delegate;
     public final PipSourceParams params = new PipSourceParams();
 
     private final PipPositionObserver pipPositionObserver = new PipPositionObserver(this::invalidatePosition);
 
     public View contentView;
+    public View placeholderView;
     Player player;
 
     private PipSource(PipActivityController controller, PipSource.Builder builder) {
         this.tag = (builder.tagPrefix != null ? builder.tagPrefix : "pip-source") + "-" + sourceId;
 
         this.delegate = builder.delegate;
+        this.actionListener = builder.actionListener;
         this.priority = builder.priority;
         this.cornerRadius = builder.cornerRadius;
         this.needMediaSession = builder.needMediaSession;
@@ -57,6 +66,7 @@ public class PipSource {
         setContentView(builder.contentView);
 
         checkAvailable(false);
+        invalidateActions();
         controller.dispatchSourceRegister(this);
     }
 
@@ -72,6 +82,10 @@ public class PipSource {
         if (this.contentView != null) {
             updateContentPosition(this.contentView);
         }
+    }
+
+    public void setPlaceholderView(View placeholderView) {
+        this.placeholderView = placeholderView;
     }
 
     public void setContentRatio(int width, int height) {
@@ -117,9 +131,18 @@ public class PipSource {
         }
     }
 
+    public void invalidateActions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && actionListener != null) {
+            remoteActions = new ArrayList<>();
+            delegate.pipCreateActionsList(remoteActions, tag, controller.activity.getMaxNumPictureInPictureActions());
+            controller.dispatchSourceParamsChanged(this);
+        }
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.O)
     public PictureInPictureParams buildPictureInPictureParams() {
         PictureInPictureParams.Builder builder = params.build();
+        builder.setActions(remoteActions);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setAutoEnterEnabled(PipUtils.useAutoEnterInPictureInPictureMode());
             //builder.setSeamlessResizeEnabled(true);
@@ -157,6 +180,7 @@ public class PipSource {
         private final Activity activity;
         private final IPipSourceDelegate delegate;
 
+        private IPipActivityActionListener actionListener;
         private String tagPrefix;
         private int cornerRadius;
         private int priority = 0;
@@ -178,6 +202,11 @@ public class PipSource {
 
         public Builder setPriority(int priority) {
             this.priority = priority;
+            return this;
+        }
+
+        public Builder setActionListener(IPipActivityActionListener actionListener) {
+            this.actionListener = actionListener;
             return this;
         }
 

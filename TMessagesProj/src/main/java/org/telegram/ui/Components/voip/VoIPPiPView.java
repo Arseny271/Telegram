@@ -49,6 +49,7 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.VoIPFragment;
 import org.webrtc.RendererCommon;
+import org.webrtc.TextureViewRenderer;
 
 public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegate, NotificationCenter.NotificationCenterDelegate {
 
@@ -162,7 +163,7 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
         wm.addView(instance.windowView, windowLayoutParams);
 
         instance.currentUserTextureView.renderer.init(VideoCapturerDevice.eglBase.getEglBaseContext(), null);
-        instance.callingUserTextureView.renderer.init(VideoCapturerDevice.eglBase.getEglBaseContext(), null);
+        instance.callingUserTextureView.renderer.init(VideoCapturerDevice.eglBase.getEglBaseContext(), instance.rendererEvents);
 
         if (animationType == ANIMATION_ENTER_TYPE_SCALE) {
             instance.windowView.setScaleX(0.5f);
@@ -189,6 +190,7 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
                     .setTagPrefix("voip-pip")
                     .setPriority(1)
                     .setContentView(instance.callingUserTextureView.renderer)
+                    .setPlaceholderView(instance.callingUserTextureView.getPlaceholderView())
                     .build();
             }
         }
@@ -438,6 +440,7 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
                             .setTagPrefix("voip-pip")
                             .setPriority(1)
                             .setContentView(callingUserTextureView.renderer)
+                            .setPlaceholderView(callingUserTextureView.getPlaceholderView())
                             .build();
                 }
             }
@@ -534,6 +537,7 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
 
     private VoIPTextureView pipTextureView;
     private boolean windowViewSkipRender;
+    private Runnable firstFrameCallback;
 
     @Override
     public Bitmap pipCreatePrimaryWindowViewBitmap() {
@@ -551,13 +555,34 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
         pipTextureView.renderer.setEnableHardwareScaler(true);
         pipTextureView.renderer.setRotateTextureWithScreen(true);
         pipTextureView.scaleType = VoIPTextureView.SCALE_TYPE_FIT;
-        pipTextureView.renderer.init(VideoCapturerDevice.getEglBase().getEglBaseContext(), null);
+        pipTextureView.renderer.init(VideoCapturerDevice.getEglBase().getEglBaseContext(), new RendererCommon.RendererEvents() {
+            @Override
+            public void onFirstFrameRendered() {
+                if (firstFrameCallback != null) {
+                    firstFrameCallback.run();
+                    firstFrameCallback = null;
+                }
+            }
+
+            @Override
+            public void onFrameResolutionChanged(int videoWidth, int videoHeight, int rotation) {
+
+            }
+        });
+        if (pipTextureView.backgroundView != null) {
+            pipTextureView.backgroundView.setVisibility(View.GONE);
+        }
 
         return pipTextureView;
     }
 
     @Override
     public void pipHidePrimaryWindowView(Runnable firstFrameCallback) {
+        this.firstFrameCallback = firstFrameCallback;
+        if (callingUserTextureView != null) {
+            callingUserTextureView.renderer.clearFirstFrame();
+        }
+
         if (VoIPService.getSharedInstance() != null) {
             VoIPService.getSharedInstance().setSinks(currentUserTextureView.renderer, pipTextureView.renderer);
         }
@@ -578,6 +603,7 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
 
     @Override
     public void pipShowPrimaryWindowView(Runnable firstFrameCallback) {
+        this.firstFrameCallback = firstFrameCallback;
         windowManager.addView(windowView, windowLayoutParams);
 
         if (pipTextureView != null) {
@@ -921,11 +947,26 @@ public class VoIPPiPView implements VoIPService.StateListener, IPipSourceDelegat
                 return;
             }
             to.currentUserTextureView.renderer.init(VideoCapturerDevice.eglBase.getEglBaseContext(), null);
-            to.callingUserTextureView.renderer.init(VideoCapturerDevice.eglBase.getEglBaseContext(), null);
+            to.callingUserTextureView.renderer.init(VideoCapturerDevice.eglBase.getEglBaseContext(), rendererEvents);
 
             if (VoIPService.getSharedInstance() != null) {
                 VoIPService.getSharedInstance().setSinks(to.currentUserTextureView.renderer, to.callingUserTextureView.renderer);
             }
         }
     }
+
+    private final RendererCommon.RendererEvents rendererEvents = new RendererCommon.RendererEvents() {
+        @Override
+        public void onFirstFrameRendered() {
+            if (firstFrameCallback != null) {
+                firstFrameCallback.run();
+                firstFrameCallback = null;
+            }
+        }
+
+        @Override
+        public void onFrameResolutionChanged(int videoWidth, int videoHeight, int rotation) {
+
+        }
+    };
 }

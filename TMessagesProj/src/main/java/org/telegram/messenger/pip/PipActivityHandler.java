@@ -2,6 +2,10 @@ package org.telegram.messenger.pip;
 
 import android.app.Activity;
 import android.app.PictureInPictureParams;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.util.Log;
@@ -11,17 +15,21 @@ import androidx.annotation.NonNull;
 import androidx.core.math.MathUtils;
 
 import org.telegram.messenger.pip.activity.IPipActivity;
+import org.telegram.messenger.pip.activity.IPipActivityActionListener;
 import org.telegram.messenger.pip.activity.IPipActivityAnimationListener;
 import org.telegram.messenger.pip.activity.IPipActivityHandler;
 import org.telegram.messenger.pip.activity.IPipActivityListener;
+import org.telegram.messenger.pip.utils.PipActions;
 import org.telegram.messenger.pip.utils.PipDuration;
 import org.telegram.messenger.pip.utils.PipUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 class PipActivityHandler implements IPipActivityHandler {
     private final ArrayList<IPipActivityListener> listeners = new ArrayList<>();
     private final ArrayList<IPipActivityAnimationListener> animationListeners = new ArrayList<>();
+    private final HashMap<String, ArrayList<IPipActivityActionListener>> actionListeners = new HashMap<>();
 
     private final Activity activity;
 
@@ -44,6 +52,27 @@ class PipActivityHandler implements IPipActivityHandler {
     void removeAnimationListener(IPipActivityAnimationListener listener) {
         animationListeners.remove(listener);
     }
+
+    void addActionListener(String sourceId, IPipActivityActionListener listener) {
+        ArrayList<IPipActivityActionListener> listeners = actionListeners.get(sourceId);
+        if (listeners == null) {
+            listeners = new ArrayList<>();
+            actionListeners.put(sourceId, listeners);
+        }
+        listeners.add(listener);
+    }
+
+    void removeActionListener(String sourceId, IPipActivityActionListener listener) {
+        ArrayList<IPipActivityActionListener> listeners = actionListeners.get(sourceId);
+        if (listeners == null) {
+            return;
+        }
+        listeners.remove(listener);
+        if (listeners.isEmpty()) {
+            actionListeners.remove(sourceId);
+        }
+    }
+
 
 
     /* Activity lifecycle */
@@ -68,6 +97,13 @@ class PipActivityHandler implements IPipActivityHandler {
     public void onStart() {
         Log.i(PipUtils.TAG, "[Activity] onStart");
         isActivityStarted = true;
+
+        IntentFilter filter = new IntentFilter(PipActions.ACTION);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            activity.registerReceiver(broadcastReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            activity.registerReceiver(broadcastReceiver, filter);
+        }
     }
 
     @Override
@@ -98,6 +134,7 @@ class PipActivityHandler implements IPipActivityHandler {
         if (isInPictureInPictureModeInternal) {
             dispatchStartExitPip(true);
         }
+        activity.unregisterReceiver(broadcastReceiver);
     }
 
     @Override
@@ -253,6 +290,17 @@ class PipActivityHandler implements IPipActivityHandler {
         }
     }
 
+    private void dispatchAction(String sourceId, int actionId) {
+        final ArrayList<IPipActivityActionListener> listeners = actionListeners.get(sourceId);
+        if (listeners == null) {
+            return;
+        }
+
+        for (IPipActivityActionListener listener: listeners) {
+            listener.onPipAction(actionId);
+        }
+    }
+
 
 
 
@@ -295,4 +343,19 @@ class PipActivityHandler implements IPipActivityHandler {
 
         choreographer.postFrameCallback(callback);
     }
+
+
+
+    /* Actions */
+
+    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (PipActions.isPipIntent(intent)) {
+                final String sourceId = PipActions.getSourceId(intent);
+                final int actionId = PipActions.getActionId(intent);
+                dispatchAction(sourceId, actionId);
+            }
+        }
+    };
 }

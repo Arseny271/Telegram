@@ -10750,7 +10750,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             aspectRatioFrameLayout.addView(flashView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.CENTER));
         }
         if (pipSource != null) {
-            pipSource.setContentView(pipPlaceholderView);
+            pipSource.setContentView(aspectRatioFrameLayout);
+            pipSource.setPlaceholderView(pipPlaceholderView);
         }
     }
 
