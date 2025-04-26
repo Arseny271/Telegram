@@ -3157,8 +3157,6 @@ public class VoIPFragment implements VoIPService.StateListener,
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void pipCreateActionsList(ArrayList<RemoteAction> output, String sourceId, int maxActions) {
-        Log.i("WTF_DEBUG", "pipCreateActionsList " + maxActions);
-
         final VoIPService serviceInstance = VoIPService.getSharedInstance();
         if (serviceInstance == null) {
             return;
@@ -3189,8 +3187,6 @@ public class VoIPFragment implements VoIPService.StateListener,
 
     @Override
     public void onPipAction(int actionId) {
-        Log.i("WTF_DEBUG", "onPipAction " + actionId);
-
         final VoIPService serviceInstance = VoIPService.getSharedInstance();
         if (serviceInstance == null) {
             return;

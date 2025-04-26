@@ -1630,34 +1630,28 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private TextureView.SurfaceTextureListener surfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-            Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureAvailable " + surface + " " + width + " " + height);
+
         }
 
         @Override
         public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-            Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureSizeChanged " + surface + " " + width + " " + height);
+
         }
 
         @Override
         public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-            Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed " + surface);
-
             if (videoTextureView == null) {
-                Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed true videoTextureView == null");
                 return true;
             }
 
-            /* unsafe part - todo: test */
             if (PipVideoOverlay.isVisible() && PipVideoOverlay.getPipSource() != null) {
                 if (PipVideoOverlay.getPipSource().state2.isAttachedToPip()) {
                     PipVideoOverlay.getPipTextureView().setSurfaceTexture(surface);
                     PipVideoOverlay.getPipTextureView().setVisibility(View.VISIBLE);
-                    Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed false savedSurfaceTexture");
 
                     return false;
                 }
             }
-            /* unsafe part end */
 
             if (changingTextureView) {
                 if (switchingInlineMode) {
@@ -1667,10 +1661,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 videoTextureView.setVisibility(View.VISIBLE);
                 changingTextureView = false;
                 containerView.invalidate();
-                Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed false changingTextureView");
                 return false;
             }
-            Log.i("WTF_DEBUG", "changedTextureView onSurfaceTextureDestroyed true");
             return true;
         }
 
@@ -10425,19 +10417,13 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
                 @Override
                 public boolean onSurfaceDestroyed(SurfaceTexture surfaceTexture) {
-                    /* unsafe part - todo: test */
-                    Log.i("WTF_DEBUG", "videoPlayer onSurfaceDestroyed " + surfaceTexture);
-
                     if (PipVideoOverlay.getPipSource() != null && PipVideoOverlay.getPipSource().state2.isAttachedToPip()) {
                         if (changedTextureView != null && changedTextureView.getSurfaceTexture() == surfaceTexture) {
                             PipVideoOverlay.getPipTextureView().setSurfaceTexture(surfaceTexture);
                             PipVideoOverlay.getPipTextureView().setVisibility(View.VISIBLE);
-                            Log.i("WTF_DEBUG", "videoPlayer onSurfaceDestroyed send surface to pip false");
                             return true;
                         }
                     }
-
-                    /* unsafe part end */
 
                     if (changingTextureView) {
                         changingTextureView = false;
@@ -10446,11 +10432,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                             changedTextureView.setSurfaceTexture(surfaceTexture);
                             changedTextureView.setSurfaceTextureListener(surfaceTextureListener);
                             changedTextureView.setVisibility(View.VISIBLE);
-                            Log.i("WTF_DEBUG", "videoPlayer onSurfaceDestroyed changingTextureView && isInline false");
                             return true;
                         }
                     }
-                    Log.i("WTF_DEBUG", "videoPlayer onSurfaceDestroyed true");
+
                     return false;
                 }
 
