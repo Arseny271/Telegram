@@ -58,7 +58,7 @@ public class PipUtils {
     }
 
     public static boolean useAutoEnterInPictureInPictureMode() {
-        return false; // Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
     }
 
     public static void applyPictureInPictureParams(Activity activity, PipSource source) {

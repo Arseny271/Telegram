@@ -840,6 +840,11 @@ public class RTMPStreamPipOverlay implements NotificationCenter.NotificationCent
     public void pipShowPrimaryWindowView(Runnable firstFrameCallback) {
         this.firstFrameCallback = firstFrameCallback;
 
+        if (pipSource != null && pipSource.params.isValid()) {
+            windowLayoutParams.width = pipWidth = pipSource.params.getWidth();
+            windowLayoutParams.height = pipHeight = pipSource.params.getHeight();
+        }
+
         windowViewSkipRender = false;
         windowManager.addView(contentView, windowLayoutParams);
         contentView.invalidate();

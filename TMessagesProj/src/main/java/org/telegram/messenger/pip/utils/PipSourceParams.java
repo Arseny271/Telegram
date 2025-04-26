@@ -65,6 +65,14 @@ public class PipSourceParams {
         outRect.set(position);
     }
 
+    public int getWidth() {
+        return position.width();
+    }
+
+    public int getHeight() {
+        return position.height();
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.O)
     public PictureInPictureParams.Builder build() {
         final PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder();

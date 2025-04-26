@@ -14,6 +14,7 @@ import android.view.Choreographer;
 import androidx.annotation.NonNull;
 import androidx.core.math.MathUtils;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.pip.activity.IPipActivity;
 import org.telegram.messenger.pip.activity.IPipActivityActionListener;
 import org.telegram.messenger.pip.activity.IPipActivityAnimationListener;
@@ -119,7 +120,7 @@ class PipActivityHandler implements IPipActivityHandler {
     public void onPause() {
         Log.i(PipUtils.TAG, "[Activity] onPause");
 
-        if (hasContentForPictureInPictureMode()) {
+        if (AndroidUtilities.isInPictureInPictureMode(activity) && hasContentForPictureInPictureMode()) {
             if (PipUtils.useAutoEnterInPictureInPictureMode()) {
                 dispatchStartEnterPip();
             }
