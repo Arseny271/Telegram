@@ -1376,6 +1376,13 @@ public class PipVideoOverlay implements IPipSourceDelegate {
 
     @Override
     public void pipShowPrimaryWindowView(Runnable firstFrameCallback) {
+        scaleFactor = getPipConfig().getScaleFactor();
+        pipWidth = (int) (getSuggestedWidth() * scaleFactor);
+        pipHeight = (int) (getSuggestedHeight() * scaleFactor);
+
+        windowLayoutParams.width = pipWidth;
+        windowLayoutParams.height = pipHeight;
+
         windowManager.addView(contentView, windowLayoutParams);
         windowViewSkipRender = false;
         contentView.invalidate();

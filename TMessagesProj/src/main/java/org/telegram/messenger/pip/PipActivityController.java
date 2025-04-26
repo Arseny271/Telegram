@@ -125,15 +125,6 @@ public class PipActivityController {
             maxPrioritySource = newSource;
             onMaxPrioritySourceChanged(oldSource, newSource);
         }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(sources.size());
-        for (String s : sources.keySet()) {
-            sb.append(" ");
-            sb.append(s);
-        }
-
-        Log.i("WTF_DEBUG", "[pizdotto] " + sb);
     }
 
     private void onMaxPrioritySourceChanged(PipSource oldSource, PipSource newSource) {

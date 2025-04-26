@@ -123,9 +123,8 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
 
         // wait render activity placeholder
         pictureInPictureWrapperView.invalidate();
-        AndroidUtilities.doOnPreDraw(pictureInPictureView, () -> {
-            AndroidUtilities.runOnUIThread(this::performAttach);
-        }, 300);
+        AndroidUtilities.doOnPreDraw(pictureInPictureView, Trigger.run(t ->
+                AndroidUtilities.runOnUIThread(this::performAttach), 300));
 
         Log.i("PIP_DEBUG", "[HANDLER] pre attach end");
     }
@@ -159,9 +158,8 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
         pictureInPictureView = null;
 
         // wait render activity placeholder
-        AndroidUtilities.doOnPreDraw(pictureInPictureWrapperView, () -> {
-            AndroidUtilities.runOnUIThread(this::performPreDetach2);
-        }, 300);
+        AndroidUtilities.doOnPreDraw(pictureInPictureWrapperView, Trigger.run(t ->
+            AndroidUtilities.runOnUIThread(this::performPreDetach2), 300));
 
         Log.i("PIP_DEBUG", "[HANDLER] pre detach 1");
     }
@@ -179,9 +177,8 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
         state = STATE_PRE_DETACHED_2;
 
         // wait first render window
-        AndroidUtilities.doOnPreDraw(source.contentView, () -> {
-            AndroidUtilities.runOnUIThread(this::performDetach);
-        }, 300);
+        AndroidUtilities.doOnPreDraw(source.contentView, Trigger.run(t ->
+            AndroidUtilities.runOnUIThread(this::performDetach), 300));
 
         Log.i("PIP_DEBUG", "[HANDLER] pre detach 2");
     }

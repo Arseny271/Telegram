@@ -6490,36 +6490,21 @@ public class AndroidUtilities {
         }
     }
 
-    public static void doOnPreDraw(@NonNull View view, @NonNull Runnable action, long timeoutMs) {
+    public static void doOnPreDraw(@NonNull View view, @NonNull Runnable action) {
         final ViewTreeObserver observer = view.getViewTreeObserver();
 
         ViewTreeObserver.OnPreDrawListener[] listenerHolder = new ViewTreeObserver.OnPreDrawListener[1];
-        Runnable[] timeoutRunnable = new Runnable[1];
         boolean[] completed = new boolean[1];
-
         listenerHolder[0] = () -> {
             if (observer.isAlive()) {
                 observer.removeOnPreDrawListener(listenerHolder[0]);
             }
-            AndroidUtilities.cancelRunOnUIThread(timeoutRunnable[0]);
             if (!completed[0]) {
                 completed[0] = true;
                 action.run();
             }
             return true;
         };
-
-        timeoutRunnable[0] = () -> {
-            if (observer.isAlive()) {
-                observer.removeOnPreDrawListener(listenerHolder[0]);
-            }
-            if (!completed[0]) {
-                completed[0] = true;
-                action.run();
-            }
-        };
-
         observer.addOnPreDrawListener(listenerHolder[0]);
-        AndroidUtilities.runOnUIThread(timeoutRunnable[0], timeoutMs);
     }
 }
