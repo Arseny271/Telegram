@@ -307,8 +307,8 @@ class PipActivityHandler implements IPipActivityHandler {
 
     /* Frame Callback */
 
-    private final PipDuration durationEnter = new PipDuration();
-    private final PipDuration durationLeave = new PipDuration();
+    private final PipDuration durationEnter = new PipDuration("enter");
+    private final PipDuration durationLeave = new PipDuration("leave");
 
     private final Choreographer choreographer = Choreographer.getInstance();
     private final Choreographer.FrameCallback callback = this::onFrameInternal;

@@ -93,7 +93,7 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
 
     private void performPreAttach() {
         if (state != STATE_DETACHED) {
-            throw new IllegalStateException("wtf");
+            throw new IllegalStateException("wrong pip state");
         }
 
         source.params.getPosition(positionSource);
@@ -132,7 +132,7 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
 
     private void performAttach() {
         if (state != STATE_PRE_ATTACHED) {
-            throw new IllegalStateException("wtf");
+            throw new IllegalStateException("wrong pip state");
         }
 
         Log.i("PIP_DEBUG", "[HANDLER] attach");
@@ -148,7 +148,7 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
 
     private void performPreDetach1() {
         if (state != STATE_ATTACHED) {
-            throw new IllegalStateException("wtf");
+            throw new IllegalStateException("wrong pip state");
         }
 
         pipSourcePlaceholder.setPlaceholder(source.delegate.pipCreatePictureInPictureViewBitmap());
@@ -167,7 +167,7 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
 
     private void performPreDetach2() {
         if (state != STATE_PRE_DETACHED_1) {
-            throw new IllegalStateException("wtf");
+            throw new IllegalStateException("wrong pip state");
         }
 
         source.delegate.pipShowPrimaryWindowView(Trigger.run(timeout -> {
@@ -186,7 +186,7 @@ public class PipSourceHandlerState2 implements IPipActivityListener, IPipActivit
 
     private void performDetach() {
         if (state != STATE_PRE_DETACHED_2) {
-            throw new IllegalStateException("wtf");
+            throw new IllegalStateException("wrong pip state");
         }
 
         source.controller.getPipContentView()
